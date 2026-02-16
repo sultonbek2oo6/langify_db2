@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>English Learning Platform</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ================= REGISTER ================= -->
+<div class="register-page" id="registerPage">
+    <div class="login-card">
+        <h2>Create Account</h2>
+        <p>Register to start your IELTS journey</p>
+
+        <input type="text" id="registerUsername" placeholder="Username">
+        <input type="email" id="registerEmail" placeholder="Email">
+        <input type="password" id="registerPassword" placeholder="Password">
+
+        <button onclick="goMain()">Register</button>
+
+        <p class="switch">
+            Already have an account?
+            <span onclick="goLogin()">Login</span>
+        </p>
+    </div>
+</div>
+
+<!-- ================= LOGIN ================= -->
+<div class="login-page" id="loginPage" style="display:none;">
+    <div class="login-card">
+        <h2>Welcome Back</h2>
+        <p>Sign in to continue your IELTS preparation journey</p>
+
+        <input type="email" id="loginEmail" placeholder="Email">
+        <input type="password" id="loginPassword" placeholder="Password">
+
+        <button onclick="login()">Sign In</button>
+
+        <p class="switch">
+            <span onclick="openForgot()">Forgot password?</span>
+        </p>
+
+        <!-- ================= SOCIAL LOGIN (SVG) ================= -->
+        <div class="social-login">
+
+            <button class="google-btn" onclick="loginWithGoogle()">
+                <svg width="20" height="20" viewBox="0 0 48 48">
+                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.7 1.22 9.2 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.50 24 9.5z"/>
+                    <path fill="#4285F4" d="M46.1 24.5c0-1.70-.15-3.35-.43-4.95H24v9.38h12.4c-.54 2.90-2.17 5.36-4.60 7.02l7.05 5.48C42.9 37.50 46.1 31.50 46.1 24.5z"/>
+                    <path fill="#FBBC05" d="M10.54 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88 .92 7.54 2.56 10.78l7.98-6.19z"/>
+                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.14 15.90-5.80l-7.05-5.48c-1.96 1.32-4.47 2.10-8.85 2.10-6.26 0-11.57-4.22-13.46-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                </svg>
+                <span>Sign in with Google</span>
+            </button>
+
+            <button class="apple-btn" onclick="loginWithApple()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                    <path d="M16.365 1.43c0 1.14-.49 2.25-1.29 3.12-.83.90-2.20 1.60-3.47 1.50-.16-1.10.47-2.28 1.26-3.16.86-.93 2.33-1.60 3.50-1.46z"/>
+                    <path d="M20.52 17.54c-.58 1.34-.86 1.93-1.61 3.10-1.05 1.62-2.52 3.63-4.35 3.65-1.63.02-2.05-1.05-4.25-1.05s-2.68 1.03-4.28 1.07c-1.82.04-3.20-1.84-4.25-3.45-2.34-3.60-2.60-7.83-1.14-10.08 1.05-1.60 2.70-2.54 4.22-2.54s2.57 1.07 4.25 1.07c1.62 0 2.60-1.07 4.24-1.07 1.36 0 2.80.75 3.85 2.05-3.40 1.86-2.85 6.72.32 8.25z"/>
+                </svg>
+                <span>Sign in with Apple</span>
+            </button>
+
+        </div>
+
+        <p class="switch">
+            Don’t have an account?
+            <span onclick="goRegister()">Register</span>
+        </p>
+    </div>
+</div>
+
+<!-- ================= FORGOT PASSWORD ================= -->
+<div class="login-page" id="forgotPage" style="display:none;">
+    <div class="login-card">
+        <h2>Reset Password</h2>
+        <p>Enter your email to receive a reset link</p>
+
+        <input type="email" placeholder="Email address">
+        <button onclick="sendReset()">Send Reset Link</button>
+
+        <p class="switch">
+            <span onclick="backToLogin()">Back to login</span>
+        </p>
+    </div>
+</div>
+
+<!-- ================= PRICING ================= -->
+<div class="main-page" id="mainPage" style="display:none;">
+    <div class="pricing-wrapper">
+        <h2>Upgrade Your Plan</h2>
+        <p>Unlock features and improve faster</p>
+
+        <div class="plans">
+            <div class="plan">
+                <h3>Basic</h3>
+                <p class="price">$9 / month</p>
+                <ul>
+                    <li>Vocabulary</li>
+                    <li>Reading & Listening</li>
+                </ul>
+                <button onclick="choosePlan('basic')">Choose Basic</button>
+            </div>
+
+            <div class="plan premium">
+                <h3>Premium</h3>
+                <p class="price">$19 / month</p>
+                <ul>
+                    <li>All Basic</li>
+                    <li>Writing & Speaking</li>
+                </ul>
+                <button onclick="choosePlan('premium')">Get Premium</button>
+            </div>
+
+            <div class="plan">
+                <h3>Pro</h3>
+                <p class="price">$29 / month</p>
+                <ul>
+                    <li>All Features</li>
+                    <li>Mock Tests</li>
+                </ul>
+                <button onclick="choosePlan('pro')">Go Pro</button>
+            </div>
+        </div>
+
+        <p class="skip">
+            Already paid?
+            <span onclick="goDashboard()">Go to Dashboard</span>
+        </p>
+    </div>
+</div>
+
+<!-- ================= DASHBOARD ================= -->
+<div class="dashboard" id="dashboard" style="display:none;">
+
+    <aside class="sidebar">
+        <h3>langify.db</h3>
+
+        <a class="active" data-feature="leaderboard">Leaderboard</a>
+        <a class="feature" data-level="premium" data-feature="writing-check">Writing Check</a>
+        <a class="feature" data-level="basic" data-feature="translation">Translation Practice</a>
+        <a class="feature" data-level="basic" data-feature="lessons">Join My Lessons</a>
+        <a class="feature" data-level="basic" data-feature="students">Student Results</a>
+    </aside>
+
+    <main class="main">
+
+        <div class="top-bar">
+            <h3>Welcome to English Learning Platform!</h3>
+
+            <div class="user-menu">
+                <div class="avatar" onclick="toggleDropdown()">U</div>
+                <div class="dropdown" id="userDropdown">
+                    <p id="userEmail">user@example.com</p>
+                    <button onclick="logout()">Logout</button>
+                </div>
+            </div>
+        </div>
+
+        <h3 class="section-title">The most popular features</h3>
+
+        <div class="feature-buttons">
+            <button class="feature" data-feature="vocabulary" data-level="basic">Learn Vocabulary</button>
+            <button class="feature" data-feature="listening" data-level="basic">Listening Practice</button>
+            <button class="feature" data-feature="reading" data-level="basic">Reading Practice</button>
+            <button class="feature" data-feature="writing" data-level="premium">Writing Practice</button>
+            <button class="feature" data-feature="speaking" data-level="premium">Speaking Practice</button>
+            <button class="feature" data-feature="band9" data-level="pro">Band 9.0 Sample</button>
+            <button class="feature" data-feature="mock" data-level="pro">Full Mock Test</button>
+        </div>
+
+        <div class="feature-content" id="featureContent">
+            <h3 id="featureTitle">Select a feature</h3>
+            <div id="featureBody">
+                <p>Please choose a feature to start learning 🚀</p>
+            </div>
+        </div>
+
+        <h3 class="section-title">Student Success Stories</h3>
+        <div class="results">
+            <div class="result-card">
+                <div class="result-avatar">A</div>
+                <h4>Ali Khan</h4>
+                <p>IELTS 7.5</p>
+                <span>Premium user</span>
+            </div>
+            <div class="result-card">
+                <div class="result-avatar">S</div>
+                <h4>Sara Lee</h4>
+                <p>IELTS 8.0</p>
+                <span>Pro user</span>
+            </div>
+            <div class="result-card">
+                <div class="result-avatar">J</div>
+                <h4>John Smith</h4>
+                <p>IELTS 7.0</p>
+                <span>Basic user</span>
+            </div>
+        </div>
+
+    </main>
+</div>
+<!-- ================= LISTENING PAGE ================= -->
+
+<div id="listeningPage" class="page" style="display:none;">
+
+    <div class="page-header">
+        <button onclick="showPage(pages.dashboard)">⬅ Back</button>
+        <h1>🎧 IELTS Listening Tests</h1>
+        <p>Authentic audio materials with native speakers</p>
+    </div>
+
+    <div class="listening-layout">
+
+        <aside class="filter-sidebar">
+            <h3>Filter Tests</h3>
+            <ul>
+                <li class="active">All Tests</li>
+                <li>IELTS Trainer 1</li>
+                <li>IELTS Trainer 2</li>
+                <li>Premium Tests</li>
+            </ul>
+        </aside>
+
+        <div class="tests-grid">
+
+            <div class="test-card">
+                <span class="badge free">Free</span>
+                <h4>IELTS Trainer 1 - Test 1</h4>
+                <button>Start</button>
+            </div>
+
+            <div class="test-card">
+                <span class="badge free">Free</span>
+                <h4>IELTS Trainer 1 - Test 2</h4>
+                <button>Start</button>
+            </div>
+
+            <div class="test-card premium">
+                <span class="badge premium">Premium</span>
+                <h4>IELTS Trainer 2 - Test 1</h4>
+                <button>Start</button>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+
+<script src="index.js"></script>
+</body>
+</html>
