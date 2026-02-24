@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <title>English Learning Platform</title>
     <link rel="stylesheet" href="style.css">
+
+    <!-- ✅ Google Identity Services (GSI) for email verification -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -16,6 +19,12 @@
         <input type="text" id="registerUsername" placeholder="Username">
         <input type="email" id="registerEmail" placeholder="Email">
         <input type="password" id="registerPassword" placeholder="Password">
+
+        <!-- ✅ NEW: Google Verify (emailni tasdiqlash) -->
+        <div style="margin: 12px 0;">
+            <div id="googleVerifyBtn"></div>
+            <small id="googleVerifyStatus" style="display:block;margin-top:6px;"></small>
+        </div>
 
         <button onclick="goMain()">Register</button>
 
@@ -202,8 +211,8 @@
 
     </main>
 </div>
-<!-- ================= LISTENING PAGE ================= -->
 
+<!-- ================= LISTENING PAGE ================= -->
 <div id="listeningPage" class="page" style="display:none;">
 
     <div class="page-header">
@@ -274,7 +283,6 @@
     </div>
 
 </div>
-
 
 <script src="index.js"></script>
 </body>

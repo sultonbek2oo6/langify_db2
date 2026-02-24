@@ -188,6 +188,48 @@ app.put("/admin/users/:id/role",
   }
 );
 
+/* ================= GOOGLE EMAIL VERIFY ================= */
+
+const { OAuth2Client } = require("google-auth-library");
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+app.post("/api/auth/google-verify", async (req, res) => {
+
+  try {
+
+    const { idToken } = req.body;
+
+    const ticket = await client.verifyIdToken({
+
+      idToken,
+
+      audience: process.env.GOOGLE_CLIENT_ID,
+
+    });
+
+    const payload = ticket.getPayload();
+
+    res.json({
+
+      email: payload.email,
+
+      email_verified: payload.email_verified
+
+    });
+
+  } catch (err) {
+
+    res.status(400).json({
+
+      message: "Google verify failed"
+
+    });
+
+  }
+
+});
+
 /* ================= START SERVER ================= */
 
 const port = process.env.PORT || 3000;

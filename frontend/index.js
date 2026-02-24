@@ -8,6 +8,77 @@ const pages = {
   listening: document.getElementById("listeningPage")
 };
 
+/* ================= GOOGLE VERIFY (NEW) ================= */
+/**
+ * Maqsad:
+ * - User registerdan oldin Google orqali emailini tasdiqlaydi
+ * - Backend /api/auth/google-verify ga ID token yuboriladi
+ */
+const GOOGLE_VERIFY = {
+  idToken: null,
+  email: null,
+  verified: false
+};
+
+const GOOGLE_CLIENT_ID = "1081668585971-ee2gmg3f7rvjsf0g2nnfcqgvkpvdnsg3.apps.googleusercontent.com";
+
+function setGoogleVerifyStatus(msg, ok = false) {
+  const el = document.getElementById("googleVerifyStatus");
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = ok ? "green" : "crimson";
+}
+
+function resetGoogleVerify() {
+  GOOGLE_VERIFY.idToken = null;
+  GOOGLE_VERIFY.email = null;
+  GOOGLE_VERIFY.verified = false;
+  setGoogleVerifyStatus("Google verify qilinmagan");
+}
+
+function initGoogleVerifyButton() {
+  const btnWrap = document.getElementById("googleVerifyBtn");
+  if (!btnWrap) return;
+
+  // Google script yuklanmagan bo‘lsa
+  if (!window.google?.accounts?.id) {
+    setGoogleVerifyStatus("Google script yuklanmadi. (gsi/client) qo‘shilganini tekshiring.");
+    return;
+  }
+
+  // Client ID qo‘yilmagan bo‘lsa
+  if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.includes("PASTE_YOUR")) {
+    setGoogleVerifyStatus("GOOGLE_CLIENT_ID qo‘yilmagan. index.js dagi GOOGLE_CLIENT_ID ni to‘ldiring.");
+    return;
+  }
+
+  // qayta render bo‘lganda button ko‘payib ketmasin
+  btnWrap.innerHTML = "";
+
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: (response) => {
+      GOOGLE_VERIFY.idToken = response?.credential || null;
+      GOOGLE_VERIFY.verified = !!GOOGLE_VERIFY.idToken;
+      GOOGLE_VERIFY.email = null; // emailni backend verify qaytaradi
+      if (GOOGLE_VERIFY.idToken) {
+        setGoogleVerifyStatus("✅ Google token olindi. Endi Register bosing.", true);
+      } else {
+        setGoogleVerifyStatus("❌ Google token olinmadi.");
+      }
+    }
+  });
+
+  // tugma chizish
+  google.accounts.id.renderButton(btnWrap, {
+    theme: "outline",
+    size: "large",
+    text: "continue_with"
+  });
+
+  setGoogleVerifyStatus("Google orqali emailni tasdiqlang (Verify).");
+}
+
 /* ================= PAGE CONTROLLER ================= */
 function hideAllPages() {
   Object.values(pages).forEach(page => {
@@ -41,6 +112,12 @@ function showPage(page, display = "flex") {
   if (page === pages.main) {
     initFeatureClick();
   }
+
+  // ✅ Register page ochilganda Google verify holatini tozalaymiz va tugmani chizamiz
+  if (page === pages.register) {
+    resetGoogleVerify();
+    initGoogleVerifyButton();
+  }
 }
 
 /* ================= INIT ================= */
@@ -69,6 +146,8 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   initFeatureClick();
+
+  // Google script yuklangan bo‘lsa, register page ochilganda init bo‘ladi.
 });
 
 /* ================= AUTH ================= */
@@ -86,7 +165,41 @@ async function goMain() {
     return;
   }
 
+  // ✅ Google verify majburiy
+  if (!GOOGLE_VERIFY.idToken) {
+    alert("Avval Google orqali emailni tasdiqlang (Verify with Google).");
+    return;
+  }
+
   try {
+    // 1) backendda token verify qilamiz
+    const verifyRes = await fetch("http://localhost:3000/api/auth/google-verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken: GOOGLE_VERIFY.idToken })
+    });
+
+    const v = await verifyRes.json();
+
+    if (!verifyRes.ok) {
+      alert(v?.message || "Google verify failed");
+      return;
+    }
+
+    if (!v.email_verified) {
+      alert("Bu email Google tomonidan tasdiqlanmagan (email_verified=false).");
+      return;
+    }
+
+    const googleEmail = String(v.email || "").toLowerCase();
+    const formEmail = String(email || "").toLowerCase();
+
+    if (!googleEmail || googleEmail !== formEmail) {
+      alert(`Email mos emas!\nGoogle: ${googleEmail}\nSiz kiritgan: ${formEmail}`);
+      return;
+    }
+
+    // 2) Endi register qilamiz
     const res = await fetch("http://localhost:3000/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -100,9 +213,14 @@ async function goMain() {
       return;
     }
 
-    alert("Register muvaffaqiyatli!");
+    alert("Register muvaffaqiyatli! Endi login qiling.");
+
+    // verify tokenni bir martalik qilib tozalaymiz
+    resetGoogleVerify();
+
     showPage(pages.login);
-  } catch {
+  } catch (e) {
+    console.error(e);
     alert("Server bilan bog‘lanib bo‘lmadi");
   }
 }
