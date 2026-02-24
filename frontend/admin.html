@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Panel • langify.db</title>
+
+  <!-- Sening asosiy style.css -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Admin panel uchun qo‘shimcha dizayn -->
+  <link rel="stylesheet" href="admin.css" />
+
+  <script defer src="admin.js"></script>
+</head>
+<body>
+
+  <div class="admin-shell">
+    <!-- Left sidebar (dashboardga o‘xshash) -->
+    <aside class="admin-sidebar">
+      <h3>langify.db</h3>
+
+      <a class="active" id="navUsers">Users</a>
+      <a id="navPayments">Payments</a>
+      <a id="navSettings">Settings</a>
+
+      <div class="admin-sidebar-hint">
+        <p>Admin tools</p>
+        <small>Role • Plan • Delete</small>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="admin-main">
+      <div class="admin-topbar">
+        <div>
+          <h2 class="admin-title">Admin Panel</h2>
+          <p class="admin-subtitle">Userlarni boshqarish: role / plan / delete</p>
+        </div>
+
+        <div class="admin-top-actions">
+          <button class="admin-btn admin-btn-ghost" id="backBtn">⬅ Dashboard</button>
+          <button class="admin-btn admin-btn-danger" id="logoutBtn">Logout</button>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="admin-card admin-controls">
+        <div class="admin-controls-left">
+          <div class="admin-search">
+            <input id="searchInput" type="text" placeholder="Search: id/email/username..." />
+            <span class="admin-search-icon">⌕</span>
+            </div>
+
+            <button class="admin-btn admin-btn-primary" id="searchBtn">Pusk</button>
+
+          <select id="filterPlan">
+            <option value="all">All plans</option>
+            <option value="free">Free</option>
+            <option value="premium">Premium</option>
+            <option value="pro">Pro</option>
+          </select>
+
+          <select id="filterRole">
+            <option value="all">All roles</option>
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+
+        <div class="admin-controls-right">
+          <button class="admin-btn admin-btn-primary" id="refreshBtn">Refresh</button>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="admin-card admin-table-wrap">
+        <div class="admin-table-header">
+          <div class="admin-kpis">
+            <div class="kpi">
+              <span class="kpi-label">Total</span>
+              <span class="kpi-value" id="kpiTotal">0</span>
+            </div>
+            <div class="kpi">
+              <span class="kpi-label">Premium</span>
+              <span class="kpi-value" id="kpiPremium">0</span>
+            </div>
+            <div class="kpi">
+              <span class="kpi-label">Pro</span>
+              <span class="kpi-value" id="kpiPro">0</span>
+            </div>
+          </div>
+
+          <div class="admin-note">
+            <span class="dot"></span>
+            <span>O‘zgarishlarni **Save** bosib saqlang</span>
+          </div>
+        </div>
+
+        <div class="admin-table-scroll">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th style="width:70px;">ID</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th style="width:220px;">Role</th>
+                <th style="width:240px;">Plan</th>
+                <th style="width:190px;">Created</th>
+                <th style="width:210px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="usersTable">
+              <!-- JS render qiladi -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Toast -->
+      <div class="admin-toast" id="toast" aria-live="polite"></div>
+
+      <!-- Confirm Modal -->
+      <div class="admin-modal" id="confirmModal" style="display:none;">
+        <div class="admin-modal-backdrop"></div>
+        <div class="admin-modal-card">
+          <h3>Confirm</h3>
+          <p id="confirmText">Are you sure?</p>
+          <div class="admin-modal-actions">
+            <button class="admin-btn admin-btn-ghost" id="confirmCancel">Cancel</button>
+            <button class="admin-btn admin-btn-danger" id="confirmOk">Delete</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+</body>
+</html>
