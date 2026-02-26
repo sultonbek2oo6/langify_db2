@@ -16,7 +16,11 @@ const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey";
 
 /* ================= MIDDLEWARE ================= */
 
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+  })
+);
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "../frontend")));
