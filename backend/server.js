@@ -159,7 +159,15 @@ app.get("/admin/users",
         where.push(`role = ?`);
         params.push(role);
       }
-
+      // ✅ PLAN FILTER
+      const plan = (req.query.plan || "").trim();
+      if (plan) {
+      if (!["free", "premium", "pro"].includes(plan)) {
+      return res.status(400).json({ message: "Plan noto‘g‘ri." });
+      }
+      where.push(`plan = ?`);
+      params.push(plan);
+      }
       const whereSQL = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
       // total count
@@ -173,7 +181,7 @@ app.get("/admin/users",
       // paged data
       const [users] = await pool.query(
         `
-        SELECT id, username, email, role, is_active, created_at
+        SELECT id, username, email, role, plan, is_active, created_at
         FROM users
         ${whereSQL}
         ORDER BY created_at DESC
@@ -262,7 +270,30 @@ app.put("/admin/users/:id/block",
     }
   }
 );
+app.put("/admin/users/:id/plan",
+  authenticateToken,
+  isAdmin,
+  async (req, res) => {
+    try {
+      const { plan } = req.body;
 
+      if (!["free", "premium", "pro"].includes(plan)) {
+        return res.status(400).json({ message: "Plan noto‘g‘ri." });
+      }
+
+      await pool.query(
+        "UPDATE users SET plan = ? WHERE id = ?",
+        [plan, req.params.id]
+      );
+
+      res.json({ message: "Plan yangilandi." });
+
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server xatosi." });
+    }
+  }
+);
 /* ================= GOOGLE EMAIL VERIFY ================= */
 
 const { OAuth2Client } = require("google-auth-library");

@@ -434,3 +434,20 @@
 .admin-mini.delete:active{
   transform: translateY(0px) scale(0.98);
 }
+.admin-mini.block{
+  background: linear-gradient(135deg, #ff9800, #ff4d4d);
+  color:#fff;
+}
+.admin-mini.block:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 12px 25px rgba(255,77,77,0.3);
+}
+
+.admin-mini.unblock{
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color:#fff;
+}
+.admin-mini.unblock:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 12px 25px rgba(40,167,69,0.3);
+}
