@@ -5,10 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Admin Panel • langify.db</title>
 
-  <!-- Sening asosiy style.css -->
   <link rel="stylesheet" href="style.css" />
-
-  <!-- Admin panel uchun qo‘shimcha dizayn -->
   <link rel="stylesheet" href="admin.css" />
 
   <script defer src="admin.js"></script>
@@ -16,7 +13,6 @@
 <body>
 
   <div class="admin-shell">
-    <!-- Left sidebar (dashboardga o‘xshash) -->
     <aside class="admin-sidebar">
       <h3>langify.db</h3>
 
@@ -30,7 +26,6 @@
       </div>
     </aside>
 
-    <!-- Main -->
     <main class="admin-main">
       <div class="admin-topbar">
         <div>
@@ -44,79 +39,124 @@
         </div>
       </div>
 
-      <!-- Controls -->
-      <div class="admin-card admin-controls">
-        <div class="admin-controls-left">
-          <div class="admin-search">
-            <input id="searchInput" type="text" placeholder="Search: id/email/username..." />
-            <span class="admin-search-icon">⌕</span>
+      <!-- ================= USERS SECTION (OLD) ================= -->
+      <section id="usersSection">
+        <div class="admin-card admin-controls">
+          <div class="admin-controls-left">
+            <div class="admin-search">
+              <input id="searchInput" type="text" placeholder="Search: id/email/username..." />
+              <span class="admin-search-icon">⌕</span>
             </div>
 
             <button class="admin-btn admin-btn-primary" id="searchBtn">Pusk</button>
 
-          <select id="filterPlan">
-            <option value="all">All plans</option>
-            <option value="free">Free</option>
-            <option value="premium">Premium</option>
-            <option value="pro">Pro</option>
-          </select>
+            <select id="filterPlan">
+              <option value="all">All plans</option>
+              <option value="free">Free</option>
+              <option value="premium">Premium</option>
+              <option value="pro">Pro</option>
+            </select>
 
-          <select id="filterRole">
-            <option value="all">All roles</option>
-            <option value="user">User</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-
-        <div class="admin-controls-right">
-          <button class="admin-btn admin-btn-primary" id="refreshBtn">Refresh</button>
-        </div>
-      </div>
-
-      <!-- Table -->
-      <div class="admin-card admin-table-wrap">
-        <div class="admin-table-header">
-          <div class="admin-kpis">
-            <div class="kpi">
-              <span class="kpi-label">Total</span>
-              <span class="kpi-value" id="kpiTotal">0</span>
-            </div>
-            <div class="kpi">
-              <span class="kpi-label">Premium</span>
-              <span class="kpi-value" id="kpiPremium">0</span>
-            </div>
-            <div class="kpi">
-              <span class="kpi-label">Pro</span>
-              <span class="kpi-value" id="kpiPro">0</span>
-            </div>
+            <select id="filterRole">
+              <option value="all">All roles</option>
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
           </div>
 
-          <div class="admin-note">
-            <span class="dot"></span>
-            <span>O‘zgarishlarni **Save** bosib saqlang</span>
+          <div class="admin-controls-right">
+            <button class="admin-btn admin-btn-primary" id="refreshBtn">Refresh</button>
           </div>
         </div>
 
-        <div class="admin-table-scroll">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th style="width:70px;">ID</th>
-                <th>Username</th>
-                <th>Email</th>
-                <th style="width:220px;">Role</th>
-                <th style="width:240px;">Plan</th>
-                <th style="width:190px;">Created</th>
-                <th style="width:210px;">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="usersTable">
-              <!-- JS render qiladi -->
-            </tbody>
-          </table>
+        <div class="admin-card admin-table-wrap">
+          <div class="admin-table-header">
+            <div class="admin-kpis">
+              <div class="kpi">
+                <span class="kpi-label">Total</span>
+                <span class="kpi-value" id="kpiTotal">0</span>
+              </div>
+              <div class="kpi">
+                <span class="kpi-label">Premium</span>
+                <span class="kpi-value" id="kpiPremium">0</span>
+              </div>
+              <div class="kpi">
+                <span class="kpi-label">Pro</span>
+                <span class="kpi-value" id="kpiPro">0</span>
+              </div>
+            </div>
+
+            <div class="admin-note">
+              <span class="dot"></span>
+              <span>O‘zgarishlarni **Save** bosib saqlang</span>
+            </div>
+          </div>
+
+          <div class="admin-table-scroll">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th style="width:70px;">ID</th>
+                  <th>Username</th>
+                  <th>Email</th>
+                  <th style="width:220px;">Role</th>
+                  <th style="width:240px;">Plan</th>
+                  <th style="width:190px;">Created</th>
+                  <th style="width:210px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="usersTable">
+                <!-- JS render qiladi -->
+              </tbody>
+            </table>
+          </div>
+          <div id="pagination" class="admin-pagination"></div>
         </div>
-        <div id="pagination" class="admin-pagination"></div>
-      </div>
+      </section>
+
+      <!-- ================= PAYMENTS SECTION (NEW) ================= -->
+      <section id="paymentsSection" style="display:none;">
+        <div class="admin-card admin-controls">
+          <div class="admin-controls-left">
+            <div class="admin-search" style="min-width:240px;">
+              <select id="payStatus" style="width:100%; padding:10px; border-radius:10px;">
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+
+            <button class="admin-btn admin-btn-primary" id="payRefreshBtn">Refresh</button>
+          </div>
+
+          <div class="admin-controls-right">
+            <small style="color:#6b7280;">payment_requests jadvalidan o‘qiydi</small>
+          </div>
+        </div>
+
+        <div class="admin-card admin-table-wrap">
+          <div class="admin-table-scroll">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th style="width:70px;">ID</th>
+                  <th>User</th>
+                  <th>Email</th>
+                  <th style="width:120px;">Plan</th>
+                  <th style="width:120px;">Days</th>
+                  <th style="width:140px;">Amount</th>
+                  <th>Receipt</th>
+                  <th style="width:140px;">Status</th>
+                  <th style="width:220px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="paymentReqTable">
+                <tr><td colspan="9">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
 
       <!-- Toast -->
       <div class="admin-toast" id="toast" aria-live="polite"></div>

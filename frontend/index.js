@@ -3,6 +3,7 @@ const pages = {
   login: document.getElementById("loginPage"),
   register: document.getElementById("registerPage"),
   main: document.getElementById("mainPage"),
+  payment: document.getElementById("paymentPage"), // ✅ NEW: payment page
   dashboard: document.getElementById("dashboard"),
   forgot: document.getElementById("forgotPage"),
   listening: document.getElementById("listeningPage")
@@ -79,6 +80,14 @@ function initGoogleVerifyButton() {
   setGoogleVerifyStatus("Google orqali emailni tasdiqlang (Verify).");
 }
 
+/* ================= ROLE HELPERS (NEW) ================= */
+function getRole() {
+  return localStorage.getItem("role") || "user";
+}
+function isAdminRole() {
+  return getRole() === "admin";
+}
+
 /* ================= PAGE CONTROLLER ================= */
 function hideAllPages() {
   Object.values(pages).forEach(page => {
@@ -99,18 +108,29 @@ function showPage(page, display = "flex") {
     initDashboard();
 
     // ✅ Admin tugma faqat admin bo‘lsa ko‘rinsin
-    const role = localStorage.getItem("role");
     const adminBtn = document.getElementById("adminToggleBtn");
-    if (adminBtn) {
-      adminBtn.style.display = role === "admin" ? "block" : "none";
-    }
+    if (adminBtn) adminBtn.style.display = isAdminRole() ? "block" : "none";
+
+    // ✅ Upgrade tugma faqat user uchun
+    const upgradeBtn = document.getElementById("upgradeBtn");
+    if (upgradeBtn) upgradeBtn.style.display = isAdminRole() ? "none" : "block";
 
     // ✅ Dashboardga kirganda eski admin table qolib ketmasin
     cleanupAdminArtifacts();
   }
 
   if (page === pages.main) {
+    // ✅ Adminlar pricing sahifaga kirmasin (xohlasang)
+    if (isAdminRole()) {
+      showPage(pages.dashboard);
+      return;
+    }
     initFeatureClick();
+  }
+
+  if (page === pages.payment) {
+    // payment page ochilganda hech nima majburiy emas
+    // preparePayment() plan tanlanganda yoki goUpgrade() da chaqiladi
   }
 
   // ✅ Register page ochilganda Google verify holatini tozalaymiz va tugmani chizamiz
@@ -138,7 +158,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
     // oddiy holat
     else {
-      showPage(pages.main);
+      // ✅ ADMIN bo‘lsa darrov dashboard
+      if (isAdminRole()) showPage(pages.dashboard);
+      else showPage(pages.main);
     }
 
   } else {
@@ -146,8 +168,6 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   initFeatureClick();
-
-  // Google script yuklangan bo‘lsa, register page ochilganda init bo‘ladi.
 });
 
 /* ================= AUTH ================= */
@@ -215,9 +235,7 @@ async function goMain() {
 
     alert("Register muvaffaqiyatli! Endi login qiling.");
 
-    // verify tokenni bir martalik qilib tozalaymiz
     resetGoogleVerify();
-
     showPage(pages.login);
   } catch (e) {
     console.error(e);
@@ -254,13 +272,19 @@ async function login() {
     localStorage.setItem("userEmail", email);
     localStorage.setItem("role", data.role);
 
-    if (!localStorage.getItem("plan"))
+    // ✅ User bo‘lsa: plan bo‘lmasa basic
+    if (!localStorage.getItem("plan")) {
       localStorage.setItem("plan", "basic");
+    }
 
-    // ✅ Eski admin izlarini tozalab yuboramiz (agar oldin admin bo‘lib kirib chiqqan bo‘lsa ham)
     cleanupAdminArtifacts();
 
-    showPage(pages.main);
+    // ✅ ADMIN bo‘lsa darrov dashboard, user bo‘lsa pricing
+    if (data.role === "admin") {
+      showPage(pages.dashboard);
+    } else {
+      showPage(pages.main);
+    }
 
   } catch {
     alert("Server bilan bog‘lanib bo‘lmadi");
@@ -269,18 +293,31 @@ async function login() {
 
 /* -------- LOGOUT -------- */
 function logout() {
-  // ✅ DOM ichida admin jadval va dropdown holati qolib ketmasin
   cleanupAdminArtifacts();
-
   localStorage.clear();
   showPage(pages.login);
 }
 
 /* ================= PLAN ================= */
 function choosePlan(plan) {
-  localStorage.setItem("plan", plan);
-  showPage(pages.dashboard);
+  // ✅ Admin plan tanlamaydi
+  if (isAdminRole()) {
+    showPage(pages.dashboard);
+    return;
+  }
+
+  // Basic - darrov dashboard
+  if (plan === "basic") {
+    localStorage.setItem("plan", "basic");
+    showPage(pages.dashboard);
+    return;
+  }
+
+  // Premium/Pro - payment page
+  preparePayment(plan);
+  showPage(pages.payment, "flex");
 }
+
 function goDashboard() { showPage(pages.dashboard); }
 
 /* ================= DASHBOARD ================= */
@@ -313,6 +350,12 @@ const accessControl = {
 
 /* ================= FEATURE LOCK ================= */
 function applyFeatureLock() {
+  // ✅ Admin uchun hammasi ochiq
+  if (isAdminRole()) {
+    document.querySelectorAll(".locked").forEach(el => el.classList.remove("locked"));
+    return;
+  }
+
   const plan = localStorage.getItem("plan") || "basic";
   const limits = accessControl[plan] || accessControl.basic;
 
@@ -347,8 +390,12 @@ function initFeatureClick() {
   const buttons = document.querySelectorAll("[data-feature]");
 
   buttons.forEach(btn => {
+    // old listenerlar ko‘payib ketmasin
+    btn.onclick = null;
+
     btn.addEventListener("click", () => {
-      if (btn.classList.contains("locked")) {
+      // ✅ Admin bo‘lsa locked tekshiruvi yo‘q
+      if (!isAdminRole() && btn.classList.contains("locked")) {
         alert("🔒 This feature is locked. Upgrade your plan.");
         return;
       }
@@ -389,20 +436,25 @@ function loginWithApple() {
 }
 
 /* ================= ADMIN PANEL ================= */
-/**
- * ✅ Oldingi funksiyalar qoladi (delete/role change ham ishlashi mumkin),
- * lekin endi admin tugma bosilganda dashboard ichida jadval chizmaymiz.
- * Admin Panel alohida sahifa: admin.html
- */
 function toggleAdminPanel() {
   const role = localStorage.getItem("role");
   if (role !== "admin") {
     alert("Access denied");
     return;
   }
-
-  // ✅ Admin sahifaga o‘tkazamiz
   window.location.href = "admin.html";
+}
+
+/* ================= UPGRADE (UPDATED) ================= */
+function goUpgrade() {
+  // ✅ Faqat user uchun
+  if (isAdminRole()) {
+    alert("Admin uchun Upgrade kerak emas.");
+    return;
+  }
+  // default: premium
+  preparePayment("premium");
+  showPage(pages.payment, "flex");
 }
 
 /* ================= CLEANUP HELPERS ================= */
@@ -411,7 +463,7 @@ function cleanupAdminArtifacts() {
   const oldTable = document.getElementById("adminUsersTable");
   if (oldTable) oldTable.remove();
 
-  // Dropdown yopilsin (logoutdan keyin ochiq qolib ketmasin)
+  // Dropdown yopilsin
   const dropdown = document.getElementById("userDropdown");
   if (dropdown) dropdown.style.display = "none";
 }
@@ -522,4 +574,70 @@ async function changeRole(userId, newRole) {
   } catch (err) {
     console.error(err);
   }
+}
+
+/* ================= PAYMENT (MANUAL) ================= */
+const PLAN_PRICES = {
+  premium: "99 000 so‘m",
+  pro: "149 000 so‘m"
+};
+
+// kartalaringni shu yerda yozib qo‘yasiz
+const CARD_INFO = {
+  number: "8600 1234 5678 9012",
+  owner: "Sultonbek"
+};
+
+function preparePayment(plan) {
+  const payPage = pages.payment;
+  if (!payPage) {
+    console.warn("paymentPage topilmadi. index.html da id='paymentPage' bormi?");
+    return;
+  }
+
+  const email = localStorage.getItem("userEmail") || "";
+  const username = email.includes("@") ? email.split("@")[0] : "user";
+  const planLabel = plan === "pro" ? "Pro" : "Premium";
+
+  const elPlan = document.getElementById("payPlanLabel");
+  const elAmount = document.getElementById("payAmountLabel");
+  const elCard = document.getElementById("payCardNumber");
+  const elOwner = document.getElementById("payCardOwner");
+  const elComment = document.getElementById("payComment");
+
+  if (elPlan) elPlan.textContent = planLabel;
+  if (elAmount) elAmount.textContent = PLAN_PRICES[plan] || "";
+  if (elCard) elCard.textContent = CARD_INFO.number;
+  if (elOwner) elOwner.textContent = CARD_INFO.owner;
+  if (elComment) elComment.textContent = `LANGIFY ${planLabel} – username: ${username}`;
+
+  localStorage.setItem("pending_plan", plan);
+
+  // eski file/tx ni tozalash
+  const file = document.getElementById("receiptFile");
+  const tx = document.getElementById("txId");
+  if (file) file.value = "";
+  if (tx) tx.value = "";
+}
+
+function copyText(elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const text = el.textContent || "";
+  navigator.clipboard.writeText(text);
+  alert("Copied ✅");
+}
+
+async function submitPaymentRequest() {
+  const file = document.getElementById("receiptFile")?.files?.[0];
+  const txId = document.getElementById("txId")?.value?.trim() || "";
+  const plan = localStorage.getItem("pending_plan") || "premium";
+
+  if (!file) {
+    alert("Chek rasmini yuklang!");
+    return;
+  }
+
+  // Hozircha demo:
+  alert(`✅ Chek yuborishga tayyor!\nPlan: ${plan}\nTX: ${txId || "-" }\n\nKeyingi bosqich: server.js ga upload endpoint qo‘shamiz.`);
 }

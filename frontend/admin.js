@@ -10,8 +10,26 @@ let STATE = {
   totalPages: 1,
 };
 
-let ALL_USERS = []; // current page users
+let ALL_USERS = [];
 let PENDING_DELETE_ID = null;
+
+// ====================== NAV (NEW) ======================
+function showAdminSection(name) {
+  const usersSection = $("usersSection");
+  const paymentsSection = $("paymentsSection");
+
+  const navUsers = $("navUsers");
+  const navPayments = $("navPayments");
+
+  if (usersSection) usersSection.style.display = name === "users" ? "block" : "none";
+  if (paymentsSection) paymentsSection.style.display = name === "payments" ? "block" : "none";
+
+  if (navUsers) navUsers.classList.toggle("active", name === "users");
+  if (navPayments) navPayments.classList.toggle("active", name === "payments");
+
+  if (name === "users") loadUsers(STATE.page);
+  if (name === "payments") loadPaymentRequests();
+}
 
 // ====================== INIT ======================
 document.addEventListener("DOMContentLoaded", () => {
@@ -23,6 +41,10 @@ document.addEventListener("DOMContentLoaded", () => {
     window.location.href = "index.html";
     return;
   }
+
+  // NAV
+  $("navUsers")?.addEventListener("click", () => showAdminSection("users"));
+  $("navPayments")?.addEventListener("click", () => showAdminSection("payments"));
 
   // Logout
   $("logoutBtn")?.addEventListener("click", (e) => {
@@ -38,7 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.location.href = "./index.html";
   });
 
-  // Refresh
+  // Refresh users
   $("refreshBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     loadUsers(STATE.page);
@@ -69,7 +91,15 @@ document.addEventListener("DOMContentLoaded", () => {
   $("confirmCancel")?.addEventListener("click", closeConfirm);
   $("confirmOk")?.addEventListener("click", confirmOk);
 
-  loadUsers(1);
+  // Payments refresh
+  $("payRefreshBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    loadPaymentRequests();
+  });
+  $("payStatus")?.addEventListener("change", () => loadPaymentRequests());
+
+  // Default: Users
+  showAdminSection("users");
 });
 
 // ====================== DATA LOAD (PAGINATION) ======================
@@ -234,7 +264,7 @@ function renderUsers(users) {
   tbody.querySelectorAll(".block, .unblock").forEach(btn => {
     btn.addEventListener("click", () => {
       const id = btn.dataset.id;
-      const current = parseInt(btn.dataset.active, 10); // 1 yoki 0
+      const current = parseInt(btn.dataset.active, 10);
       const nextState = current === 1 ? 0 : 1;
       toggleBlock(id, nextState);
     });
@@ -330,7 +360,6 @@ async function confirmOk() {
 // ====================== KPI ======================
 function updateKpis(users) {
   $("kpiTotal").textContent = STATE.total;
-  // Premium/Pro count hozircha plan yo‘q bo‘lsa ham 0 bo‘ladi.
   const premium = users.filter(u => (u.plan || "free") === "premium").length;
   const pro = users.filter(u => (u.plan || "free") === "pro").length;
 
@@ -338,9 +367,139 @@ function updateKpis(users) {
   $("kpiPro") && ($("kpiPro").textContent = String(pro));
 }
 
+// ====================== PAYMENTS (NEW) ======================
+
+async function loadPaymentRequests() {
+  const token = localStorage.getItem("token");
+  const tbody = $("paymentReqTable");
+  if (!tbody) return;
+
+  const status = $("payStatus")?.value || "pending";
+
+  tbody.innerHTML = `<tr><td colspan="9">Loading...</td></tr>`;
+
+  try {
+    const res = await fetch(`${API}/admin/payment-requests?status=${encodeURIComponent(status)}`, {
+      headers: { Authorization: "Bearer " + token }
+    });
+
+    const data = await safeJson(res);
+
+    if (!res.ok) {
+      toast(data?.message || "Payments load error ❌");
+      tbody.innerHTML = `<tr><td colspan="9">${escapeHtml(data?.message || "Error")}</td></tr>`;
+      return;
+    }
+
+    renderPaymentRequests(Array.isArray(data) ? data : []);
+  } catch (e) {
+    console.error(e);
+    toast("Connection error ❌");
+    tbody.innerHTML = `<tr><td colspan="9">Connection error</td></tr>`;
+  }
+}
+
+function renderPaymentRequests(items) {
+  const tbody = $("paymentReqTable");
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+
+  if (!items.length) {
+    tbody.innerHTML = `<tr><td colspan="9">No requests</td></tr>`;
+    return;
+  }
+
+  items.forEach(pr => {
+    const receiptLink = pr.receipt_url
+      ? `<a href="${API}${pr.receipt_url}" target="_blank">Open receipt</a>`
+      : "-";
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${pr.id}</td>
+      <td>${escapeHtml(pr.username || "")}</td>
+      <td>${escapeHtml(pr.email || "")}</td>
+      <td>${escapeHtml(pr.plan_requested || "")}</td>
+      <td>${pr.duration_days || 90}</td>
+      <td>${pr.amount || 0} ${escapeHtml(pr.currency || "UZS")}</td>
+      <td>${receiptLink}</td>
+      <td>${escapeHtml(pr.status || "")}</td>
+      <td>
+        <div class="admin-actions">
+          <button class="admin-btn admin-mini save" ${pr.status !== "pending" ? "disabled" : ""} data-id="${pr.id}">Approve</button>
+          <button class="admin-btn admin-mini delete" ${pr.status !== "pending" ? "disabled" : ""} data-id="${pr.id}">Reject</button>
+        </div>
+      </td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll(".save").forEach(btn => {
+    btn.onclick = () => approveRequest(btn.dataset.id);
+  });
+
+  tbody.querySelectorAll(".delete").forEach(btn => {
+    btn.onclick = () => rejectRequest(btn.dataset.id);
+  });
+}
+
+async function approveRequest(id) {
+  const token = localStorage.getItem("token");
+
+  try {
+    const res = await fetch(`${API}/admin/payment-requests/${id}/approve`, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token }
+    });
+
+    const data = await safeJson(res);
+    if (!res.ok) {
+      toast(data?.message || "Approve error ❌");
+      return;
+    }
+
+    toast("Approved ✅");
+    loadPaymentRequests();
+  } catch (e) {
+    console.error(e);
+    toast("Approve error ❌");
+  }
+}
+
+async function rejectRequest(id) {
+  const token = localStorage.getItem("token");
+  const note = prompt("Reject sababi (ixtiyoriy):") || "";
+
+  try {
+    const res = await fetch(`${API}/admin/payment-requests/${id}/reject`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token
+      },
+      body: JSON.stringify({ admin_note: note })
+    });
+
+    const data = await safeJson(res);
+    if (!res.ok) {
+      toast(data?.message || "Reject error ❌");
+      return;
+    }
+
+    toast("Rejected ✅");
+    loadPaymentRequests();
+  } catch (e) {
+    console.error(e);
+    toast("Reject error ❌");
+  }
+}
+
 // ====================== UTIL ======================
 function toast(msg) {
   const el = $("toast");
+  if (!el) return;
   el.textContent = msg;
   el.style.display = "block";
   setTimeout(() => el.style.display = "none", 2000);

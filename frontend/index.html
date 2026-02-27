@@ -139,7 +139,57 @@
         </p>
     </div>
 </div>
+<!-- ================= PAYMENT PAGE ================= -->
+<div class="payment-page" id="paymentPage" style="display:none;">
+  <div class="payment-card">
+    <h2>To‘lov qilish</h2>
+    <p class="payment-sub">Quyidagi kartaga to‘lov qiling va chekni yuklang</p>
 
+    <div class="payment-box">
+      <div class="payment-row">
+        <span class="label">Plan:</span>
+        <span class="value" id="payPlanLabel">Premium</span>
+      </div>
+
+      <div class="payment-row">
+        <span class="label">Summa:</span>
+        <span class="value" id="payAmountLabel">99 000 so‘m</span>
+      </div>
+
+      <hr class="payment-hr"/>
+
+      <div class="payment-row">
+        <span class="label">Karta raqam:</span>
+        <span class="value mono" id="payCardNumber">8600 1234 5678 9012</span>
+        <button class="copy-btn" onclick="copyText('payCardNumber')">Copy</button>
+      </div>
+
+      <div class="payment-row">
+        <span class="label">Karta egasi:</span>
+        <span class="value" id="payCardOwner">Sultonbek</span>
+      </div>
+
+      <div class="payment-row">
+        <span class="label">Izoh:</span>
+        <span class="value mono" id="payComment">LANGIFY Premium – username: ...</span>
+        <button class="copy-btn" onclick="copyText('payComment')">Copy</button>
+      </div>
+    </div>
+
+    <div class="upload-box">
+      <label class="upload-label">Chek (rasm) yuklang:</label>
+      <input type="file" id="receiptFile" accept="image/*" />
+      <input type="text" id="txId" placeholder="Tranzaksiya ID (ixtiyoriy)" />
+      <button class="pay-submit" onclick="submitPaymentRequest()">Chekni yuborish</button>
+      <small class="hint">Admin tekshiradi va 90 kunlik obuna yoqiladi.</small>
+    </div>
+
+    <div class="payment-actions">
+      <button class="pay-back" onclick="showPage(pages.main)">⬅ Orqaga</button>
+      <button class="pay-go-dash" onclick="goDashboard()">Dashboard</button>
+    </div>
+  </div>
+</div>
 <!-- ================= DASHBOARD ================= -->
 <div class="dashboard" id="dashboard" style="display:none;">
 
@@ -162,7 +212,13 @@
                 <div class="avatar" onclick="toggleDropdown()">U</div>
                 <div class="dropdown" id="userDropdown">
                     <p id="userEmail">user@example.com</p>
+
+                    <!-- ✅ USER uchun Upgrade (JS yashiradi/ko‘rsatadi) -->
+                    <button id="upgradeBtn" class="upgrade-btn" onclick="goUpgrade()">Upgrade Plan</button>
+
                     <button onclick="logout()">Logout</button>
+
+                    <!-- ✅ ADMIN uchun Admin Panel (JS yashiradi/ko‘rsatadi) -->
                     <button id="adminToggleBtn" onclick="toggleAdminPanel()" style="display:none;">Admin Panel</button>
                 </div>
             </div>
@@ -258,15 +314,11 @@
     </div>
 </div>
 
-<!-- ================= ADMIN PANEL ================= -->
+<!-- ================= ADMIN PANEL (old section – hozir ishlatilmaydi) ================= -->
 <div id="adminPanel" style="display:none; margin-top:30px;">
-
     <h3 class="section-title">Admin Panel</h3>
-
     <div style="background:#1f2937; padding:20px; border-radius:12px; color:white;">
-
         <h4 style="margin-bottom:15px;">Registered Users</h4>
-
         <table style="width:100%; border-collapse:collapse;">
             <thead>
                 <tr style="background:#374151;">
@@ -279,9 +331,7 @@
                 <!-- Users JS orqali chiqadi -->
             </tbody>
         </table>
-
     </div>
-
 </div>
 
 <script src="index.js"></script>
