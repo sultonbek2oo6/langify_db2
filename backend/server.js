@@ -138,13 +138,57 @@ app.get("/admin/users",
   isAdmin,
   async (req, res) => {
     try {
-      const [users] = await pool.query(`
-        SELECT id, username, email, role, created_at
-        FROM users
-        ORDER BY created_at DESC
-      `);
+      const search = (req.query.search || "").trim(); // id/username/email
+      const role = (req.query.role || "").trim();     // user/admin
+      const page = Math.max(parseInt(req.query.page || "1", 10), 1);
+      const limit = Math.min(Math.max(parseInt(req.query.limit || "20", 10), 1), 100);
+      const offset = (page - 1) * limit;
 
-      res.json(users);
+      const where = [];
+      const params = [];
+
+      if (search) {
+        where.push(`(CAST(id AS CHAR) LIKE ? OR username LIKE ? OR email LIKE ?)`);
+        params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      }
+
+      if (role) {
+        if (!["user", "admin"].includes(role)) {
+          return res.status(400).json({ message: "Role noto‘g‘ri." });
+        }
+        where.push(`role = ?`);
+        params.push(role);
+      }
+
+      const whereSQL = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+      // total count
+      const [countRows] = await pool.query(
+        `SELECT COUNT(*) AS total FROM users ${whereSQL}`,
+        params
+      );
+      const total = countRows[0].total;
+      const totalPages = Math.max(Math.ceil(total / limit), 1);
+
+      // paged data
+      const [users] = await pool.query(
+        `
+        SELECT id, username, email, role, is_active, created_at
+        FROM users
+        ${whereSQL}
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
+        `,
+        [...params, limit, offset]
+      );
+
+      res.json({
+        page,
+        limit,
+        total,
+        totalPages,
+        users
+      });
 
     } catch (err) {
       console.error(err);
@@ -184,6 +228,33 @@ app.put("/admin/users/:id/role",
       );
 
       res.json({ message: "Role yangilandi." });
+
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server xatosi." });
+    }
+  }
+);
+// BLOCK / UNBLOCK USER
+app.put("/admin/users/:id/block",
+  authenticateToken,
+  isAdmin,
+  async (req, res) => {
+    try {
+      const { is_active } = req.body;
+
+      if (![0, 1].includes(is_active)) {
+        return res.status(400).json({ message: "is_active 0 yoki 1 bo‘lishi kerak." });
+      }
+
+      await pool.query(
+        "UPDATE users SET is_active = ? WHERE id = ?",
+        [is_active, req.params.id]
+      );
+
+      res.json({
+        message: is_active ? "User unblock qilindi." : "User block qilindi."
+      });
 
     } catch (err) {
       console.error(err);

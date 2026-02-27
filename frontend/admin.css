@@ -383,3 +383,54 @@
   .admin-main{ padding: 24px; }
   .admin-table{ min-width: 820px; }
 }
+/* ================= PAGINATION (NEW) ================= */
+
+.admin-pagination{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px 18px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+}
+
+.admin-pagination button{
+  border: none;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: .25s ease;
+  background: rgba(255,255,255,0.75);
+  border: 1px solid rgba(0,0,0,0.10);
+}
+
+.admin-pagination button:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 12px 25px rgba(102,126,234,0.18);
+}
+
+.admin-pagination button.active{
+  background: linear-gradient(135deg, #667eea, #ff6ec4);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.35);
+  box-shadow: 0 14px 30px rgba(255,110,196,0.25);
+}
+
+.admin-pagination button:disabled{
+  opacity: .45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+.pg-btn.active{
+  background: linear-gradient(135deg, #667eea, #ff6ec4);
+  color:#fff;
+  border: 1px solid rgba(255,255,255,0.35);
+}.admin-mini.save::before { content: "💾"; margin-right: 6px; }
+.admin-mini.delete::before { content: "🗑️"; margin-right: 6px; }
+
+.admin-mini.save:active,
+.admin-mini.delete:active{
+  transform: translateY(0px) scale(0.98);
+}
