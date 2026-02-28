@@ -5,7 +5,8 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const pool = require("./db");
 const path = require("path");
-
+const multer = require("multer");
+const fs = require("fs");
 require("dotenv").config();
 
 const app = express();
@@ -26,9 +27,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "../frontend")));
 
 /* ================= (NEW) UPLOADS / MULTER ================= */
-
-const multer = require("multer");
-const fs = require("fs");
+/* ✅ Eslatma: multer va fs yuqorida 1 marta import qilingan, qayta yozilmaydi */
 
 const UPLOAD_DIR = path.join(__dirname, "uploads");
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
@@ -39,7 +38,10 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname || "");
-    cb(null, `receipt_${Date.now()}_${Math.random().toString(16).slice(2)}${ext}`);
+    cb(
+      null,
+      `receipt_${Date.now()}_${Math.random().toString(16).slice(2)}${ext}`
+    );
   },
 });
 
@@ -60,17 +62,17 @@ const upload = multer({
 function authenticateToken(req, res, next) {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader)
-    return res.status(401).json({ message: "Token kerak." });
+  if (!authHeader) return res.status(401).json({ message: "Token kerak." });
 
   const token = authHeader.split(" ")[1];
 
-  if (!token)
-    return res.status(401).json({ message: "Token topilmadi." });
+  if (!token) return res.status(401).json({ message: "Token topilmadi." });
 
   jwt.verify(token, JWT_SECRET, (err, decoded) => {
     if (err)
-      return res.status(403).json({ message: "Token noto‘g‘ri yoki muddati tugagan." });
+      return res
+        .status(403)
+        .json({ message: "Token noto‘g‘ri yoki muddati tugagan." });
 
     req.user = decoded; // { id, email, role }
     next();
@@ -160,7 +162,6 @@ app.post("/api/auth/register", async (req, res) => {
     );
 
     res.status(201).json({ message: "Register muvaffaqiyatli." });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server xatosi." });
@@ -185,8 +186,7 @@ app.post("/api/auth/login", async (req, res) => {
 
     const match = await bcrypt.compare(password, user.password);
 
-    if (!match)
-      return res.status(400).json({ message: "Parol noto‘g‘ri." });
+    if (!match) return res.status(400).json({ message: "Parol noto‘g‘ri." });
 
     // (NEW) login paytida expire bo'lsa basic/free ga tushirib qo'yamiz
     await refreshSubscriptionIfExpired(user.id);
@@ -195,7 +195,7 @@ app.post("/api/auth/login", async (req, res) => {
       {
         id: user.id,
         email: user.email,
-        role: user.role
+        role: user.role,
       },
       JWT_SECRET,
       { expiresIn: "1d" }
@@ -204,9 +204,47 @@ app.post("/api/auth/login", async (req, res) => {
     res.json({
       message: "Login muvaffaqiyatli.",
       token,
-      role: user.role
+      role: user.role,
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server xatosi." });
+  }
+});
 
+/* ================= (NEW) CURRENT USER PROFILE (me) ================= */
+/**
+ * GET /api/me
+ * Authorization: Bearer <token>
+ * returns: { id, email, role, plan, expires_at }
+ */
+app.get("/api/me", authenticateToken, async (req, res) => {
+  try {
+    // ✅ avval expire bo'lsa free/basic ga tushirib qo'yamiz
+    await refreshSubscriptionIfExpired(req.user.id);
+
+    // ✅ plan + expires_at qaytarish (subscriptions LEFT JOIN)
+    const [rows] = await pool.query(
+      `
+      SELECT 
+        u.id,
+        u.email,
+        u.role,
+        u.plan,
+        s.expires_at
+      FROM users u
+      LEFT JOIN subscriptions s ON s.user_id = u.id
+      WHERE u.id = ?
+      LIMIT 1
+      `,
+      [req.user.id]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "User topilmadi." });
+    }
+
+    res.json(rows[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server xatosi." });
@@ -259,7 +297,6 @@ app.post(
       );
 
       res.json({ message: "So‘rov yuborildi. Admin tekshiradi.", receipt_url });
-
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Payment request error." });
@@ -269,325 +306,286 @@ app.post(
 
 /* ================= ADMIN ROUTES ================= */
 
-app.get("/admin/users",
-  authenticateToken,
-  isAdmin,
-  async (req, res) => {
-    try {
-      const search = (req.query.search || "").trim(); // id/username/email
-      const role = (req.query.role || "").trim();     // user/admin
-      const page = Math.max(parseInt(req.query.page || "1", 10), 1);
-      const limit = Math.min(Math.max(parseInt(req.query.limit || "20", 10), 1), 100);
-      const offset = (page - 1) * limit;
+app.get("/admin/users", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const search = (req.query.search || "").trim(); // id/username/email
+    const role = (req.query.role || "").trim(); // user/admin
+    const page = Math.max(parseInt(req.query.page || "1", 10), 1);
+    const limit = Math.min(
+      Math.max(parseInt(req.query.limit || "20", 10), 1),
+      100
+    );
+    const offset = (page - 1) * limit;
 
-      const where = [];
-      const params = [];
+    const where = [];
+    const params = [];
 
-      if (search) {
-        where.push(`(CAST(id AS CHAR) LIKE ? OR username LIKE ? OR email LIKE ?)`);
-        params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    if (search) {
+      where.push(`(CAST(id AS CHAR) LIKE ? OR username LIKE ? OR email LIKE ?)`);
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    if (role) {
+      if (!["user", "admin"].includes(role)) {
+        return res.status(400).json({ message: "Role noto‘g‘ri." });
       }
+      where.push(`role = ?`);
+      params.push(role);
+    }
 
-      if (role) {
-        if (!["user", "admin"].includes(role)) {
-          return res.status(400).json({ message: "Role noto‘g‘ri." });
-        }
-        where.push(`role = ?`);
-        params.push(role);
+    // ✅ PLAN FILTER
+    const plan = (req.query.plan || "").trim();
+    if (plan) {
+      if (!["free", "premium", "pro"].includes(plan)) {
+        return res.status(400).json({ message: "Plan noto‘g‘ri." });
       }
-      // ✅ PLAN FILTER
-      const plan = (req.query.plan || "").trim();
-      if (plan) {
-        if (!["free", "premium", "pro"].includes(plan)) {
-          return res.status(400).json({ message: "Plan noto‘g‘ri." });
-        }
-        where.push(`plan = ?`);
-        params.push(plan);
-      }
-      const whereSQL = where.length ? `WHERE ${where.join(" AND ")}` : "";
+      where.push(`plan = ?`);
+      params.push(plan);
+    }
 
-      // total count
-      const [countRows] = await pool.query(
-        `SELECT COUNT(*) AS total FROM users ${whereSQL}`,
-        params
-      );
-      const total = countRows[0].total;
-      const totalPages = Math.max(Math.ceil(total / limit), 1);
+    const whereSQL = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-      // paged data
-      const [users] = await pool.query(
-        `
+    // total count
+    const [countRows] = await pool.query(
+      `SELECT COUNT(*) AS total FROM users ${whereSQL}`,
+      params
+    );
+    const total = countRows[0].total;
+    const totalPages = Math.max(Math.ceil(total / limit), 1);
+
+    // paged data
+    const [users] = await pool.query(
+      `
         SELECT id, username, email, role, plan, is_active, created_at
         FROM users
         ${whereSQL}
         ORDER BY created_at DESC
         LIMIT ? OFFSET ?
         `,
-        [...params, limit, offset]
-      );
+      [...params, limit, offset]
+    );
 
-      res.json({
-        page,
-        limit,
-        total,
-        totalPages,
-        users
-      });
-
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "Server xatosi." });
-    }
+    res.json({
+      page,
+      limit,
+      total,
+      totalPages,
+      users,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server xatosi." });
   }
-);
+});
 
-app.delete("/admin/users/:id",
-  authenticateToken,
-  isAdmin,
-  async (req, res) => {
-    try {
-      await pool.query("DELETE FROM users WHERE id = ?", [req.params.id]);
-      res.json({ message: "User o‘chirildi." });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "Server xatosi." });
-    }
+app.delete("/admin/users/:id", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    await pool.query("DELETE FROM users WHERE id = ?", [req.params.id]);
+    res.json({ message: "User o‘chirildi." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server xatosi." });
   }
-);
+});
 
-app.put("/admin/users/:id/role",
-  authenticateToken,
-  isAdmin,
-  async (req, res) => {
-    try {
-      const { role } = req.body;
+app.put("/admin/users/:id/role", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { role } = req.body;
 
-      if (!["user", "admin"].includes(role)) {
-        return res.status(400).json({ message: "Role noto‘g‘ri." });
-      }
-
-      await pool.query(
-        "UPDATE users SET role = ? WHERE id = ?",
-        [role, req.params.id]
-      );
-
-      res.json({ message: "Role yangilandi." });
-
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "Server xatosi." });
+    if (!["user", "admin"].includes(role)) {
+      return res.status(400).json({ message: "Role noto‘g‘ri." });
     }
+
+    await pool.query("UPDATE users SET role = ? WHERE id = ?", [
+      role,
+      req.params.id,
+    ]);
+
+    res.json({ message: "Role yangilandi." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server xatosi." });
   }
-);
+});
 
 // BLOCK / UNBLOCK USER
-app.put("/admin/users/:id/block",
-  authenticateToken,
-  isAdmin,
-  async (req, res) => {
-    try {
-      const { is_active } = req.body;
+app.put("/admin/users/:id/block", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { is_active } = req.body;
 
-      if (![0, 1].includes(is_active)) {
-        return res.status(400).json({ message: "is_active 0 yoki 1 bo‘lishi kerak." });
-      }
-
-      await pool.query(
-        "UPDATE users SET is_active = ? WHERE id = ?",
-        [is_active, req.params.id]
-      );
-
-      res.json({
-        message: is_active ? "User unblock qilindi." : "User block qilindi."
-      });
-
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "Server xatosi." });
+    if (![0, 1].includes(is_active)) {
+      return res
+        .status(400)
+        .json({ message: "is_active 0 yoki 1 bo‘lishi kerak." });
     }
+
+    await pool.query("UPDATE users SET is_active = ? WHERE id = ?", [
+      is_active,
+      req.params.id,
+    ]);
+
+    res.json({
+      message: is_active ? "User unblock qilindi." : "User block qilindi.",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server xatosi." });
   }
-);
+});
 
-app.put("/admin/users/:id/plan",
-  authenticateToken,
-  isAdmin,
-  async (req, res) => {
-    try {
-      const { plan } = req.body;
+app.put("/admin/users/:id/plan", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { plan } = req.body;
 
-      if (!["free", "premium", "pro"].includes(plan)) {
-        return res.status(400).json({ message: "Plan noto‘g‘ri." });
-      }
-
-      // users.plan update
-      await pool.query(
-        "UPDATE users SET plan = ? WHERE id = ?",
-        [plan, req.params.id]
-      );
-
-      // (NEW) subscriptions ham sync (free -> basic mapping)
-      const subPlan = plan === "free" ? "basic" : plan;
-      await pool.query(
-        "UPDATE subscriptions SET plan=?, updated_at=NOW() WHERE user_id=?",
-        [subPlan, req.params.id]
-      );
-
-      res.json({ message: "Plan yangilandi." });
-
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "Server xatosi." });
+    if (!["free", "premium", "pro"].includes(plan)) {
+      return res.status(400).json({ message: "Plan noto‘g‘ri." });
     }
+
+    // users.plan update
+    await pool.query("UPDATE users SET plan = ? WHERE id = ?", [
+      plan,
+      req.params.id,
+    ]);
+
+    // (NEW) subscriptions ham sync (free -> basic mapping)
+    const subPlan = plan === "free" ? "basic" : plan;
+    await pool.query(
+      "UPDATE subscriptions SET plan=?, updated_at=NOW() WHERE user_id=?",
+      [subPlan, req.params.id]
+    );
+
+    res.json({ message: "Plan yangilandi." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server xatosi." });
   }
-);
+});
 
 /* ================= (NEW) ADMIN PAYMENT REQUESTS ================= */
 
 // list payment requests by status (pending/approved/rejected)
-app.get(
-  "/admin/payment-requests",
-  authenticateToken,
-  isAdmin,
-  async (req, res) => {
-    try {
-      const status = (req.query.status || "pending").trim();
-      if (!["pending", "approved", "rejected"].includes(status)) {
-        return res.status(400).json({ message: "Status noto‘g‘ri." });
-      }
+app.get("/admin/payment-requests", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const status = (req.query.status || "pending").trim();
+    if (!["pending", "approved", "rejected"].includes(status)) {
+      return res.status(400).json({ message: "Status noto‘g‘ri." });
+    }
 
-      const [rows] = await pool.query(
-        `SELECT pr.*, u.username, u.email
+    const [rows] = await pool.query(
+      `SELECT pr.*, u.username, u.email
          FROM payment_requests pr
          JOIN users u ON u.id = pr.user_id
          WHERE pr.status=?
          ORDER BY pr.created_at DESC`,
-        [status]
-      );
+      [status]
+    );
 
-      res.json(rows);
-
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "Admin payment-requests list error." });
-    }
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Admin payment-requests list error." });
   }
-);
+});
 
 // approve request -> subscriptions + 90 days (duration_days)
-app.post(
-  "/admin/payment-requests/:id/approve",
-  authenticateToken,
-  isAdmin,
-  async (req, res) => {
-    const conn = await pool.getConnection();
-    try {
-      const reqId = Number(req.params.id);
-      const adminId = req.user.id;
+app.post("/admin/payment-requests/:id/approve", authenticateToken, isAdmin, async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const reqId = Number(req.params.id);
+    const adminId = req.user.id;
 
-      await conn.beginTransaction();
+    await conn.beginTransaction();
 
-      const [rows] = await conn.query(
-        "SELECT * FROM payment_requests WHERE id=? FOR UPDATE",
-        [reqId]
-      );
+    const [rows] = await conn.query(
+      "SELECT * FROM payment_requests WHERE id=? FOR UPDATE",
+      [reqId]
+    );
 
-      if (rows.length === 0) {
-        await conn.rollback();
-        return res.status(404).json({ message: "So‘rov topilmadi." });
-      }
-
-      const pr = rows[0];
-      if (pr.status !== "pending") {
-        await conn.rollback();
-        return res.status(400).json({ message: "Bu so‘rov allaqachon ko‘rilgan." });
-      }
-
-      const days = pr.duration_days || 90;
-
-      const [subs] = await conn.query(
-        "SELECT * FROM subscriptions WHERE user_id=? FOR UPDATE",
-        [pr.user_id]
-      );
-
-      let baseDate = new Date();
-      if (
-        subs.length &&
-        subs[0].expires_at &&
-        new Date(subs[0].expires_at) > new Date()
-      ) {
-        baseDate = new Date(subs[0].expires_at);
-      }
-
-      const newExpires = new Date(baseDate.getTime() + days * 24 * 60 * 60 * 1000);
-
-      if (subs.length === 0) {
-        await conn.query(
-          "INSERT INTO subscriptions (user_id, plan, expires_at, status, created_at, updated_at) VALUES (?, ?, ?, 'active', NOW(), NOW())",
-          [pr.user_id, pr.plan_requested, newExpires]
-        );
-      } else {
-        await conn.query(
-          "UPDATE subscriptions SET plan=?, expires_at=?, status='active', updated_at=NOW() WHERE user_id=?",
-          [pr.plan_requested, newExpires, pr.user_id]
-        );
-      }
-
-      // users.plan sync (premium/pro)
-      await conn.query("UPDATE users SET plan=? WHERE id=?", [
-        pr.plan_requested,
-        pr.user_id,
-      ]);
-
-      await conn.query(
-        "UPDATE payment_requests SET status='approved', reviewed_by=?, reviewed_at=NOW() WHERE id=?",
-        [adminId, reqId]
-      );
-
-      await conn.commit();
-
-      res.json({
-        message: "Approve qilindi.",
-        plan: pr.plan_requested,
-        expires_at: newExpires,
-      });
-
-    } catch (err) {
+    if (rows.length === 0) {
       await conn.rollback();
-      console.error(err);
-      res.status(500).json({ message: "Approve error." });
-    } finally {
-      conn.release();
+      return res.status(404).json({ message: "So‘rov topilmadi." });
     }
+
+    const pr = rows[0];
+    if (pr.status !== "pending") {
+      await conn.rollback();
+      return res.status(400).json({ message: "Bu so‘rov allaqachon ko‘rilgan." });
+    }
+
+    const days = pr.duration_days || 90;
+
+    const [subs] = await conn.query(
+      "SELECT * FROM subscriptions WHERE user_id=? FOR UPDATE",
+      [pr.user_id]
+    );
+
+    let baseDate = new Date();
+    if (subs.length && subs[0].expires_at && new Date(subs[0].expires_at) > new Date()) {
+      baseDate = new Date(subs[0].expires_at);
+    }
+
+    const newExpires = new Date(baseDate.getTime() + days * 24 * 60 * 60 * 1000);
+
+    if (subs.length === 0) {
+      await conn.query(
+        "INSERT INTO subscriptions (user_id, plan, expires_at, status, created_at, updated_at) VALUES (?, ?, ?, 'active', NOW(), NOW())",
+        [pr.user_id, pr.plan_requested, newExpires]
+      );
+    } else {
+      await conn.query(
+        "UPDATE subscriptions SET plan=?, expires_at=?, status='active', updated_at=NOW() WHERE user_id=?",
+        [pr.plan_requested, newExpires, pr.user_id]
+      );
+    }
+
+    // users.plan sync (premium/pro)
+    await conn.query("UPDATE users SET plan=? WHERE id=?", [
+      pr.plan_requested,
+      pr.user_id,
+    ]);
+
+    await conn.query(
+      "UPDATE payment_requests SET status='approved', reviewed_by=?, reviewed_at=NOW() WHERE id=?",
+      [adminId, reqId]
+    );
+
+    await conn.commit();
+
+    res.json({
+      message: "Approve qilindi.",
+      plan: pr.plan_requested,
+      expires_at: newExpires,
+    });
+  } catch (err) {
+    await conn.rollback();
+    console.error(err);
+    res.status(500).json({ message: "Approve error." });
+  } finally {
+    conn.release();
   }
-);
+});
 
 // reject request
-app.post(
-  "/admin/payment-requests/:id/reject",
-  authenticateToken,
-  isAdmin,
-  async (req, res) => {
-    try {
-      const reqId = Number(req.params.id);
-      const admin_note = (req.body.admin_note || "").slice(0, 255);
+app.post("/admin/payment-requests/:id/reject", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const reqId = Number(req.params.id);
+    const admin_note = (req.body.admin_note || "").slice(0, 255);
 
-      const [result] = await pool.query(
-        "UPDATE payment_requests SET status='rejected', admin_note=?, reviewed_by=?, reviewed_at=NOW() WHERE id=? AND status='pending'",
-        [admin_note || null, req.user.id, reqId]
-      );
+    const [result] = await pool.query(
+      "UPDATE payment_requests SET status='rejected', admin_note=?, reviewed_by=?, reviewed_at=NOW() WHERE id=? AND status='pending'",
+      [admin_note || null, req.user.id, reqId]
+    );
 
-      if (result.affectedRows === 0) {
-        return res.status(400).json({ message: "So‘rov topilmadi yoki pending emas." });
-      }
-
-      res.json({ message: "Reject qilindi." });
-
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "Reject error." });
+    if (result.affectedRows === 0) {
+      return res.status(400).json({ message: "So‘rov topilmadi yoki pending emas." });
     }
+
+    res.json({ message: "Reject qilindi." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Reject error." });
   }
-);
+});
 
 /* ================= GOOGLE EMAIL VERIFY ================= */
 
@@ -596,39 +594,25 @@ const { OAuth2Client } = require("google-auth-library");
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 app.post("/api/auth/google-verify", async (req, res) => {
-
   try {
-
     const { idToken } = req.body;
 
     const ticket = await client.verifyIdToken({
-
       idToken,
-
       audience: process.env.GOOGLE_CLIENT_ID,
-
     });
 
     const payload = ticket.getPayload();
 
     res.json({
-
       email: payload.email,
-
-      email_verified: payload.email_verified
-
+      email_verified: payload.email_verified,
     });
-
   } catch (err) {
-
     res.status(400).json({
-
-      message: "Google verify failed"
-
+      message: "Google verify failed",
     });
-
   }
-
 });
 
 /* ================= START SERVER ================= */

@@ -9,6 +9,9 @@ const pages = {
   listening: document.getElementById("listeningPage")
 };
 
+/* ================= API BASE (NEW) ================= */
+const API_BASE = "http://localhost:3000";
+
 /* ================= GOOGLE VERIFY (NEW) ================= */
 /**
  * Maqsad:
@@ -21,7 +24,8 @@ const GOOGLE_VERIFY = {
   verified: false
 };
 
-const GOOGLE_CLIENT_ID = "1081668585971-ee2gmg3f7rvjsf0g2nnfcqgvkpvdnsg3.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID =
+  "1081668585971-ee2gmg3f7rvjsf0g2nnfcqgvkpvdnsg3.apps.googleusercontent.com";
 
 function setGoogleVerifyStatus(msg, ok = false) {
   const el = document.getElementById("googleVerifyStatus");
@@ -43,13 +47,17 @@ function initGoogleVerifyButton() {
 
   // Google script yuklanmagan bo‘lsa
   if (!window.google?.accounts?.id) {
-    setGoogleVerifyStatus("Google script yuklanmadi. (gsi/client) qo‘shilganini tekshiring.");
+    setGoogleVerifyStatus(
+      "Google script yuklanmadi. (gsi/client) qo‘shilganini tekshiring."
+    );
     return;
   }
 
   // Client ID qo‘yilmagan bo‘lsa
   if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.includes("PASTE_YOUR")) {
-    setGoogleVerifyStatus("GOOGLE_CLIENT_ID qo‘yilmagan. index.js dagi GOOGLE_CLIENT_ID ni to‘ldiring.");
+    setGoogleVerifyStatus(
+      "GOOGLE_CLIENT_ID qo‘yilmagan. index.js dagi GOOGLE_CLIENT_ID ni to‘ldiring."
+    );
     return;
   }
 
@@ -88,16 +96,68 @@ function isAdminRole() {
   return getRole() === "admin";
 }
 
+/* ================= PLAN HELPERS (NEW) ================= */
+const PLAN_RANK = { basic: 1, premium: 2, pro: 3 };
+
+function getCurrentPlan() {
+  return localStorage.getItem("plan") || "basic"; // basic/premium/pro
+}
+
+function getDaysLeft() {
+  const exp = localStorage.getItem("expires_at");
+  if (!exp) return null;
+
+  const end = new Date(exp);
+  const now = new Date();
+  const diffMs = end - now;
+
+  // agar muddat o'tib ketgan bo'lsa
+  if (diffMs <= 0) return 0;
+
+  const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  return days;
+}
+
+/* ================= (NEW) SYNC PLAN FROM SERVER ================= */
+async function syncPlanFromServer() {
+  const token = localStorage.getItem("token");
+  if (!token) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/me`, {
+      headers: { Authorization: "Bearer " + token }
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return;
+
+    // ✅ DB plan: free/premium/pro -> frontend plan: basic/premium/pro
+    if (data.plan) {
+      localStorage.setItem("plan", data.plan === "free" ? "basic" : data.plan);
+    }
+
+    // role ham sync bo'lsin
+    if (data.role) localStorage.setItem("role", data.role);
+
+    // ✅ NEW: expires_at ham sync bo'lsin (qolgan kun ko'rsatish uchun)
+    if (data.expires_at) localStorage.setItem("expires_at", data.expires_at);
+    else localStorage.removeItem("expires_at");
+
+  } catch (e) {
+    console.error("syncPlanFromServer error", e);
+  }
+}
+
 /* ================= PAGE CONTROLLER ================= */
 function hideAllPages() {
-  Object.values(pages).forEach(page => {
+  Object.values(pages).forEach((page) => {
     if (!page) return;
     page.style.display = "none";
     page.classList.remove("show", "active");
   });
 }
 
-function showPage(page, display = "flex") {
+/* ✅ FIX: showPage async bo'ldi, dashboard kirganda initDashboard await bo'ladi */
+async function showPage(page, display = "flex") {
   if (!page) return;
 
   hideAllPages();
@@ -105,7 +165,8 @@ function showPage(page, display = "flex") {
   page.classList.add("show", "active");
 
   if (page === pages.dashboard) {
-    initDashboard();
+    // ✅ async initDashboard endi to'liq ishlaydi
+    await initDashboard();
 
     // ✅ Admin tugma faqat admin bo‘lsa ko‘rinsin
     const adminBtn = document.getElementById("adminToggleBtn");
@@ -120,9 +181,9 @@ function showPage(page, display = "flex") {
   }
 
   if (page === pages.main) {
-    // ✅ Adminlar pricing sahifaga kirmasin (xohlasang)
+    // ✅ Adminlar pricing sahifaga kirmasin
     if (isAdminRole()) {
-      showPage(pages.dashboard);
+      await showPage(pages.dashboard);
       return;
     }
     initFeatureClick();
@@ -141,38 +202,44 @@ function showPage(page, display = "flex") {
 }
 
 /* ================= INIT ================= */
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
   const savedUser = localStorage.getItem("userEmail");
   const token = localStorage.getItem("token");
   const goDash = localStorage.getItem("goDashboard") === "1";
 
-  // flagni o‘chiramiz
   if (goDash) localStorage.removeItem("goDashboard");
 
   if (savedUser && token) {
+    await syncPlanFromServer();
 
     // ADMIN paneldan qaytsa
     if (goDash) {
-      showPage(pages.dashboard);
-    }
-
-    // oddiy holat
-    else {
+      await showPage(pages.dashboard);
+    } else {
       // ✅ ADMIN bo‘lsa darrov dashboard
-      if (isAdminRole()) showPage(pages.dashboard);
-      else showPage(pages.main);
+      if (isAdminRole()) {
+        await showPage(pages.dashboard);
+      } else {
+        // ✅ NEW: premium/pro bo'lsa mainPage emas, darrov dashboard
+        const p = getCurrentPlan();
+        if (p !== "basic") await showPage(pages.dashboard);
+        else await showPage(pages.main);
+      }
     }
-
   } else {
-    showPage(pages.login);
+    await showPage(pages.login);
   }
 
   initFeatureClick();
 });
 
 /* ================= AUTH ================= */
-function goRegister() { showPage(pages.register); }
-function goLogin() { showPage(pages.login); }
+function goRegister() {
+  showPage(pages.register);
+}
+function goLogin() {
+  showPage(pages.login);
+}
 
 /* -------- REGISTER -------- */
 async function goMain() {
@@ -193,7 +260,7 @@ async function goMain() {
 
   try {
     // 1) backendda token verify qilamiz
-    const verifyRes = await fetch("http://localhost:3000/api/auth/google-verify", {
+    const verifyRes = await fetch(`${API_BASE}/api/auth/google-verify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken: GOOGLE_VERIFY.idToken })
@@ -220,7 +287,7 @@ async function goMain() {
     }
 
     // 2) Endi register qilamiz
-    const res = await fetch("http://localhost:3000/api/auth/register", {
+    const res = await fetch(`${API_BASE}/api/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, email, password, full_name: username })
@@ -236,7 +303,7 @@ async function goMain() {
     alert("Register muvaffaqiyatli! Endi login qiling.");
 
     resetGoogleVerify();
-    showPage(pages.login);
+    await showPage(pages.login);
   } catch (e) {
     console.error(e);
     alert("Server bilan bog‘lanib bo‘lmadi");
@@ -254,7 +321,7 @@ async function login() {
   }
 
   try {
-    const res = await fetch("http://localhost:3000/api/auth/login", {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password })
@@ -272,21 +339,21 @@ async function login() {
     localStorage.setItem("userEmail", email);
     localStorage.setItem("role", data.role);
 
-    // ✅ User bo‘lsa: plan bo‘lmasa basic
-    if (!localStorage.getItem("plan")) {
-      localStorage.setItem("plan", "basic");
-    }
+    // ✅ plan'ni basic qilib qo'ymaymiz, DB'dan olib kelamiz
+    await syncPlanFromServer();
 
     cleanupAdminArtifacts();
 
-    // ✅ ADMIN bo‘lsa darrov dashboard, user bo‘lsa pricing
     if (data.role === "admin") {
-      showPage(pages.dashboard);
+      await showPage(pages.dashboard);
     } else {
-      showPage(pages.main);
+      // ✅ NEW: premium/pro bo'lsa mainPage emas, dashboard
+      const p = getCurrentPlan();
+      if (p !== "basic") await showPage(pages.dashboard);
+      else await showPage(pages.main);
     }
-
-  } catch {
+  } catch (e) {
+    console.error(e);
     alert("Server bilan bog‘lanib bo‘lmadi");
   }
 }
@@ -306,9 +373,25 @@ function choosePlan(plan) {
     return;
   }
 
+  const currentPlan = getCurrentPlan(); // basic/premium/pro
+  const curRank = PLAN_RANK[currentPlan] || 1;
+  const wantRank = PLAN_RANK[plan] || 1;
+
   // Basic - darrov dashboard
   if (plan === "basic") {
     localStorage.setItem("plan", "basic");
+    showPage(pages.dashboard);
+    return;
+  }
+
+  // ✅ NEW: allaqachon shu plan yoki undan yuqori bo'lsa -> payment emas, info
+  if (curRank >= wantRank && currentPlan !== "basic") {
+    const daysLeft = getDaysLeft();
+    if (daysLeft !== null) {
+      alert(`✅ Siz allaqachon "${currentPlan.toUpperCase()}" planidasiz.\n⏳ Qolgan muddat: ${daysLeft} kun.`);
+    } else {
+      alert(`✅ Siz allaqachon "${currentPlan.toUpperCase()}" planidasiz.`);
+    }
     showPage(pages.dashboard);
     return;
   }
@@ -318,11 +401,14 @@ function choosePlan(plan) {
   showPage(pages.payment, "flex");
 }
 
-function goDashboard() { showPage(pages.dashboard); }
+function goDashboard() {
+  showPage(pages.dashboard);
+}
 
 /* ================= DASHBOARD ================= */
-function initDashboard() {
+async function initDashboard() {
   loadUser();
+  await syncPlanFromServer();
   applyFeatureLock();
 }
 
@@ -337,8 +423,7 @@ function loadUser() {
 function toggleDropdown() {
   const dropdown = document.getElementById("userDropdown");
   if (!dropdown) return;
-  dropdown.style.display =
-    dropdown.style.display === "block" ? "none" : "block";
+  dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
 }
 
 /* ================= ACCESS CONTROL ================= */
@@ -352,23 +437,18 @@ const accessControl = {
 function applyFeatureLock() {
   // ✅ Admin uchun hammasi ochiq
   if (isAdminRole()) {
-    document.querySelectorAll(".locked").forEach(el => el.classList.remove("locked"));
+    document.querySelectorAll(".locked").forEach((el) => el.classList.remove("locked"));
     return;
   }
 
-  const plan = localStorage.getItem("plan") || "basic";
+  const plan = getCurrentPlan();
   const limits = accessControl[plan] || accessControl.basic;
 
   const sidebarItems = document.querySelectorAll(".sidebar [data-feature]");
   const topItems = document.querySelectorAll(".feature-buttons [data-feature]");
 
-  sidebarItems.forEach((el, index) =>
-    el.classList.toggle("locked", index >= limits.sidebarLimit)
-  );
-
-  topItems.forEach((el, index) =>
-    el.classList.toggle("locked", index >= limits.topLimit)
-  );
+  sidebarItems.forEach((el, index) => el.classList.toggle("locked", index >= limits.sidebarLimit));
+  topItems.forEach((el, index) => el.classList.toggle("locked", index >= limits.topLimit));
 }
 
 /* ================= FEATURE DATA ================= */
@@ -389,12 +469,10 @@ const featureData = {
 function initFeatureClick() {
   const buttons = document.querySelectorAll("[data-feature]");
 
-  buttons.forEach(btn => {
-    // old listenerlar ko‘payib ketmasin
+  buttons.forEach((btn) => {
     btn.onclick = null;
 
     btn.addEventListener("click", () => {
-      // ✅ Admin bo‘lsa locked tekshiruvi yo‘q
       if (!isAdminRole() && btn.classList.contains("locked")) {
         alert("🔒 This feature is locked. Upgrade your plan.");
         return;
@@ -407,7 +485,7 @@ function initFeatureClick() {
         return;
       }
 
-      buttons.forEach(b => b.classList.remove("active"));
+      buttons.forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
 
       const featureTitle = document.getElementById("featureTitle");
@@ -429,10 +507,10 @@ function sendReset() { alert("📧 Reset link sent!"); backToLogin(); }
 
 /* ================= SOCIAL LOGIN ================= */
 function loginWithGoogle() {
-  window.location.href = "http://localhost:3000/api/auth/google";
+  window.location.href = `${API_BASE}/api/auth/google`;
 }
 function loginWithApple() {
-  window.location.href = "http://localhost:3000/api/auth/apple";
+  window.location.href = `${API_BASE}/api/auth/apple`;
 }
 
 /* ================= ADMIN PANEL ================= */
@@ -447,23 +525,35 @@ function toggleAdminPanel() {
 
 /* ================= UPGRADE (UPDATED) ================= */
 function goUpgrade() {
-  // ✅ Faqat user uchun
   if (isAdminRole()) {
     alert("Admin uchun Upgrade kerak emas.");
     return;
   }
-  // default: premium
-  preparePayment("premium");
+
+  const currentPlan = getCurrentPlan(); // basic/premium/pro
+  const daysLeft = getDaysLeft();
+
+  // pro bo'lsa -> info
+  if (currentPlan === "pro") {
+    const msg = daysLeft !== null
+      ? `✅ Siz allaqachon PRO planidasiz.\n⏳ Qolgan muddat: ${daysLeft} kun.`
+      : `✅ Siz allaqachon PRO planidasiz.`;
+    alert(msg);
+    showPage(pages.dashboard);
+    return;
+  }
+
+  // basic bo'lsa premiumga, premium bo'lsa proga
+  const nextPlan = currentPlan === "premium" ? "pro" : "premium";
+  preparePayment(nextPlan);
   showPage(pages.payment, "flex");
 }
 
 /* ================= CLEANUP HELPERS ================= */
 function cleanupAdminArtifacts() {
-  // Admin jadval qolib ketmasin
   const oldTable = document.getElementById("adminUsersTable");
   if (oldTable) oldTable.remove();
 
-  // Dropdown yopilsin
   const dropdown = document.getElementById("userDropdown");
   if (dropdown) dropdown.style.display = "none";
 }
@@ -477,7 +567,7 @@ async function loadAdminUsers() {
   const token = localStorage.getItem("token");
 
   try {
-    const res = await fetch("http://localhost:3000/admin/users", {
+    const res = await fetch(`${API_BASE}/admin/users`, {
       headers: { Authorization: "Bearer " + token }
     });
 
@@ -511,7 +601,7 @@ async function loadAdminUsers() {
       </tr>
     `;
 
-    users.forEach(user => {
+    users.forEach((user) => {
       const tr = document.createElement("tr");
 
       tr.innerHTML = `
@@ -522,8 +612,8 @@ async function loadAdminUsers() {
         <td>${new Date(user.created_at).toLocaleString()}</td>
         <td>
           <button onclick="deleteUser(${user.id})">Delete</button>
-          <button onclick="changeRole(${user.id}, '${user.role === 'admin' ? 'user' : 'admin'}')">
-            ${user.role === 'admin' ? 'Make User' : 'Make Admin'}
+          <button onclick="changeRole(${user.id}, '${user.role === "admin" ? "user" : "admin"}')">
+            ${user.role === "admin" ? "Make User" : "Make Admin"}
           </button>
         </td>
       `;
@@ -532,7 +622,6 @@ async function loadAdminUsers() {
     });
 
     dashboardMain.appendChild(table);
-
   } catch (err) {
     console.error(err);
   }
@@ -544,13 +633,12 @@ async function deleteUser(userId) {
   if (!confirm("Are you sure to delete this user?")) return;
 
   try {
-    const res = await fetch(`http://localhost:3000/admin/users/${userId}`, {
+    const res = await fetch(`${API_BASE}/admin/users/${userId}`, {
       method: "DELETE",
       headers: { Authorization: "Bearer " + localStorage.getItem("token") }
     });
 
     if (res.ok) loadAdminUsers();
-
   } catch (err) {
     console.error(err);
   }
@@ -560,7 +648,7 @@ async function changeRole(userId, newRole) {
   if (localStorage.getItem("role") !== "admin") return;
 
   try {
-    const res = await fetch(`http://localhost:3000/admin/users/${userId}/role`, {
+    const res = await fetch(`${API_BASE}/admin/users/${userId}/role`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -570,7 +658,6 @@ async function changeRole(userId, newRole) {
     });
 
     if (res.ok) loadAdminUsers();
-
   } catch (err) {
     console.error(err);
   }
@@ -582,9 +669,14 @@ const PLAN_PRICES = {
   pro: "149 000 so‘m"
 };
 
-// kartalaringni shu yerda yozib qo‘yasiz
+/* ✅ NEW: amount DBga son bo‘lib borishi uchun */
+const PLAN_AMOUNTS = {
+  premium: 99000,
+  pro: 149000
+};
+
 const CARD_INFO = {
-  number: "8600 1234 5678 9012",
+  number: "9860 3501 4364 6296",
   owner: "Sultonbek"
 };
 
@@ -613,7 +705,6 @@ function preparePayment(plan) {
 
   localStorage.setItem("pending_plan", plan);
 
-  // eski file/tx ni tozalash
   const file = document.getElementById("receiptFile");
   const tx = document.getElementById("txId");
   if (file) file.value = "";
@@ -628,7 +719,15 @@ function copyText(elId) {
   alert("Copied ✅");
 }
 
+/* ✅ UPDATED: endi demo emas, real backendga yuboradi */
 async function submitPaymentRequest() {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    alert("Avval login qiling!");
+    showPage(pages.login);
+    return;
+  }
+
   const file = document.getElementById("receiptFile")?.files?.[0];
   const txId = document.getElementById("txId")?.value?.trim() || "";
   const plan = localStorage.getItem("pending_plan") || "premium";
@@ -638,6 +737,46 @@ async function submitPaymentRequest() {
     return;
   }
 
-  // Hozircha demo:
-  alert(`✅ Chek yuborishga tayyor!\nPlan: ${plan}\nTX: ${txId || "-" }\n\nKeyingi bosqich: server.js ga upload endpoint qo‘shamiz.`);
+  if (!["premium", "pro"].includes(plan)) {
+    alert("Plan noto‘g‘ri. Qaytadan tanlang!");
+    showPage(pages.main);
+    return;
+  }
+
+  const amount = PLAN_AMOUNTS[plan] || 0;
+
+  const fd = new FormData();
+  fd.append("receipt", file);
+  fd.append("plan_requested", plan);
+  fd.append("amount", String(amount));
+  if (txId) fd.append("transaction_ref", txId);
+
+  try {
+    const res = await fetch(`${API_BASE}/api/payments/request`, {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + token
+      },
+      body: fd
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      alert(data.message || "Chek yuborishda xatolik!");
+      return;
+    }
+
+    alert("✅ So‘rov yuborildi! Admin tekshiradi va tasdiqlasa plan yoqiladi.");
+
+    const f = document.getElementById("receiptFile");
+    const t = document.getElementById("txId");
+    if (f) f.value = "";
+    if (t) t.value = "";
+
+    showPage(pages.dashboard);
+  } catch (e) {
+    console.error(e);
+    alert("Server bilan bog‘lanib bo‘lmadi (backend ishlayaptimi?)");
+  }
 }
