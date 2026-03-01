@@ -451,3 +451,185 @@
   transform: translateY(-2px);
   box-shadow: 0 12px 25px rgba(40,167,69,0.3);
 }
+/* ===========================
+   ADMIN COLOR OVERRIDE ONLY
+   (No layout changes: no width/padding/display/position)
+   Theme:
+   BG #FEF9EF | TEXT #2D6A4F | ACCENT #D4A373 | SECONDARY #A3B18A
+   =========================== */
+
+:root{
+  --bg: #FEF9EF;
+  --text: #2D6A4F;
+  --accent: #D4A373;
+  --secondary: #A3B18A;
+
+  --border: rgba(45,106,79,0.14);
+  --glass: rgba(254,249,239,0.72);
+  --glass-2: rgba(255,255,255,0.84);
+  --shadow-soft: 0 18px 50px rgba(45,106,79,0.10);
+}
+
+/* Page text */
+.admin-shell,
+.admin-main{
+  color: var(--text);
+}
+
+/* Sidebar: faqat rang */
+.admin-sidebar{
+  background: rgba(163,177,138,0.30) !important;
+  color: var(--text) !important;
+  border-right: 1px solid rgba(45,106,79,0.12) !important;
+  backdrop-filter: blur(10px);
+}
+.admin-sidebar h3{ color: var(--text) !important; }
+
+/* Sidebar links */
+.admin-sidebar a{
+  color: var(--text) !important;
+  background: rgba(254,249,239,0.55) !important;
+  border: 1px solid rgba(45,106,79,0.10) !important;
+}
+.admin-sidebar a:hover{
+  background: rgba(254,249,239,0.85) !important;
+  box-shadow: 0 12px 28px rgba(45,106,79,0.12) !important;
+}
+.admin-sidebar a.active{
+  background: rgba(212,163,115,0.45) !important;
+  border-color: rgba(212,163,115,0.55) !important;
+  box-shadow: 0 16px 36px rgba(212,163,115,0.18) !important;
+}
+
+/* Sidebar hint */
+.admin-sidebar-hint{
+  background: rgba(254,249,239,0.55) !important;
+  border: 1px solid rgba(45,106,79,0.12) !important;
+  color: var(--text) !important;
+}
+
+/* Top title gradient -> theme */
+.admin-title{
+  background: linear-gradient(90deg, var(--text), var(--accent)) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+.admin-subtitle{
+  color: rgba(45,106,79,0.80) !important;
+}
+
+/* Cards/glass */
+.admin-card{
+  background: rgba(254,249,239,0.86) !important;
+  border: 1px solid rgba(45,106,79,0.12) !important;
+  color: var(--text) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+/* Inputs/select */
+.admin-search input,
+.admin-controls select,
+.admin-select{
+  background: rgba(255,255,255,0.92) !important;
+  border: 1px solid rgba(45,106,79,0.16) !important;
+  color: var(--text) !important;
+}
+.admin-search input:focus{
+  border-color: rgba(212,163,115,0.75) !important;
+  box-shadow: 0 0 0 4px rgba(212,163,115,0.18) !important;
+}
+
+/* KPI */
+.kpi{
+  background: rgba(163,177,138,0.18) !important;
+  border: 1px solid rgba(45,106,79,0.12) !important;
+}
+.kpi-label{ color: rgba(45,106,79,0.75) !important; }
+.kpi-value{ color: var(--text) !important; }
+
+/* Table */
+.admin-table th{
+  background: rgba(163,177,138,0.20) !important;
+  color: var(--text) !important;
+}
+.admin-table td{
+  color: rgba(45,106,79,0.95) !important;
+  border-bottom: 1px solid rgba(45,106,79,0.10) !important;
+}
+.admin-row:hover{
+  background: rgba(212,163,115,0.16) !important;
+}
+
+/* Chips */
+.admin-chip{
+  border: 1px solid rgba(45,106,79,0.10) !important;
+  color: var(--text) !important;
+}
+.chip-admin{ background: rgba(212,163,115,0.22) !important; }
+.chip-user{ background: rgba(163,177,138,0.22) !important; }
+.chip-free{ background: rgba(45,106,79,0.06) !important; }
+.chip-premium{ background: rgba(212,163,115,0.18) !important; }
+.chip-pro{ background: rgba(163,177,138,0.26) !important; }
+
+/* Buttons colors only (hover animatsiya o‘zida qoladi) */
+.admin-btn-primary{
+  background: rgba(212,163,115,0.90) !important;
+  color: #2b241b !important;
+  border: 1px solid rgba(212,163,115,0.55) !important;
+  box-shadow: 0 14px 30px rgba(212,163,115,0.22) !important;
+}
+.admin-btn-ghost{
+  background: rgba(163,177,138,0.20) !important;
+  color: var(--text) !important;
+  border: 1px solid rgba(45,106,79,0.12) !important;
+}
+
+/* mini actions */
+.admin-mini.save{
+  background: rgba(212,163,115,0.90) !important;
+  color: #2b241b !important;
+  border: 1px solid rgba(212,163,115,0.55) !important;
+}
+.admin-mini.block{
+  background: rgba(212,163,115,0.90) !important;
+  color: #2b241b !important;
+  border: 1px solid rgba(212,163,115,0.55) !important;
+}
+.admin-mini.unblock{
+  background: rgba(163,177,138,0.55) !important;
+  color: var(--text) !important;
+  border: 1px solid rgba(45,106,79,0.14) !important;
+}
+
+/* Pagination */
+.admin-pagination{
+  border-top: 1px solid rgba(45,106,79,0.10) !important;
+}
+.admin-pagination button{
+  background: rgba(254,249,239,0.85) !important;
+  border: 1px solid rgba(45,106,79,0.12) !important;
+  color: var(--text) !important;
+}
+.admin-pagination button.active,
+.pg-btn.active{
+  background: rgba(212,163,115,0.92) !important;
+  color: #2b241b !important;
+  border: 1px solid rgba(212,163,115,0.55) !important;
+  box-shadow: 0 14px 30px rgba(212,163,115,0.22) !important;
+}
+
+/* Toast + Modal */
+.admin-toast{
+  background: rgba(254,249,239,0.92) !important;
+  border: 1px solid rgba(45,106,79,0.14) !important;
+  color: var(--text) !important;
+}
+.admin-modal-backdrop{
+  background: rgba(45,106,79,0.22) !important;
+}
+.admin-modal-card{
+  background: rgba(254,249,239,0.92) !important;
+  border: 1px solid rgba(45,106,79,0.14) !important;
+  color: var(--text) !important;
+}

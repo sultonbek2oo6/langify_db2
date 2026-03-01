@@ -179,7 +179,6 @@
 
     <div class="upload-box">
       <label class="upload-label">Chek (rasm) yuklang:</label>
-      <!-- xohlasang: accept="image/jpeg,image/png,image/webp" -->
       <input type="file" id="receiptFile" accept="image/*" />
       <input type="text" id="txId" placeholder="Tranzaksiya ID (ixtiyoriy)" />
       <button class="pay-submit" onclick="submitPaymentRequest()">Chekni yuborish</button>
@@ -211,15 +210,20 @@
         <div class="top-bar">
             <h3>Welcome to English Learning Platform!</h3>
 
-            <div class="user-menu">
-                <div class="avatar" onclick="toggleDropdown()">U</div>
+            <!-- ✅ UPDATED: Upgrade avatar yonida, dropdown click bilan -->
+            <div class="user-menu" id="userMenu">
+                <button id="upgradeBtnTop" class="upgrade-top-btn" onclick="goUpgrade()">
+                    Upgrade
+                </button>
+
+                <button class="avatar-btn" id="avatarBtn" type="button">
+                    <span class="avatar">U</span>
+                </button>
+
                 <div class="dropdown" id="userDropdown">
                     <p id="userEmail">user@example.com</p>
 
-                    <!-- ✅ USER uchun Upgrade (JS yashiradi/ko‘rsatadi) -->
-                    <button id="upgradeBtn" class="upgrade-btn" onclick="goUpgrade()">Upgrade Plan</button>
-
-                    <button onclick="logout()">Logout</button>
+                    <button class="logout-btn" onclick="logout()">Logout</button>
 
                     <!-- ✅ ADMIN uchun Admin Panel (JS yashiradi/ko‘rsatadi) -->
                     <button id="adminToggleBtn" onclick="toggleAdminPanel()" style="display:none;">Admin Panel</button>

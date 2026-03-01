@@ -162,6 +162,20 @@ async function showPage(page, display = "flex") {
 
   hideAllPages();
   page.style.display = display;
+
+  // ✅ Background state (blur + image switch)
+  document.body.classList.remove("is-auth", "is-main", "is-dashboard");
+
+  if (page === pages.login || page === pages.register || page === pages.forgot) {
+    document.body.classList.add("is-auth");
+  }
+  if (page === pages.main || page === pages.payment || page === pages.listening) {
+    document.body.classList.add("is-main");
+  }
+  if (page === pages.dashboard) {
+    document.body.classList.add("is-dashboard");
+  }
+
   page.classList.add("show", "active");
 
   if (page === pages.dashboard) {
@@ -172,9 +186,9 @@ async function showPage(page, display = "flex") {
     const adminBtn = document.getElementById("adminToggleBtn");
     if (adminBtn) adminBtn.style.display = isAdminRole() ? "block" : "none";
 
-    // ✅ Upgrade tugma faqat user uchun
-    const upgradeBtn = document.getElementById("upgradeBtn");
-    if (upgradeBtn) upgradeBtn.style.display = isAdminRole() ? "none" : "block";
+    // ✅ Upgrade tugma faqat user uchun (endi top-barda)
+    const upgradeTop = document.getElementById("upgradeBtnTop");
+    if (upgradeTop) upgradeTop.style.display = isAdminRole() ? "none" : "inline-flex";
 
     // ✅ Dashboardga kirganda eski admin table qolib ketmasin
     cleanupAdminArtifacts();
@@ -191,7 +205,6 @@ async function showPage(page, display = "flex") {
 
   if (page === pages.payment) {
     // payment page ochilganda hech nima majburiy emas
-    // preparePayment() plan tanlanganda yoki goUpgrade() da chaqiladi
   }
 
   // ✅ Register page ochilganda Google verify holatini tozalaymiz va tugmani chizamiz
@@ -201,8 +214,35 @@ async function showPage(page, display = "flex") {
   }
 }
 
+/* ================= DROPDOWN (CLICK FIX) ================= */
+function setupUserDropdown() {
+  const avatarBtn = document.getElementById("avatarBtn");
+  const dropdown = document.getElementById("userDropdown");
+
+  if (!avatarBtn || !dropdown) return;
+
+  // avatar bosilganda open/close
+  avatarBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    dropdown.classList.toggle("open");
+  });
+
+  // dropdown ichiga bosilganda yopilmasin
+  dropdown.addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
+
+  // tashqariga bosilganda yopilsin
+  document.addEventListener("click", () => {
+    dropdown.classList.remove("open");
+  });
+}
+
 /* ================= INIT ================= */
 window.addEventListener("DOMContentLoaded", async () => {
+  // ✅ dropdown click fix init
+  setupUserDropdown();
+
   const savedUser = localStorage.getItem("userEmail");
   const token = localStorage.getItem("token");
   const goDash = localStorage.getItem("goDashboard") === "1";
@@ -419,13 +459,6 @@ function loadUser() {
   if (emailEl) emailEl.textContent = email;
 }
 
-/* ================= DROPDOWN ================= */
-function toggleDropdown() {
-  const dropdown = document.getElementById("userDropdown");
-  if (!dropdown) return;
-  dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
-}
-
 /* ================= ACCESS CONTROL ================= */
 const accessControl = {
   basic: { sidebarLimit: 3, topLimit: 3 },
@@ -555,7 +588,10 @@ function cleanupAdminArtifacts() {
   if (oldTable) oldTable.remove();
 
   const dropdown = document.getElementById("userDropdown");
-  if (dropdown) dropdown.style.display = "none";
+  if (dropdown) {
+    dropdown.classList.remove("open");   // faqat class olib tashlaymiz
+    dropdown.style.display = "";         // ✅ inline display ni bekor qilamiz
+  }
 }
 
 /* ================= (OLD ADMIN API FUNCTIONS) ================= */
