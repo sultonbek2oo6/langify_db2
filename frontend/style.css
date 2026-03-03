@@ -1096,3 +1096,47 @@ input, textarea{
   .results .result-card{ width: 100%; max-width: 520px; }
   .plan{ width: 100%; max-width: 520px; }
 }
+/* ===== Skeleton pages (minimal, existing theme bilan mos) ===== */
+.skeleton-wrap{
+  padding: 18px;
+}
+.skeleton-card{
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 16px;
+  padding: 18px;
+  backdrop-filter: blur(10px);
+  max-width: 900px;
+}
+.muted{ opacity: .85; font-size: 14px; margin-top: 10px; }
+
+.skeleton-line{
+  height: 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.18);
+  margin: 10px 0;
+}
+.skeleton-line.short{ width: 55%; }
+
+.skeleton-q{
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.14);
+  margin: 10px 0;
+}
+
+.skeleton-box{
+  height: 140px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.14);
+  margin: 10px 0 14px;
+}
+
+.ghost-btn{
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.10);
+  color: white;
+  cursor: not-allowed;
+}

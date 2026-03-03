@@ -6,7 +6,15 @@ const pages = {
   payment: document.getElementById("paymentPage"), // ✅ NEW: payment page
   dashboard: document.getElementById("dashboard"),
   forgot: document.getElementById("forgotPage"),
-  listening: document.getElementById("listeningPage")
+  listening: document.getElementById("listeningPage"),
+
+  // ✅ NEW: Skeleton pages (index.html da shu idlar bo‘lishi kerak)
+  vocabulary: document.getElementById("vocabularyPage"),
+  reading: document.getElementById("readingPage"),
+  writing: document.getElementById("writingPage"),
+  speaking: document.getElementById("speakingPage"),
+  band9: document.getElementById("band9Page"),
+  mock: document.getElementById("mockPage")
 };
 
 /* ================= API BASE (NEW) ================= */
@@ -169,9 +177,22 @@ async function showPage(page, display = "flex") {
   if (page === pages.login || page === pages.register || page === pages.forgot) {
     document.body.classList.add("is-auth");
   }
-  if (page === pages.main || page === pages.payment || page === pages.listening) {
+
+  // ✅ UPDATED: Skeleton pages ham main fonni olsin
+  if (
+    page === pages.main ||
+    page === pages.payment ||
+    page === pages.listening ||
+    page === pages.vocabulary ||
+    page === pages.reading ||
+    page === pages.writing ||
+    page === pages.speaking ||
+    page === pages.band9 ||
+    page === pages.mock
+  ) {
     document.body.classList.add("is-main");
   }
+
   if (page === pages.dashboard) {
     document.body.classList.add("is-dashboard");
   }
@@ -513,11 +534,34 @@ function initFeatureClick() {
 
       const feature = btn.dataset.feature;
 
+      // ✅ listening (sizning praktika qismingiz) o‘zgarmaydi
       if (feature === "listening") {
         showPage(pages.listening, "block");
         return;
       }
 
+      // ✅ NEW: Top features -> skeleton pages ochilsin (content yuklashga tayyor)
+      const skeletonMap = {
+        vocabulary: pages.vocabulary,
+        reading: pages.reading,
+        writing: pages.writing,
+        speaking: pages.speaking,
+        band9: pages.band9,
+        mock: pages.mock
+      };
+
+      if (skeletonMap[feature]) {
+        // ✅ NEW: reading bosilganda DB engine ishga tushsin
+        if (feature === "reading") {
+          openReadingModule();
+          return;
+        }
+
+        showPage(skeletonMap[feature], "block");
+        return;
+      }
+
+      // ✅ qolganlari (sidebar feature lar) avvalgidek featureContent’da ishlaydi
       buttons.forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
 
@@ -814,5 +858,206 @@ async function submitPaymentRequest() {
   } catch (e) {
     console.error(e);
     alert("Server bilan bog‘lanib bo‘lmadi (backend ishlayaptimi?)");
+  }
+}
+
+/* ================= READING MODULE (DB ENGINE + 75% UNLOCK) ================= */
+
+function getAuthHeaders() {
+  const token = localStorage.getItem("token");
+  return { Authorization: "Bearer " + token };
+}
+
+async function openReadingModule() {
+  await showPage(pages.reading, "block");
+  await loadReadingList();
+}
+
+async function loadReadingList() {
+  const listEl = document.getElementById("readingTestList");
+  const titleEl = document.getElementById("readingTitle");
+  const bodyEl = document.getElementById("readingBody");
+
+  if (!listEl || !titleEl || !bodyEl) {
+    console.warn("readingPage elementlari topilmadi (readingTestList/readingTitle/readingBody).");
+    console.warn("index.html -> readingPage ichiga shu idlarni qo‘shish kerak bo‘ladi.");
+    return;
+  }
+
+  listEl.innerHTML = `<li>Loading...</li>`;
+  titleEl.textContent = "Select a test";
+  bodyEl.innerHTML = `<p>Chapdan test tanlang.</p>`;
+
+  try {
+    // ✅ Siz server.js da shunday endpoint qilasiz:
+    // GET /api/modules/reading/list
+    const res = await fetch(`${API_BASE}/api/modules/reading/list`, {
+      headers: getAuthHeaders()
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      listEl.innerHTML = `<li>Error: ${data.message || "Failed"}</li>`;
+      return;
+    }
+
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (!items.length) {
+      listEl.innerHTML = `<li>No tests yet</li>`;
+      return;
+    }
+
+    listEl.innerHTML = "";
+    items.forEach((it) => {
+      const li = document.createElement("li");
+      li.textContent = `${it.order_no}. ${it.title}`;
+
+      if (!it.unlocked) {
+        li.style.opacity = "0.55";
+        li.style.pointerEvents = "none";
+        li.textContent += " 🔒 (75% kerak)";
+      } else {
+        li.style.cursor = "pointer";
+        li.addEventListener("click", () => openReadingTest(it.id));
+      }
+
+      listEl.appendChild(li);
+    });
+  } catch (e) {
+    console.error(e);
+    listEl.innerHTML = `<li>Server error</li>`;
+  }
+}
+
+async function openReadingTest(materialId) {
+  const titleEl = document.getElementById("readingTitle");
+  const bodyEl = document.getElementById("readingBody");
+  if (!titleEl || !bodyEl) return;
+
+  titleEl.textContent = "Loading test...";
+  bodyEl.innerHTML = `<p>Loading...</p>`;
+
+  try {
+    // ✅ server.js endpoint:
+    // GET /api/materials/:id  -> { material, questions }
+    const res = await fetch(`${API_BASE}/api/materials/${materialId}`, {
+      headers: getAuthHeaders()
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      bodyEl.innerHTML = `<p>${data.message || "Failed to load"}</p>`;
+      return;
+    }
+
+    const material = data.material || {};
+    const questions = Array.isArray(data.questions) ? data.questions : [];
+
+    titleEl.textContent = material.title || "Reading Test";
+
+    let html = `
+      <div style="background:#ffffff14;padding:14px;border-radius:12px;margin-bottom:12px;">
+        <h4>Passage</h4>
+        <p style="line-height:1.6;">${(material.content || "Passage hali yo‘q").replace(/\n/g, "<br>")}</p>
+      </div>
+      <form id="readingForm">
+    `;
+
+    questions.forEach((q, idx) => {
+      html += `
+        <div style="background:#ffffff14;padding:14px;border-radius:12px;margin:10px 0;">
+          <b>${idx + 1}) ${q.question_text || ""}</b>
+          <div style="margin-top:10px;display:grid;gap:8px;">
+            ${["A", "B", "C", "D"]
+              .map((k) => {
+                const opt = q["option_" + k.toLowerCase()];
+                if (!opt) return "";
+                return `
+                  <label style="display:flex;gap:8px;align-items:center;">
+                    <input type="radio" name="q_${q.id}" value="${k}" />
+                    <span>${k}) ${opt}</span>
+                  </label>
+                `;
+              })
+              .join("")}
+          </div>
+        </div>
+      `;
+    });
+
+    html += `
+      <button type="submit" style="padding:12px 16px;border-radius:10px;border:none;background:blueviolet;color:#fff;">
+        Submit
+      </button>
+      <div id="readingResult" style="margin-top:12px;"></div>
+      </form>
+    `;
+
+    bodyEl.innerHTML = html;
+
+    const form = document.getElementById("readingForm");
+    if (!form) return;
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const answers = [];
+      questions.forEach((q) => {
+        const v =
+          form.querySelector(`input[name="q_${q.id}"]:checked`)?.value || "";
+        answers.push({ question_id: q.id, answer: v });
+      });
+
+      await submitReading(materialId, answers);
+    });
+  } catch (e) {
+    console.error(e);
+    bodyEl.innerHTML = `<p>Server error</p>`;
+  }
+}
+
+async function submitReading(materialId, answers) {
+  const resultEl = document.getElementById("readingResult");
+  if (resultEl) resultEl.innerHTML = "Submitting...";
+
+  try {
+    // ✅ server.js endpoint:
+    // POST /api/materials/:id/submit  body:{answers:[{question_id,answer}]}
+    const res = await fetch(`${API_BASE}/api/materials/${materialId}/submit`, {
+      method: "POST",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ answers })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      if (resultEl)
+        resultEl.innerHTML = `<p style="color:crimson;">${
+          data.message || "Submit error"
+        }</p>`;
+      return;
+    }
+
+    const score = Number(data.score || 0);
+    const unlockedNext = !!data.unlocked_next;
+
+    if (resultEl) {
+      resultEl.innerHTML = `
+        <p style="color:${score >= 75 ? "lightgreen" : "orange"};">
+          Natija: <b>${score}%</b> ${score >= 75 ? "✅" : "🔒 (75% kerak)"}
+        </p>
+        <p>${data.message || ""}</p>
+        ${unlockedNext ? `<p style="color:lightgreen;">✅ Keyingi test ochildi!</p>` : ""}
+      `;
+    }
+
+    await loadReadingList();
+  } catch (e) {
+    console.error(e);
+    if (resultEl) resultEl.innerHTML = `<p style="color:crimson;">Server error</p>`;
   }
 }

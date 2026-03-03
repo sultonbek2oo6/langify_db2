@@ -251,6 +251,146 @@ app.get("/api/me", authenticateToken, async (req, res) => {
   }
 });
 
+/* ================= (NEW) CONTENT API (SKELETON READY) ================= */
+/**
+ * Bu API hozircha "bo‘sh" qaytaradi (DB’da content yo‘q bo‘lsa).
+ * Keyin admin panel orqali yuklashga tayyor.
+ *
+ * Kerakli tables:
+ * - modules(id,slug,title,description,...)
+ * - contents(id,module_id,title,body,level,is_published,...)
+ * - content_files(id,content_id,file_url,file_type,...)
+ * - questions(id,content_id,question_text,option_a,...,correct_option,...)
+ */
+
+// public: modul bo‘yicha content ro‘yxati
+app.get("/api/modules/:slug", async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const [mods] = await pool.query("SELECT * FROM modules WHERE slug=? LIMIT 1", [slug]);
+    if (!mods.length) {
+      return res.json({ module: null, contents: [] });
+    }
+
+    const module = mods[0];
+
+    // faqat publishedlarni ko‘rsatamiz (real platforma uchun)
+    const [contents] = await pool.query(
+      `
+      SELECT id, title, level, is_published, created_at
+      FROM contents
+      WHERE module_id=? AND is_published=1
+      ORDER BY id DESC
+      `,
+      [module.id]
+    );
+
+    res.json({ module, contents });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Content fetch error." });
+  }
+});
+
+// public: content detail (files + questions)
+app.get("/api/contents/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    const [rows] = await pool.query("SELECT * FROM contents WHERE id=? LIMIT 1", [id]);
+    if (!rows.length) return res.json({ content: null, files: [], questions: [] });
+
+    const content = rows[0];
+
+    // published bo‘lmasa userga bermaymiz (admin role bo‘lsa berish mumkin)
+    if (!content.is_published) {
+      return res.status(404).json({ message: "Content topilmadi." });
+    }
+
+    const [files] = await pool.query("SELECT * FROM content_files WHERE content_id=?", [id]);
+    const [questions] = await pool.query("SELECT * FROM questions WHERE content_id=?", [id]);
+
+    res.json({ content, files, questions });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Content detail error." });
+  }
+});
+
+/* ================= (NEW) ADMIN CONTENT (READY FOR UPLOAD LATER) ================= */
+/**
+ * Admin uchun: module yaratish + content yaratish + publish/unpublish
+ * Hozircha frontdan ishlatmasangiz ham bo‘ladi — skeleton tayyor turadi.
+ */
+
+// admin: modules seed/create
+app.post("/api/admin/modules", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { slug, title, description } = req.body;
+
+    if (!slug || !title) {
+      return res.status(400).json({ message: "slug va title kerak." });
+    }
+
+    await pool.query(
+      "INSERT INTO modules (slug, title, description, created_at) VALUES (?, ?, ?, NOW())",
+      [String(slug).trim(), String(title).trim(), description || null]
+    );
+
+    res.json({ message: "Module yaratildi." });
+  } catch (err) {
+    console.error(err);
+    // duplicate slug bo‘lsa
+    res.status(500).json({ message: "Module create error." });
+  }
+});
+
+// admin: content create (draft)
+app.post("/api/admin/contents", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { module_slug, title, body, level } = req.body;
+
+    if (!module_slug || !title) {
+      return res.status(400).json({ message: "module_slug va title kerak." });
+    }
+
+    const [mods] = await pool.query("SELECT id FROM modules WHERE slug=? LIMIT 1", [module_slug]);
+    if (!mods.length) return res.status(400).json({ message: "Module topilmadi." });
+
+    const module_id = mods[0].id;
+
+    const [result] = await pool.query(
+      "INSERT INTO contents (module_id, title, body, level, is_published, created_at) VALUES (?, ?, ?, ?, 0, NOW())",
+      [module_id, title, body || "", level || "easy"]
+    );
+
+    res.json({ message: "Content yaratildi (draft).", id: result.insertId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Admin content create error." });
+  }
+});
+
+// admin: publish/unpublish
+app.put("/api/admin/contents/:id/publish", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { is_published } = req.body;
+
+    if (![0, 1].includes(is_published)) {
+      return res.status(400).json({ message: "is_published 0 yoki 1 bo‘lishi kerak." });
+    }
+
+    await pool.query("UPDATE contents SET is_published=? WHERE id=?", [is_published, id]);
+
+    res.json({ message: is_published ? "Published ✅" : "Unpublished ✅" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Publish update error." });
+  }
+});
+
 /* ================= (NEW) USER PAYMENT REQUEST (payment_requests) ================= */
 /**
  * POST /api/payments/request
@@ -304,6 +444,334 @@ app.post(
   }
 );
 
+/* ================= IELTS PROGRESSION (UNLOCK LOGIC) ================= */
+/**
+ * Tables used:
+ * - materials(id,type,module,order_no,level,is_published,title,content,created_at)
+ * - material_questions(id,material_id,question_text,option_a,option_b,option_c,option_d,correct_option,...)
+ * - attempts(id,user_id,material_id,correct_count,total_count,score,created_at)
+ * - user_progress(id,user_id,material_id,score,best_score,is_unlocked,attempts_count,last_attempt_at,completed_at)
+ */
+
+const PASS_SCORE = 75; // 75% dan yuqori bo'lsa keyingi test ochiladi
+
+async function ensureFirstUnlocked(userId, module) {
+  // module bo'yicha eng birinchi material (order_no eng kichik)
+  const [firstRows] = await pool.query(
+    `SELECT id FROM materials
+     WHERE module=? AND is_published=1
+     ORDER BY order_no ASC, id ASC
+     LIMIT 1`,
+    [module]
+  );
+  if (!firstRows.length) return;
+
+  const firstId = firstRows[0].id;
+
+  // user_progress bor-yo'qligini tekshiramiz
+  const [p] = await pool.query(
+    `SELECT id, is_unlocked FROM user_progress WHERE user_id=? AND material_id=? LIMIT 1`,
+    [userId, firstId]
+  );
+
+  if (!p.length) {
+    await pool.query(
+      `INSERT INTO user_progress (user_id, material_id, score, best_score, is_unlocked, attempts_count, last_attempt_at, completed_at)
+       VALUES (?, ?, 0, 0, 1, 0, NULL, NULL)`,
+      [userId, firstId]
+    );
+  } else if (p[0].is_unlocked !== 1) {
+    await pool.query(
+      `UPDATE user_progress SET is_unlocked=1 WHERE id=?`,
+      [p[0].id]
+    );
+  }
+}
+
+async function getUnlockStatus(userId, materialId) {
+  const [rows] = await pool.query(
+    `SELECT is_unlocked, best_score, score FROM user_progress
+     WHERE user_id=? AND material_id=? LIMIT 1`,
+    [userId, materialId]
+  );
+  if (!rows.length) return { is_unlocked: 0, best_score: 0, score: 0 };
+  return {
+    is_unlocked: Number(rows[0].is_unlocked) || 0,
+    best_score: Number(rows[0].best_score) || 0,
+    score: Number(rows[0].score) || 0
+  };
+}
+
+/* ================= 1) MODULE LIST (LOCKED/UNLOCKED) ================= */
+/**
+ * GET /api/modules/:module/list
+ * Authorization: Bearer <token>
+ * returns:
+ *  { module, items:[{id,title,order_no,level,is_published,is_unlocked,best_score}] }
+ */
+app.get("/api/modules/:module/list", authenticateToken, async (req, res) => {
+  try {
+    const module = String(req.params.module || "").trim().toLowerCase();
+    if (!module) return res.status(400).json({ message: "module kerak." });
+
+    // birinchi test default unlocked bo'lsin
+    await ensureFirstUnlocked(req.user.id, module);
+
+    const [items] = await pool.query(
+      `SELECT id, title, module, order_no, level, is_published
+       FROM materials
+       WHERE module=? AND is_published=1
+       ORDER BY order_no ASC, id ASC`,
+      [module]
+    );
+
+    // progresslar
+    const ids = items.map((x) => x.id);
+    let progressMap = new Map();
+
+    if (ids.length) {
+      const [progress] = await pool.query(
+        `SELECT material_id, is_unlocked, best_score
+         FROM user_progress
+         WHERE user_id=? AND material_id IN (${ids.map(() => "?").join(",")})`,
+        [req.user.id, ...ids]
+      );
+      progress.forEach((p) => {
+        progressMap.set(Number(p.material_id), {
+          is_unlocked: Number(p.is_unlocked) || 0,
+          best_score: Number(p.best_score) || 0
+        });
+      });
+    }
+
+    const out = items.map((it) => {
+      const p = progressMap.get(Number(it.id)) || { is_unlocked: 0, best_score: 0 };
+      return {
+        ...it,
+        is_unlocked: p.is_unlocked,
+        best_score: p.best_score
+      };
+    });
+
+    res.json({ module, items: out });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Module list error." });
+  }
+});
+
+/* ================= 2) MATERIAL DETAIL + QUESTIONS ================= */
+/**
+ * GET /api/materials/:id
+ * Authorization: Bearer <token>
+ * locked bo'lsa -> 403 qaytaradi
+ */
+app.get("/api/materials/:id", authenticateToken, async (req, res) => {
+  try {
+    const materialId = Number(req.params.id);
+    if (!materialId) return res.status(400).json({ message: "material id noto‘g‘ri." });
+
+    const [mRows] = await pool.query(
+      `SELECT id, type, module, order_no, level, is_published, title, content, created_at
+       FROM materials
+       WHERE id=? LIMIT 1`,
+      [materialId]
+    );
+    if (!mRows.length) return res.status(404).json({ message: "Material topilmadi." });
+
+    const material = mRows[0];
+    if (!material.is_published) return res.status(404).json({ message: "Material topilmadi." });
+
+    // module bo'yicha first unlocked bo'lsin
+    await ensureFirstUnlocked(req.user.id, material.module);
+
+    const st = await getUnlockStatus(req.user.id, materialId);
+    if (!st.is_unlocked) {
+      return res.status(403).json({
+        message: `🔒 Locked. Keyingi bosqichga o‘tish uchun natijani ${PASS_SCORE}% qiling.`,
+        required: PASS_SCORE
+      });
+    }
+
+    const [qs] = await pool.query(
+      `SELECT id, question_text, option_a, option_b, option_c, option_d
+       FROM material_questions
+       WHERE material_id=?
+       ORDER BY id ASC`,
+      [materialId]
+    );
+
+    res.json({ material, questions: qs, progress: st });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Material detail error." });
+  }
+});
+
+/* ================= 3) SUBMIT ATTEMPT + SCORE + UNLOCK NEXT ================= */
+/**
+ * POST /api/attempts/submit
+ * Authorization: Bearer <token>
+ * body:
+ * { material_id: number, answers: [{question_id:number, answer:"A"|"B"|"C"|"D"}] }
+ */
+app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const userId = req.user.id;
+    const materialId = Number(req.body.material_id);
+    const answers = Array.isArray(req.body.answers) ? req.body.answers : [];
+
+    if (!materialId) return res.status(400).json({ message: "material_id kerak." });
+
+    await conn.beginTransaction();
+
+    const [mRows] = await conn.query(
+      `SELECT id, module, order_no, is_published FROM materials WHERE id=? LIMIT 1`,
+      [materialId]
+    );
+    if (!mRows.length) {
+      await conn.rollback();
+      return res.status(404).json({ message: "Material topilmadi." });
+    }
+    const material = mRows[0];
+    if (!material.is_published) {
+      await conn.rollback();
+      return res.status(404).json({ message: "Material topilmadi." });
+    }
+
+    // first unlocked
+    // (transaction ichida ham ishlaydi)
+    const [firstRows] = await conn.query(
+      `SELECT id FROM materials WHERE module=? AND is_published=1 ORDER BY order_no ASC, id ASC LIMIT 1`,
+      [material.module]
+    );
+    if (firstRows.length) {
+      const firstId = firstRows[0].id;
+      await conn.query(
+        `INSERT INTO user_progress (user_id, material_id, score, best_score, is_unlocked, attempts_count)
+         VALUES (?, ?, 0, 0, 1, 0)
+         ON DUPLICATE KEY UPDATE is_unlocked=1`,
+        [userId, firstId]
+      );
+    }
+
+    // locked check
+    const [pRows] = await conn.query(
+      `SELECT is_unlocked, best_score, attempts_count FROM user_progress
+       WHERE user_id=? AND material_id=? LIMIT 1`,
+      [userId, materialId]
+    );
+    const isUnlocked = pRows.length ? Number(pRows[0].is_unlocked) : 0;
+    if (!isUnlocked) {
+      await conn.rollback();
+      return res.status(403).json({
+        message: `🔒 Locked. Avval oldingi testdan ${PASS_SCORE}% oling.`,
+        required: PASS_SCORE
+      });
+    }
+
+    const [qRows] = await conn.query(
+      `SELECT id, correct_option FROM material_questions WHERE material_id=?`,
+      [materialId]
+    );
+
+    const total = qRows.length;
+    if (total === 0) {
+      await conn.rollback();
+      return res.status(400).json({ message: "Bu materialda savollar yo‘q." });
+    }
+
+    // answer map
+    const ansMap = new Map();
+    answers.forEach((a) => {
+      const qid = Number(a.question_id);
+      const val = String(a.answer || "").toUpperCase().trim();
+      if (qid && ["A", "B", "C", "D"].includes(val)) ansMap.set(qid, val);
+    });
+
+    let correct = 0;
+    qRows.forEach((q) => {
+      const given = ansMap.get(Number(q.id));
+      const right = String(q.correct_option || "").toUpperCase().trim();
+      if (given && right && given === right) correct++;
+    });
+
+    const score = Math.round((correct / total) * 10000) / 100; // 2 xonali %
+    const passed = score >= PASS_SCORE;
+
+    // attempts insert
+    await conn.query(
+      `INSERT INTO attempts (user_id, material_id, correct_count, total_count, score, created_at)
+       VALUES (?, ?, ?, ?, ?, NOW())`,
+      [userId, materialId, correct, total, score]
+    );
+
+    // user_progress upsert (best_score update)
+    const prevBest = pRows.length ? Number(pRows[0].best_score || 0) : 0;
+    const newBest = Math.max(prevBest, score);
+    const prevAttempts = pRows.length ? Number(pRows[0].attempts_count || 0) : 0;
+
+    await conn.query(
+      `INSERT INTO user_progress (user_id, material_id, score, best_score, is_unlocked, attempts_count, last_attempt_at, completed_at)
+       VALUES (?, ?, ?, ?, 1, 1, NOW(), NOW())
+       ON DUPLICATE KEY UPDATE
+         score=VALUES(score),
+         best_score=GREATEST(best_score, VALUES(best_score)),
+         attempts_count=attempts_count+1,
+         last_attempt_at=NOW(),
+         completed_at=NOW()`,
+      [userId, materialId, score, newBest]
+    );
+
+    // unlock next
+    let nextUnlocked = false;
+    let nextMaterialId = null;
+
+    if (passed) {
+      const [nextRows] = await conn.query(
+        `SELECT id FROM materials
+         WHERE module=? AND is_published=1
+           AND (order_no > ? OR (order_no = ? AND id > ?))
+         ORDER BY order_no ASC, id ASC
+         LIMIT 1`,
+        [material.module, material.order_no, material.order_no, materialId]
+      );
+
+      if (nextRows.length) {
+        nextMaterialId = nextRows[0].id;
+
+        await conn.query(
+          `INSERT INTO user_progress (user_id, material_id, score, best_score, is_unlocked, attempts_count)
+           VALUES (?, ?, 0, 0, 1, 0)
+           ON DUPLICATE KEY UPDATE is_unlocked=1`,
+          [userId, nextMaterialId]
+        );
+
+        nextUnlocked = true;
+      }
+    }
+
+    await conn.commit();
+
+    res.json({
+      material_id: materialId,
+      correct_count: correct,
+      total_count: total,
+      score,
+      passed,
+      required: PASS_SCORE,
+      next_unlocked: nextUnlocked,
+      next_material_id: nextMaterialId
+    });
+  } catch (err) {
+    await conn.rollback();
+    console.error(err);
+    res.status(500).json({ message: "Submit attempt error." });
+  } finally {
+    conn.release();
+  }
+});
 /* ================= ADMIN ROUTES ================= */
 
 app.get("/admin/users", authenticateToken, isAdmin, async (req, res) => {
