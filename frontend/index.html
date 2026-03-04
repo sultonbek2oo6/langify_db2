@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>English Learning Platform</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
 
     <!-- ✅ Google Identity Services (GSI) for email verification -->
@@ -373,7 +374,27 @@
     <p>Reading passage + savollar yuklashga tayyor</p>
   </div>
 
-  <div class="skeleton-wrap">
+  <!-- ✅ NEW: DB UI (index.js shuni qidiradi) -->
+  <div class="reading-shell" style="display:grid;grid-template-columns:260px 1fr;gap:16px;margin-top:16px;">
+    <!-- Left list -->
+    <div class="reading-left" style="background:#ffffff14;border-radius:14px;padding:12px;">
+      <h4 style="margin:6px 0 12px 0;">Tests</h4>
+      <ul id="readingTestList" style="list-style:none;padding:0;margin:0;display:grid;gap:8px;">
+        <li>Loading...</li>
+      </ul>
+    </div>
+
+    <!-- Right content -->
+    <div class="reading-right" style="background:#ffffff14;border-radius:14px;padding:14px;min-height:260px;">
+      <h3 id="readingTitle" style="margin:0 0 10px 0;">Select a test</h3>
+      <div id="readingBody">
+        <p>Chapdan test tanlang.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ✅ Skeleton qoladi (xohlasang keyin olib tashlaysan) -->
+  <div class="skeleton-wrap" style="margin-top:16px;">
     <div class="skeleton-card">
       <h3>Reading content skeleton</h3>
       <div class="skeleton-line"></div>

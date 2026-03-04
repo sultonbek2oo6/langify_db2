@@ -763,8 +763,10 @@ async function submitPaymentRequest() {
 }
 
 /* ================= READING MODULE (DB ENGINE + 75% UNLOCK) ================= */
+/* ✅ FIXED: token bo'lmasa header yubormaydi */
 function getAuthHeaders() {
   const token = localStorage.getItem("token");
+  if (!token) return {};
   return { Authorization: "Bearer " + token };
 }
 
@@ -773,6 +775,7 @@ async function openReadingModule() {
   await loadReadingList();
 }
 
+/* ✅ FIXED: it.is_unlocked bilan ishlaydi, token yo'q bo'lsa login deydi */
 async function loadReadingList() {
   const listEl = document.getElementById("readingTestList");
   const titleEl = document.getElementById("readingTitle");
@@ -784,12 +787,23 @@ async function loadReadingList() {
     return;
   }
 
+  const token = localStorage.getItem("token");
+  if (!token) {
+    listEl.innerHTML = `<li>Avval login qiling 🔑</li>`;
+    titleEl.textContent = "Login required";
+    bodyEl.innerHTML = `<p>Reading testlarni ko‘rish uchun login qiling.</p>`;
+    return;
+  }
+
   listEl.innerHTML = `<li>Loading...</li>`;
+  const hasOpenTest = !!document.getElementById("readingForm");
+if (!hasOpenTest) {
   titleEl.textContent = "Select a test";
   bodyEl.innerHTML = `<p>Chapdan test tanlang.</p>`;
+}
 
   try {
-    // ✅ Siz server.js da shunday endpoint qilasiz:
+    // ✅ Backend endpoint:
     // GET /api/modules/reading/list
     const res = await fetch(`${API_BASE}/api/modules/reading/list`, {
       headers: getAuthHeaders()
@@ -812,7 +826,10 @@ async function loadReadingList() {
       const li = document.createElement("li");
       li.textContent = `${it.order_no}. ${it.title}`;
 
-      if (!it.unlocked) {
+      // ✅ backend field: is_unlocked
+      const unlocked = Number(it.is_unlocked) === 1;
+
+      if (!unlocked) {
         li.style.opacity = "0.55";
         li.style.pointerEvents = "none";
         li.textContent += " 🔒 (75% kerak)";
@@ -839,7 +856,7 @@ async function openReadingTest(materialId) {
 
   try {
     // ✅ server.js endpoint:
-    // GET /api/materials/:id  -> { material, questions }
+    // GET /api/materials/:id  -> { material, questions, progress }
     const res = await fetch(`${API_BASE}/api/materials/${materialId}`, {
       headers: getAuthHeaders()
     });
@@ -855,10 +872,17 @@ async function openReadingTest(materialId) {
 
     titleEl.textContent = material.title || "Reading Test";
 
+    // ✅ NEW: content JSON bo'lsa passage ni ajratib chiqaramiz
+    let passageText = material.content || "Passage hali yo‘q";
+    try {
+      const obj = typeof passageText === "string" ? JSON.parse(passageText) : null;
+      if (obj && obj.passage) passageText = obj.passage;
+    } catch (_) {}
+
     let html = `
       <div style="background:#ffffff14;padding:14px;border-radius:12px;margin-bottom:12px;">
         <h4>Passage</h4>
-        <p style="line-height:1.6;">${(material.content || "Passage hali yo‘q").replace(/\n/g, "<br>")}</p>
+        <p style="line-height:1.6;">${String(passageText).replace(/\n/g, "<br>")}</p>
       </div>
       <form id="readingForm">
     `;
@@ -903,8 +927,7 @@ async function openReadingTest(materialId) {
 
       const answers = [];
       questions.forEach((q) => {
-        const v =
-          form.querySelector(`input[name="q_${q.id}"]:checked`)?.value || "";
+        const v = form.querySelector(`input[name="q_${q.id}"]:checked`)?.value || "";
         answers.push({ question_id: q.id, answer: v });
       });
 
@@ -916,46 +939,58 @@ async function openReadingTest(materialId) {
   }
 }
 
+/* ✅ FIXED: submit endpoint to'g'ri: POST /api/attempts/submit */
 async function submitReading(materialId, answers) {
   const resultEl = document.getElementById("readingResult");
   if (resultEl) resultEl.innerHTML = "Submitting...";
 
   try {
-    // ✅ server.js endpoint:
-    // POST /api/materials/:id/submit  body:{answers:[{question_id,answer}]}
-    const res = await fetch(`${API_BASE}/api/materials/${materialId}/submit`, {
+    // ✅ TO‘G‘RI endpoint: /api/attempts/submit
+    const res = await fetch(`${API_BASE}/api/attempts/submit`, {
       method: "POST",
       headers: {
         ...getAuthHeaders(),
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ answers })
+      body: JSON.stringify({ material_id: materialId, answers })
     });
 
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      if (resultEl)
-        resultEl.innerHTML = `<p style="color:crimson;">${
-          data.message || "Submit error"
-        }</p>`;
+      if (resultEl) {
+        resultEl.innerHTML = `<p style="color:crimson;">${data.message || "Submit error"}</p>`;
+      }
       return;
     }
 
+    const correct = Number(data.correct_count || 0);
+    const total = Number(data.total_count || 0);
+    const wrong = Math.max(total - correct, 0);
     const score = Number(data.score || 0);
-    const unlockedNext = !!data.unlocked_next;
+    const passed = !!data.passed;
+    const unlockedNext = !!data.next_unlocked;
 
     if (resultEl) {
       resultEl.innerHTML = `
-        <p style="color:${score >= 75 ? "lightgreen" : "orange"};">
-          Natija: <b>${score}%</b> ${score >= 75 ? "✅" : "🔒 (75% kerak)"}
-        </p>
-        <p>${data.message || ""}</p>
-        ${unlockedNext ? `<p style="color:lightgreen;">✅ Keyingi test ochildi!</p>` : ""}
+        <div style="background:#ffffffb3;border:1px solid rgba(15,23,42,.08);padding:12px;border-radius:14px;">
+          <p style="margin:0 0 8px 0;font-weight:800;">
+            Natija: <span style="color:${passed ? "green" : "orangered"}">${score}%</span>
+            ${passed ? "✅" : "🔒"}
+          </p>
+          <p style="margin:0;">
+            ✅ To‘g‘ri: <b>${correct}</b> / ${total}
+            &nbsp; | &nbsp;
+            ❌ Xato: <b>${wrong}</b>
+          </p>
+          ${unlockedNext ? `<p style="margin:8px 0 0 0;color:green;font-weight:700;">✅ Keyingi test ochildi!</p>` : ""}
+        </div>
       `;
     }
 
+    // ro‘yxatni yangilab qo‘yamiz (lock/unlock ko‘rinishi uchun)
     await loadReadingList();
+
   } catch (e) {
     console.error(e);
     if (resultEl) resultEl.innerHTML = `<p style="color:crimson;">Server error</p>`;

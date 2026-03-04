@@ -580,6 +580,35 @@ app.post(
   }
 );
 
+/* ================= MATERIALS LIST API (PUBLIC) ================= */
+/**
+ * GET /api/materials?type=reading|listening&module=reading&level=easy
+ * Public: token shart emas (xohlasang keyin token qo'yamiz)
+ */
+app.get("/api/materials", async (req, res) => {
+  try {
+    const { type, module, level } = req.query;
+
+    let sql = `
+      SELECT id, type, module, order_no, level, is_published, title, content, created_at
+      FROM materials
+      WHERE is_published = 1
+    `;
+    const params = [];
+
+    if (type)   { sql += " AND type = ?"; params.push(type); }
+    if (module) { sql += " AND module = ?"; params.push(module); }
+    if (level)  { sql += " AND level = ?"; params.push(level); }
+
+    sql += " ORDER BY order_no ASC, id ASC";
+
+    const [rows] = await pool.query(sql, params);
+    res.json(rows);
+  } catch (err) {
+    console.error("GET /api/materials error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 /* ================= IELTS PROGRESSION (UNLOCK LOGIC) ================= */
 
 const PASS_SCORE = 75;

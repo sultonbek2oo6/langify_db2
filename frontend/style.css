@@ -1140,3 +1140,438 @@ input, textarea{
   color: white;
   cursor: not-allowed;
 }
+/* ================= MOBILE RESPONSIVE ================= */
+
+@media (max-width: 768px) {
+
+  body{
+    padding: 10px;
+  }
+
+  .login-card{
+    width: 100%;
+    padding: 20px;
+  }
+
+  input{
+    width: 100%;
+    font-size: 16px;
+  }
+
+  button{
+    width: 100%;
+    font-size: 16px;
+  }
+
+  h1,h2,h3{
+    font-size: 20px;
+  }
+
+}
+@media (max-width: 768px){
+
+.dashboard{
+  flex-direction: column;
+}
+
+.sidebar{
+  width: 100%;
+}
+
+.main-content{
+  width: 100%;
+}
+
+}
+@media (max-width: 768px){
+
+.test-container{
+  flex-direction: column;
+}
+
+.question{
+  font-size: 15px;
+}
+
+.options label{
+  display: block;
+  margin-bottom: 8px;
+}
+
+}
+.grid{
+display:grid;
+grid-template-columns: repeat(3,1fr);
+}
+@media (max-width:768px){
+.grid{
+grid-template-columns:1fr;
+}
+}
+audio{
+width:100%;
+}
+img{
+max-width:100%;
+height:auto;
+}
+/* ================= MOBILE: LOGIN & REGISTER ================= */
+@media (max-width: 768px) {
+
+  /* sahifalarga umumiy padding */
+  body{
+    padding: 12px;
+  }
+
+  /* Login/Register page wrapper (senda class/id nomlari bo‘lishi mumkin) */
+  .login-page,
+  .register-page{
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 0;
+  }
+
+  /* karta (senda login-card bor) */
+  .login-card{
+    width: 100%;
+    max-width: 420px;
+    padding: 18px 16px;
+    border-radius: 14px;
+  }
+
+  /* sarlavha va textlar */
+  .login-card h2{
+    font-size: 22px;
+    line-height: 1.2;
+  }
+
+  .login-card p{
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  /* inputlar */
+  .login-card input,
+  .login-card select,
+  .login-card textarea{
+    width: 100%;
+    font-size: 16px;         /* iOS zoom bo‘lmasin */
+    padding: 12px 12px;
+    margin-bottom: 10px;
+    border-radius: 12px;
+    box-sizing: border-box;
+  }
+
+  /* tugmalar */
+  .login-card button,
+  .login-card .btn,
+  .login-card .primary-btn{
+    width: 100%;
+    font-size: 16px;
+    padding: 12px 12px;
+    border-radius: 12px;
+  }
+
+  /* linklar (forgot/register) */
+  .login-card a{
+    display: inline-block;
+    font-size: 14px;
+  }
+
+  /* yonma-yon bo‘ladigan knopkalar bo‘lsa (masalan Back / Next) pastma-past bo‘lsin */
+  .login-card .row,
+  .login-card .actions,
+  .login-card .btn-row{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Google verify button/area bo‘lsa */
+  #googleVerifyBtn,
+  #googleVerifyContainer,
+  .google-verify,
+  .google-area{
+    width: 100%;
+  }
+
+  /* alert/status textlar */
+  #googleVerifyStatus{
+    font-size: 13px;
+    line-height: 1.35;
+  }
+}
+
+/* Juda kichik ekranlar (iphone SE) */
+@media (max-width: 380px) {
+  .login-card{
+    padding: 16px 14px;
+    border-radius: 12px;
+  }
+
+  .login-card h2{
+    font-size: 20px;
+  }
+}
+/* ================= MOBILE: PAYMENT / PAYNET ================= */
+@media (max-width: 768px){
+
+  /* Payment page wrapper (senda #paymentPage bor) */
+  #paymentPage{
+    width: 100%;
+    min-height: 100vh;
+    padding: 14px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Agar payment ham login-card ichida bo‘lsa */
+  #paymentPage .login-card{
+    width: 100%;
+    max-width: 420px;
+    padding: 18px 16px;
+    border-radius: 14px;
+  }
+
+  /* Payment ichidagi umumiy bloklar */
+  #paymentPage .payment-card,
+  #paymentPage .payment-box,
+  #paymentPage .paynet-card,
+  #paymentPage .card{
+    width: 100%;
+    max-width: 420px;
+    padding: 18px 16px;
+    border-radius: 14px;
+    box-sizing: border-box;
+  }
+
+  /* Input/select/buttonlar payment ichida */
+  #paymentPage input,
+  #paymentPage select,
+  #paymentPage textarea{
+    width: 100%;
+    font-size: 16px;   /* iOS zoom bo‘lmasin */
+    padding: 12px 12px;
+    border-radius: 12px;
+    box-sizing: border-box;
+  }
+
+  #paymentPage button,
+  #paymentPage .btn,
+  #paymentPage .pay-btn,
+  #paymentPage .primary-btn{
+    width: 100%;
+    font-size: 16px;
+    padding: 12px 12px;
+    border-radius: 12px;
+  }
+
+  /* Agar paymentda planlar yonma-yon kartalarda bo‘lsa -> mobil’da bitta ustun */
+  #paymentPage .plans,
+  #paymentPage .plan-grid,
+  #paymentPage .pricing,
+  #paymentPage .pricing-grid{
+    display: grid;
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+
+  /* Agar paymentda 2 ustun layout bo‘lsa */
+  #paymentPage .row,
+  #paymentPage .columns,
+  #paymentPage .layout,
+  #paymentPage .payment-layout{
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* Kichik matnlar va statuslar */
+  #paymentPage p,
+  #paymentPage small,
+  #paymentPage .hint,
+  #paymentPage .status{
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  /* QR/rasm bo‘lsa */
+  #paymentPage img{
+    max-width: 100%;
+    height: auto;
+    border-radius: 12px;
+  }
+}
+
+/* Juda kichik ekranlar */
+@media (max-width: 380px){
+  #paymentPage .login-card,
+  #paymentPage .payment-card,
+  #paymentPage .payment-box,
+  #paymentPage .paynet-card,
+  #paymentPage .card{
+    padding: 16px 14px;
+    border-radius: 12px;
+  }
+}
+/* ================= UNIVERSAL MOBILE ================= */
+
+@media (max-width: 768px){
+
+/* umumiy containerlar */
+.container,
+.dashboard,
+.main-content,
+.page{
+  width:100%;
+  padding:10px;
+}
+
+/* cardlar */
+.card,
+.lesson-card,
+.test-card,
+.box{
+  width:100%;
+  margin-bottom:12px;
+}
+
+/* gridlarni 1 ustun qilish */
+.grid,
+.dashboard-grid,
+.lesson-grid{
+  display:grid;
+  grid-template-columns:1fr !important;
+  gap:12px;
+}
+
+/* flex layoutlarni ustma-ust qilish */
+.row,
+.flex,
+.layout{
+  flex-direction:column;
+}
+
+/* buttonlar */
+button{
+  width:100%;
+  font-size:16px;
+}
+
+/* inputlar */
+input,
+select,
+textarea{
+  width:100%;
+  font-size:16px;
+}
+
+/* rasmlar */
+img{
+  max-width:100%;
+  height:auto;
+}
+
+/* audio player (listening uchun) */
+audio{
+  width:100%;
+}
+
+/* test savollari */
+.question{
+  font-size:15px;
+}
+
+/* optionlar */
+.options label{
+  display:block;
+  margin-bottom:8px;
+}
+
+}
+/* ================= READING PAGE UI (PRO FIX) ================= */
+#readingPage .reading-shell{
+  margin-top: 16px;
+  align-items: start;
+}
+
+/* chap va o‘ng bloklarni "glass card" qilamiz */
+#readingPage .reading-left,
+#readingPage .reading-right{
+  background: rgba(255,255,255,0.78) !important;
+  border: 1px solid rgba(0,0,0,0.06);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 16px;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.12);
+}
+
+/* umumiy text ranglarini to'q qilamiz */
+#readingPage,
+#readingPage h1,
+#readingPage h2,
+#readingPage h3,
+#readingPage h4,
+#readingPage p,
+#readingPage li,
+#readingPage label,
+#readingPage b,
+#readingPage span{
+  color: #0f172a !important; /* slate-900 */
+}
+
+/* chapdagi testlar ro‘yxati */
+#readingTestList li{
+  padding: 10px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(15,23,42,0.08);
+  background: rgba(255,255,255,0.55);
+  transition: transform .12s ease, background .12s ease;
+}
+
+#readingTestList li:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.9);
+}
+
+#readingTestList li.active{
+  outline: 2px solid rgba(99,102,241,0.35);
+}
+
+/* passage bloki */
+#readingPage .reading-right > div{
+  color: inherit;
+}
+
+#readingPage #readingBody{
+  overflow: auto;
+  max-height: calc(100vh - 260px);
+  padding-right: 8px;
+}
+
+/* savol kartochkalari ichidagi fonlar (index.js inline fon beradi) */
+#readingPage #readingBody > div,
+#readingPage #readingBody form > div{
+  background: rgba(255,255,255,0.65) !important;
+  border: 1px solid rgba(15,23,42,0.08);
+  border-radius: 14px !important;
+}
+
+/* radio inputlar aniq ko‘rinsin */
+#readingPage input[type="radio"]{
+  width: 16px;
+  height: 16px;
+  accent-color: #4f46e5; /* indigo */
+}
+
+/* submit button ko‘rinishi (index.js inline bg bor, lekin ustidan ham chiroyli bo'ladi) */
+#readingPage button[type="submit"]{
+  border-radius: 12px !important;
+  padding: 12px 16px !important;
+  font-weight: 700;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.15);
+}
