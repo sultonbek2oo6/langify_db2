@@ -26,6 +26,7 @@
             <small id="googleVerifyStatus" style="display:block;margin-top:6px;"></small>
         </div>
 
+        <!-- ✅ FIX: OTP register uchun register() bo‘lishi kerak -->
         <button onclick="goMain()">Register</button>
 
         <p class="switch">
@@ -78,6 +79,28 @@
             <span onclick="goRegister()">Register</span>
         </p>
     </div>
+</div>
+
+<!-- ================= VERIFY CODE ================= -->
+<div class="login-page" id="verifyPage" style="display:none;">
+  <div class="login-card">
+    <h2>Email Verification</h2>
+    <p>Emailingizga kelgan 6 xonali kodni kiriting</p>
+
+    <input type="email" id="verifyEmail" placeholder="Email" />
+    <input type="text" id="verifyCode" placeholder="6-digit code" />
+
+    <button onclick="verifyEmailCode()">Verify</button>
+
+    <p class="switch">
+      Kod kelmadimi?
+      <span onclick="resendVerifyCode()">Resend</span>
+    </p>
+
+    <p class="switch">
+      <span onclick="goLogin()">Back to login</span>
+    </p>
+  </div>
 </div>
 
 <!-- ================= FORGOT PASSWORD ================= -->

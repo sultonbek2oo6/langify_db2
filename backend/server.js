@@ -1,12 +1,18 @@
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
+
+console.log("ENV SMTP_HOST =", process.env.SMTP_HOST);
+console.log("ENV SMTP_USER =", process.env.SMTP_USER);
+console.log("ENV SMTP_PORT =", process.env.SMTP_PORT);
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const pool = require("./db");
-const path = require("path");
 const multer = require("multer");
 const fs = require("fs");
+const nodemailer = require("nodemailer");
 require("dotenv").config();
 
 const app = express();
@@ -27,7 +33,6 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "../frontend")));
 
 /* ================= (NEW) UPLOADS / MULTER ================= */
-/* ✅ Eslatma: multer va fs yuqorida 1 marta import qilingan, qayta yozilmaydi */
 
 const UPLOAD_DIR = path.join(__dirname, "uploads");
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
@@ -56,6 +61,41 @@ const upload = multer({
   fileFilter,
   limits: { fileSize: 3 * 1024 * 1024 }, // 3MB
 });
+
+/* ================= EMAIL OTP (NEW) ================= */
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT || 587),
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+// (ixtiyoriy) SMTP ishlayaptimi tekshirish
+transporter.verify().catch((e) => {
+  console.log("SMTP verify failed:", e?.message || e);
+});
+
+function genCode6() {
+  return String(Math.floor(100000 + Math.random() * 900000)); // 6 xonali
+}
+
+async function sendVerifyCodeEmail(toEmail, username, code) {
+  await transporter.sendMail({
+    from: `"Langify" <${process.env.SMTP_USER}>`,
+    to: toEmail,
+    subject: "Langify tasdiqlash kodi",
+    html: `
+      <h3>Assalomu alaykum, ${username || "user"}!</h3>
+      <p>Ro‘yxatdan o‘tishni yakunlash uchun tasdiqlash kodini kiriting:</p>
+      <h2 style="letter-spacing:2px;">${code}</h2>
+      <p>Kod 10 daqiqa amal qiladi.</p>
+    `,
+  });
+}
 
 /* ================= AUTH MIDDLEWARE ================= */
 
@@ -88,7 +128,7 @@ function isAdmin(req, res, next) {
   next();
 }
 
-/* ================= (NEW) SUBSCRIPTION HELPERS ================= */
+/* ================= SUBSCRIPTION HELPERS ================= */
 /**
  * subscriptions.plan: enum('basic','premium','pro')
  * users.plan: enum('free','premium','pro')
@@ -131,11 +171,19 @@ async function refreshSubscriptionIfExpired(userId) {
   return sub;
 }
 
-/* ================= REGISTER ================= */
+/* ================= REGISTER (OTP) ================= */
 
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { username, email, password, full_name } = req.body;
+    let { username, email, password, full_name } = req.body;
+
+    username = String(username || "").trim();
+    email = String(email || "").trim().toLowerCase();
+    password = String(password || "").trim();
+
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: "Maydonlar to‘liq emas." });
+    }
 
     const [existing] = await pool.query(
       "SELECT id FROM users WHERE email = ? LIMIT 1",
@@ -148,31 +196,139 @@ app.post("/api/auth/register", async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
 
+    const code = genCode6();
+    const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 daqiqa
+
     const [result] = await pool.query(
-      `INSERT INTO users 
-      (username, email, password, full_name, role, is_active, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 'user', 1, NOW(), NOW())`,
-      [username, email, hashed, full_name || null]
+      `INSERT INTO users
+        (username, email, password, full_name, role, is_active, is_verified, verify_code, verify_code_expires, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'user', 1, 0, ?, ?, NOW(), NOW())`,
+      [username, email, hashed, full_name || null, code, expires]
     );
 
-    // (NEW) Yangi user uchun subscription row yaratib qo'yamiz
+    // subscription row
     await pool.query(
       "INSERT INTO subscriptions (user_id, plan, expires_at, status, created_at, updated_at) VALUES (?, 'basic', NULL, 'active', NOW(), NOW())",
       [result.insertId]
     );
 
-    res.status(201).json({ message: "Register muvaffaqiyatli." });
+    // emailga kod yuborish
+    await sendVerifyCodeEmail(email, username, code);
+
+    res.status(201).json({
+      message: "Tasdiqlash kodi emailingizga yuborildi.",
+      step: "verify_required",
+    });
+  } catch (err) {
+  console.error("REGISTER ERROR:", err);
+  return res.status(500).json({
+    message: err?.sqlMessage || err?.message || "Server xatosi.",
+    code: err?.code || null
+  });
+}
+});
+
+/* ================= VERIFY EMAIL CODE (OTP) ================= */
+
+app.post("/api/auth/verify-code", async (req, res) => {
+  try {
+    let { email, code } = req.body;
+
+    email = String(email || "").trim().toLowerCase();
+    code = String(code || "").trim();
+
+    if (!email || !code) {
+      return res.status(400).json({ message: "Email va kod kerak." });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT id, is_verified, verify_code, verify_code_expires
+       FROM users
+       WHERE email=? LIMIT 1`,
+      [email]
+    );
+
+    if (!rows.length) return res.status(404).json({ message: "User topilmadi." });
+
+    const u = rows[0];
+
+    if (Number(u.is_verified) === 1) {
+      return res.json({ message: "Allaqachon tasdiqlangan." });
+    }
+
+    if (!u.verify_code || String(u.verify_code) !== String(code)) {
+      return res.status(400).json({ message: "Kod noto‘g‘ri." });
+    }
+
+    if (u.verify_code_expires && new Date(u.verify_code_expires).getTime() < Date.now()) {
+      return res.status(400).json({
+        message: "Kod vaqti tugagan. Resend qilib qayta kod oling.",
+      });
+    }
+
+    await pool.query(
+      `UPDATE users
+       SET is_verified=1, verify_code=NULL, verify_code_expires=NULL, updated_at=NOW()
+       WHERE id=?`,
+      [u.id]
+    );
+
+    res.json({ message: "Email tasdiqlandi. Endi login qilishingiz mumkin." });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server xatosi." });
   }
 });
 
-/* ================= LOGIN ================= */
+/* ================= RESEND CODE ================= */
+
+app.post("/api/auth/resend-code", async (req, res) => {
+  try {
+    let { email } = req.body;
+    email = String(email || "").trim().toLowerCase();
+
+    if (!email) return res.status(400).json({ message: "Email kerak." });
+
+    const [rows] = await pool.query(
+      `SELECT id, username, is_verified FROM users WHERE email=? LIMIT 1`,
+      [email]
+    );
+    if (!rows.length) return res.status(404).json({ message: "User topilmadi." });
+
+    const u = rows[0];
+    if (Number(u.is_verified) === 1) {
+      return res.json({ message: "Allaqachon tasdiqlangan." });
+    }
+
+    const code = genCode6();
+    const expires = new Date(Date.now() + 10 * 60 * 1000);
+
+    await pool.query(
+      `UPDATE users SET verify_code=?, verify_code_expires=?, updated_at=NOW() WHERE id=?`,
+      [code, expires, u.id]
+    );
+
+    await sendVerifyCodeEmail(email, u.username, code);
+
+    res.json({ message: "Kod qayta yuborildi." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server xatosi." });
+  }
+});
+
+/* ================= LOGIN (FIXED ORDER) ================= */
 
 app.post("/api/auth/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    let { email, password } = req.body;
+
+    email = String(email || "").trim().toLowerCase();
+    password = String(password || "").trim();
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email va parolni kiriting." });
+    }
 
     const [rows] = await pool.query(
       "SELECT * FROM users WHERE email = ? LIMIT 1",
@@ -184,19 +340,26 @@ app.post("/api/auth/login", async (req, res) => {
 
     const user = rows[0];
 
+    // 1) avval parol tekshirish
     const match = await bcrypt.compare(password, user.password);
-
     if (!match) return res.status(400).json({ message: "Parol noto‘g‘ri." });
 
-    // (NEW) login paytida expire bo'lsa basic/free ga tushirib qo'yamiz
+    // 2) keyin verify/active tekshiruvlar
+    if (Number(user.is_verified) !== 1) {
+      return res.status(403).json({
+        message: "Email tasdiqlanmagan. Emailga kelgan kodni kiriting.",
+      });
+    }
+
+    if (Number(user.is_active) !== 1) {
+      return res.status(403).json({ message: "Account block qilingan." });
+    }
+
+    // expire bo'lsa basic/free ga tushirib qo'yamiz
     await refreshSubscriptionIfExpired(user.id);
 
     const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      },
+      { id: user.id, email: user.email, role: user.role },
       JWT_SECRET,
       { expiresIn: "1d" }
     );
@@ -212,7 +375,7 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-/* ================= (NEW) CURRENT USER PROFILE (me) ================= */
+/* ================= CURRENT USER PROFILE (me) ================= */
 /**
  * GET /api/me
  * Authorization: Bearer <token>
@@ -220,10 +383,8 @@ app.post("/api/auth/login", async (req, res) => {
  */
 app.get("/api/me", authenticateToken, async (req, res) => {
   try {
-    // ✅ avval expire bo'lsa free/basic ga tushirib qo'yamiz
     await refreshSubscriptionIfExpired(req.user.id);
 
-    // ✅ plan + expires_at qaytarish (subscriptions LEFT JOIN)
     const [rows] = await pool.query(
       `
       SELECT 
@@ -251,17 +412,7 @@ app.get("/api/me", authenticateToken, async (req, res) => {
   }
 });
 
-/* ================= (NEW) CONTENT API (SKELETON READY) ================= */
-/**
- * Bu API hozircha "bo‘sh" qaytaradi (DB’da content yo‘q bo‘lsa).
- * Keyin admin panel orqali yuklashga tayyor.
- *
- * Kerakli tables:
- * - modules(id,slug,title,description,...)
- * - contents(id,module_id,title,body,level,is_published,...)
- * - content_files(id,content_id,file_url,file_type,...)
- * - questions(id,content_id,question_text,option_a,...,correct_option,...)
- */
+/* ================= CONTENT API (SKELETON READY) ================= */
 
 // public: modul bo‘yicha content ro‘yxati
 app.get("/api/modules/:slug", async (req, res) => {
@@ -275,7 +426,6 @@ app.get("/api/modules/:slug", async (req, res) => {
 
     const module = mods[0];
 
-    // faqat publishedlarni ko‘rsatamiz (real platforma uchun)
     const [contents] = await pool.query(
       `
       SELECT id, title, level, is_published, created_at
@@ -303,7 +453,6 @@ app.get("/api/contents/:id", async (req, res) => {
 
     const content = rows[0];
 
-    // published bo‘lmasa userga bermaymiz (admin role bo‘lsa berish mumkin)
     if (!content.is_published) {
       return res.status(404).json({ message: "Content topilmadi." });
     }
@@ -318,11 +467,7 @@ app.get("/api/contents/:id", async (req, res) => {
   }
 });
 
-/* ================= (NEW) ADMIN CONTENT (READY FOR UPLOAD LATER) ================= */
-/**
- * Admin uchun: module yaratish + content yaratish + publish/unpublish
- * Hozircha frontdan ishlatmasangiz ham bo‘ladi — skeleton tayyor turadi.
- */
+/* ================= ADMIN CONTENT (READY FOR UPLOAD LATER) ================= */
 
 // admin: modules seed/create
 app.post("/api/admin/modules", authenticateToken, isAdmin, async (req, res) => {
@@ -341,7 +486,6 @@ app.post("/api/admin/modules", authenticateToken, isAdmin, async (req, res) => {
     res.json({ message: "Module yaratildi." });
   } catch (err) {
     console.error(err);
-    // duplicate slug bo‘lsa
     res.status(500).json({ message: "Module create error." });
   }
 });
@@ -391,16 +535,8 @@ app.put("/api/admin/contents/:id/publish", authenticateToken, isAdmin, async (re
   }
 });
 
-/* ================= (NEW) USER PAYMENT REQUEST (payment_requests) ================= */
-/**
- * POST /api/payments/request
- * form-data:
- * - plan_requested: premium|pro
- * - amount: number
- * - transaction_ref (optional)
- * - paid_at (optional)
- * - receipt: file (jpg/png/webp)
- */
+/* ================= USER PAYMENT REQUEST (payment_requests) ================= */
+
 app.post(
   "/api/payments/request",
   authenticateToken,
@@ -445,18 +581,10 @@ app.post(
 );
 
 /* ================= IELTS PROGRESSION (UNLOCK LOGIC) ================= */
-/**
- * Tables used:
- * - materials(id,type,module,order_no,level,is_published,title,content,created_at)
- * - material_questions(id,material_id,question_text,option_a,option_b,option_c,option_d,correct_option,...)
- * - attempts(id,user_id,material_id,correct_count,total_count,score,created_at)
- * - user_progress(id,user_id,material_id,score,best_score,is_unlocked,attempts_count,last_attempt_at,completed_at)
- */
 
-const PASS_SCORE = 75; // 75% dan yuqori bo'lsa keyingi test ochiladi
+const PASS_SCORE = 75;
 
 async function ensureFirstUnlocked(userId, module) {
-  // module bo'yicha eng birinchi material (order_no eng kichik)
   const [firstRows] = await pool.query(
     `SELECT id FROM materials
      WHERE module=? AND is_published=1
@@ -468,7 +596,6 @@ async function ensureFirstUnlocked(userId, module) {
 
   const firstId = firstRows[0].id;
 
-  // user_progress bor-yo'qligini tekshiramiz
   const [p] = await pool.query(
     `SELECT id, is_unlocked FROM user_progress WHERE user_id=? AND material_id=? LIMIT 1`,
     [userId, firstId]
@@ -481,10 +608,7 @@ async function ensureFirstUnlocked(userId, module) {
       [userId, firstId]
     );
   } else if (p[0].is_unlocked !== 1) {
-    await pool.query(
-      `UPDATE user_progress SET is_unlocked=1 WHERE id=?`,
-      [p[0].id]
-    );
+    await pool.query(`UPDATE user_progress SET is_unlocked=1 WHERE id=?`, [p[0].id]);
   }
 }
 
@@ -498,23 +622,15 @@ async function getUnlockStatus(userId, materialId) {
   return {
     is_unlocked: Number(rows[0].is_unlocked) || 0,
     best_score: Number(rows[0].best_score) || 0,
-    score: Number(rows[0].score) || 0
+    score: Number(rows[0].score) || 0,
   };
 }
 
-/* ================= 1) MODULE LIST (LOCKED/UNLOCKED) ================= */
-/**
- * GET /api/modules/:module/list
- * Authorization: Bearer <token>
- * returns:
- *  { module, items:[{id,title,order_no,level,is_published,is_unlocked,best_score}] }
- */
 app.get("/api/modules/:module/list", authenticateToken, async (req, res) => {
   try {
     const module = String(req.params.module || "").trim().toLowerCase();
     if (!module) return res.status(400).json({ message: "module kerak." });
 
-    // birinchi test default unlocked bo'lsin
     await ensureFirstUnlocked(req.user.id, module);
 
     const [items] = await pool.query(
@@ -525,9 +641,8 @@ app.get("/api/modules/:module/list", authenticateToken, async (req, res) => {
       [module]
     );
 
-    // progresslar
     const ids = items.map((x) => x.id);
-    let progressMap = new Map();
+    const progressMap = new Map();
 
     if (ids.length) {
       const [progress] = await pool.query(
@@ -539,18 +654,14 @@ app.get("/api/modules/:module/list", authenticateToken, async (req, res) => {
       progress.forEach((p) => {
         progressMap.set(Number(p.material_id), {
           is_unlocked: Number(p.is_unlocked) || 0,
-          best_score: Number(p.best_score) || 0
+          best_score: Number(p.best_score) || 0,
         });
       });
     }
 
     const out = items.map((it) => {
       const p = progressMap.get(Number(it.id)) || { is_unlocked: 0, best_score: 0 };
-      return {
-        ...it,
-        is_unlocked: p.is_unlocked,
-        best_score: p.best_score
-      };
+      return { ...it, is_unlocked: p.is_unlocked, best_score: p.best_score };
     });
 
     res.json({ module, items: out });
@@ -560,12 +671,6 @@ app.get("/api/modules/:module/list", authenticateToken, async (req, res) => {
   }
 });
 
-/* ================= 2) MATERIAL DETAIL + QUESTIONS ================= */
-/**
- * GET /api/materials/:id
- * Authorization: Bearer <token>
- * locked bo'lsa -> 403 qaytaradi
- */
 app.get("/api/materials/:id", authenticateToken, async (req, res) => {
   try {
     const materialId = Number(req.params.id);
@@ -582,14 +687,13 @@ app.get("/api/materials/:id", authenticateToken, async (req, res) => {
     const material = mRows[0];
     if (!material.is_published) return res.status(404).json({ message: "Material topilmadi." });
 
-    // module bo'yicha first unlocked bo'lsin
     await ensureFirstUnlocked(req.user.id, material.module);
 
     const st = await getUnlockStatus(req.user.id, materialId);
     if (!st.is_unlocked) {
       return res.status(403).json({
         message: `🔒 Locked. Keyingi bosqichga o‘tish uchun natijani ${PASS_SCORE}% qiling.`,
-        required: PASS_SCORE
+        required: PASS_SCORE,
       });
     }
 
@@ -608,13 +712,6 @@ app.get("/api/materials/:id", authenticateToken, async (req, res) => {
   }
 });
 
-/* ================= 3) SUBMIT ATTEMPT + SCORE + UNLOCK NEXT ================= */
-/**
- * POST /api/attempts/submit
- * Authorization: Bearer <token>
- * body:
- * { material_id: number, answers: [{question_id:number, answer:"A"|"B"|"C"|"D"}] }
- */
 app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
   const conn = await pool.getConnection();
   try {
@@ -640,8 +737,6 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
       return res.status(404).json({ message: "Material topilmadi." });
     }
 
-    // first unlocked
-    // (transaction ichida ham ishlaydi)
     const [firstRows] = await conn.query(
       `SELECT id FROM materials WHERE module=? AND is_published=1 ORDER BY order_no ASC, id ASC LIMIT 1`,
       [material.module]
@@ -656,7 +751,6 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
       );
     }
 
-    // locked check
     const [pRows] = await conn.query(
       `SELECT is_unlocked, best_score, attempts_count FROM user_progress
        WHERE user_id=? AND material_id=? LIMIT 1`,
@@ -667,7 +761,7 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
       await conn.rollback();
       return res.status(403).json({
         message: `🔒 Locked. Avval oldingi testdan ${PASS_SCORE}% oling.`,
-        required: PASS_SCORE
+        required: PASS_SCORE,
       });
     }
 
@@ -682,7 +776,6 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
       return res.status(400).json({ message: "Bu materialda savollar yo‘q." });
     }
 
-    // answer map
     const ansMap = new Map();
     answers.forEach((a) => {
       const qid = Number(a.question_id);
@@ -697,20 +790,17 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
       if (given && right && given === right) correct++;
     });
 
-    const score = Math.round((correct / total) * 10000) / 100; // 2 xonali %
+    const score = Math.round((correct / total) * 10000) / 100;
     const passed = score >= PASS_SCORE;
 
-    // attempts insert
     await conn.query(
       `INSERT INTO attempts (user_id, material_id, correct_count, total_count, score, created_at)
        VALUES (?, ?, ?, ?, ?, NOW())`,
       [userId, materialId, correct, total, score]
     );
 
-    // user_progress upsert (best_score update)
     const prevBest = pRows.length ? Number(pRows[0].best_score || 0) : 0;
     const newBest = Math.max(prevBest, score);
-    const prevAttempts = pRows.length ? Number(pRows[0].attempts_count || 0) : 0;
 
     await conn.query(
       `INSERT INTO user_progress (user_id, material_id, score, best_score, is_unlocked, attempts_count, last_attempt_at, completed_at)
@@ -724,7 +814,6 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
       [userId, materialId, score, newBest]
     );
 
-    // unlock next
     let nextUnlocked = false;
     let nextMaterialId = null;
 
@@ -762,7 +851,7 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
       passed,
       required: PASS_SCORE,
       next_unlocked: nextUnlocked,
-      next_material_id: nextMaterialId
+      next_material_id: nextMaterialId,
     });
   } catch (err) {
     await conn.rollback();
@@ -772,17 +861,15 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
     conn.release();
   }
 });
+
 /* ================= ADMIN ROUTES ================= */
 
 app.get("/admin/users", authenticateToken, isAdmin, async (req, res) => {
   try {
-    const search = (req.query.search || "").trim(); // id/username/email
-    const role = (req.query.role || "").trim(); // user/admin
+    const search = (req.query.search || "").trim();
+    const role = (req.query.role || "").trim();
     const page = Math.max(parseInt(req.query.page || "1", 10), 1);
-    const limit = Math.min(
-      Math.max(parseInt(req.query.limit || "20", 10), 1),
-      100
-    );
+    const limit = Math.min(Math.max(parseInt(req.query.limit || "20", 10), 1), 100);
     const offset = (page - 1) * limit;
 
     const where = [];
@@ -801,7 +888,6 @@ app.get("/admin/users", authenticateToken, isAdmin, async (req, res) => {
       params.push(role);
     }
 
-    // ✅ PLAN FILTER
     const plan = (req.query.plan || "").trim();
     if (plan) {
       if (!["free", "premium", "pro"].includes(plan)) {
@@ -813,7 +899,6 @@ app.get("/admin/users", authenticateToken, isAdmin, async (req, res) => {
 
     const whereSQL = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-    // total count
     const [countRows] = await pool.query(
       `SELECT COUNT(*) AS total FROM users ${whereSQL}`,
       params
@@ -821,25 +906,18 @@ app.get("/admin/users", authenticateToken, isAdmin, async (req, res) => {
     const total = countRows[0].total;
     const totalPages = Math.max(Math.ceil(total / limit), 1);
 
-    // paged data
     const [users] = await pool.query(
       `
-        SELECT id, username, email, role, plan, is_active, created_at
+        SELECT id, username, email, role, plan, is_active, is_verified, created_at
         FROM users
         ${whereSQL}
         ORDER BY created_at DESC
         LIMIT ? OFFSET ?
-        `,
+      `,
       [...params, limit, offset]
     );
 
-    res.json({
-      page,
-      limit,
-      total,
-      totalPages,
-      users,
-    });
+    res.json({ page, limit, total, totalPages, users });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server xatosi." });
@@ -864,11 +942,7 @@ app.put("/admin/users/:id/role", authenticateToken, isAdmin, async (req, res) =>
       return res.status(400).json({ message: "Role noto‘g‘ri." });
     }
 
-    await pool.query("UPDATE users SET role = ? WHERE id = ?", [
-      role,
-      req.params.id,
-    ]);
-
+    await pool.query("UPDATE users SET role = ? WHERE id = ?", [role, req.params.id]);
     res.json({ message: "Role yangilandi." });
   } catch (err) {
     console.error(err);
@@ -876,15 +950,12 @@ app.put("/admin/users/:id/role", authenticateToken, isAdmin, async (req, res) =>
   }
 });
 
-// BLOCK / UNBLOCK USER
 app.put("/admin/users/:id/block", authenticateToken, isAdmin, async (req, res) => {
   try {
     const { is_active } = req.body;
 
     if (![0, 1].includes(is_active)) {
-      return res
-        .status(400)
-        .json({ message: "is_active 0 yoki 1 bo‘lishi kerak." });
+      return res.status(400).json({ message: "is_active 0 yoki 1 bo‘lishi kerak." });
     }
 
     await pool.query("UPDATE users SET is_active = ? WHERE id = ?", [
@@ -892,9 +963,7 @@ app.put("/admin/users/:id/block", authenticateToken, isAdmin, async (req, res) =
       req.params.id,
     ]);
 
-    res.json({
-      message: is_active ? "User unblock qilindi." : "User block qilindi.",
-    });
+    res.json({ message: is_active ? "User unblock qilindi." : "User block qilindi." });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server xatosi." });
@@ -909,13 +978,8 @@ app.put("/admin/users/:id/plan", authenticateToken, isAdmin, async (req, res) =>
       return res.status(400).json({ message: "Plan noto‘g‘ri." });
     }
 
-    // users.plan update
-    await pool.query("UPDATE users SET plan = ? WHERE id = ?", [
-      plan,
-      req.params.id,
-    ]);
+    await pool.query("UPDATE users SET plan = ? WHERE id = ?", [plan, req.params.id]);
 
-    // (NEW) subscriptions ham sync (free -> basic mapping)
     const subPlan = plan === "free" ? "basic" : plan;
     await pool.query(
       "UPDATE subscriptions SET plan=?, updated_at=NOW() WHERE user_id=?",
@@ -929,9 +993,8 @@ app.put("/admin/users/:id/plan", authenticateToken, isAdmin, async (req, res) =>
   }
 });
 
-/* ================= (NEW) ADMIN PAYMENT REQUESTS ================= */
+/* ================= ADMIN PAYMENT REQUESTS ================= */
 
-// list payment requests by status (pending/approved/rejected)
 app.get("/admin/payment-requests", authenticateToken, isAdmin, async (req, res) => {
   try {
     const status = (req.query.status || "pending").trim();
@@ -955,7 +1018,6 @@ app.get("/admin/payment-requests", authenticateToken, isAdmin, async (req, res) 
   }
 });
 
-// approve request -> subscriptions + 90 days (duration_days)
 app.post("/admin/payment-requests/:id/approve", authenticateToken, isAdmin, async (req, res) => {
   const conn = await pool.getConnection();
   try {
@@ -1006,7 +1068,6 @@ app.post("/admin/payment-requests/:id/approve", authenticateToken, isAdmin, asyn
       );
     }
 
-    // users.plan sync (premium/pro)
     await conn.query("UPDATE users SET plan=? WHERE id=?", [
       pr.plan_requested,
       pr.user_id,
@@ -1033,7 +1094,6 @@ app.post("/admin/payment-requests/:id/approve", authenticateToken, isAdmin, asyn
   }
 });
 
-// reject request
 app.post("/admin/payment-requests/:id/reject", authenticateToken, isAdmin, async (req, res) => {
   try {
     const reqId = Number(req.params.id);
@@ -1055,10 +1115,9 @@ app.post("/admin/payment-requests/:id/reject", authenticateToken, isAdmin, async
   }
 });
 
-/* ================= GOOGLE EMAIL VERIFY ================= */
+/* ================= GOOGLE VERIFY (OPTIONAL, OLD) ================= */
 
 const { OAuth2Client } = require("google-auth-library");
-
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 app.post("/api/auth/google-verify", async (req, res) => {
@@ -1077,9 +1136,7 @@ app.post("/api/auth/google-verify", async (req, res) => {
       email_verified: payload.email_verified,
     });
   } catch (err) {
-    res.status(400).json({
-      message: "Google verify failed",
-    });
+    res.status(400).json({ message: "Google verify failed" });
   }
 });
 

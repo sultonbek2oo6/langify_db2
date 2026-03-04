@@ -6,6 +6,7 @@ const pages = {
   payment: document.getElementById("paymentPage"), // ✅ NEW: payment page
   dashboard: document.getElementById("dashboard"),
   forgot: document.getElementById("forgotPage"),
+  verify: document.getElementById("verifyPage"),
   listening: document.getElementById("listeningPage"),
 
   // ✅ NEW: Skeleton pages (index.html da shu idlar bo‘lishi kerak)
@@ -174,7 +175,12 @@ async function showPage(page, display = "flex") {
   // ✅ Background state (blur + image switch)
   document.body.classList.remove("is-auth", "is-main", "is-dashboard");
 
-  if (page === pages.login || page === pages.register || page === pages.forgot) {
+  if (
+    page === pages.login ||
+    page === pages.register ||
+    page === pages.forgot ||
+    page === pages.verify // ✅ NEW
+  ) {
     document.body.classList.add("is-auth");
   }
 
@@ -224,10 +230,6 @@ async function showPage(page, display = "flex") {
     initFeatureClick();
   }
 
-  if (page === pages.payment) {
-    // payment page ochilganda hech nima majburiy emas
-  }
-
   // ✅ Register page ochilganda Google verify holatini tozalaymiz va tugmani chizamiz
   if (page === pages.register) {
     resetGoogleVerify();
@@ -261,7 +263,6 @@ function setupUserDropdown() {
 
 /* ================= INIT ================= */
 window.addEventListener("DOMContentLoaded", async () => {
-  // ✅ dropdown click fix init
   setupUserDropdown();
 
   const savedUser = localStorage.getItem("userEmail");
@@ -313,63 +314,95 @@ async function goMain() {
     return;
   }
 
-  // ✅ Google verify majburiy
-  if (!GOOGLE_VERIFY.idToken) {
-    alert("Avval Google orqali emailni tasdiqlang (Verify with Google).");
-    return;
-  }
-
   try {
-    // 1) backendda token verify qilamiz
-    const verifyRes = await fetch(`${API_BASE}/api/auth/google-verify`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken: GOOGLE_VERIFY.idToken })
-    });
-
-    const v = await verifyRes.json();
-
-    if (!verifyRes.ok) {
-      alert(v?.message || "Google verify failed");
-      return;
-    }
-
-    if (!v.email_verified) {
-      alert("Bu email Google tomonidan tasdiqlanmagan (email_verified=false).");
-      return;
-    }
-
-    const googleEmail = String(v.email || "").toLowerCase();
-    const formEmail = String(email || "").toLowerCase();
-
-    if (!googleEmail || googleEmail !== formEmail) {
-      alert(`Email mos emas!\nGoogle: ${googleEmail}\nSiz kiritgan: ${formEmail}`);
-      return;
-    }
-
-    // 2) Endi register qilamiz
     const res = await fetch(`${API_BASE}/api/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, email, password, full_name: username })
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
       alert(data.message || "Xatolik yuz berdi");
       return;
     }
 
-    alert("Register muvaffaqiyatli! Endi login qiling.");
+    alert(data.message || "Kod emailingizga yuborildi. Endi kodni kiriting.");
 
-    resetGoogleVerify();
+    const vEmail = document.getElementById("verifyEmail");
+    if (vEmail) vEmail.value = email;
+
+    await showPage(pages.verify);
+  } catch (e) {
+    console.error(e);
+    alert("Server bilan bog‘lanib bo‘lmadi");
+  }
+}
+
+/* ================= VERIFY EMAIL (OTP) ================= */
+async function verifyEmailCode() {
+  const email = document.getElementById("verifyEmail")?.value?.trim() || "";
+  const code  = document.getElementById("verifyCode")?.value?.trim() || "";
+
+  if (!email || !code) {
+    alert("Email va 6 xonali kodni kiriting");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/verify-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, code })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      alert(data.message || "Kod noto‘g‘ri yoki muddati tugagan");
+      return;
+    }
+
+    alert(data.message || "Email tasdiqlandi. Endi login qiling.");
     await showPage(pages.login);
   } catch (e) {
     console.error(e);
     alert("Server bilan bog‘lanib bo‘lmadi");
   }
 }
+
+async function resendVerifyCode() {
+  const email = document.getElementById("verifyEmail")?.value?.trim() || "";
+  if (!email) {
+    alert("Emailni kiriting");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/resend-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      alert(data.message || "Qayta yuborishda xatolik");
+      return;
+    }
+
+    alert(data.message || "Kod qayta yuborildi");
+  } catch (e) {
+    console.error(e);
+    alert("Server bilan bog‘lanib bo‘lmadi");
+  }
+}
+
+/* ✅✅✅ FIX: onclick ko‘rishi uchun globalga chiqaramiz */
+window.verifyEmailCode = verifyEmailCode;
+window.resendVerifyCode = resendVerifyCode;
 
 /* -------- LOGIN -------- */
 async function login() {
@@ -395,20 +428,16 @@ async function login() {
       return;
     }
 
-    // ✅ Saqlash
     localStorage.setItem("token", data.token);
     localStorage.setItem("userEmail", email);
     localStorage.setItem("role", data.role);
 
-    // ✅ plan'ni basic qilib qo'ymaymiz, DB'dan olib kelamiz
     await syncPlanFromServer();
-
     cleanupAdminArtifacts();
 
     if (data.role === "admin") {
       await showPage(pages.dashboard);
     } else {
-      // ✅ NEW: premium/pro bo'lsa mainPage emas, dashboard
       const p = getCurrentPlan();
       if (p !== "basic") await showPage(pages.dashboard);
       else await showPage(pages.main);
@@ -428,7 +457,6 @@ function logout() {
 
 /* ================= PLAN ================= */
 function choosePlan(plan) {
-  // ✅ Admin plan tanlamaydi
   if (isAdminRole()) {
     showPage(pages.dashboard);
     return;
@@ -438,14 +466,12 @@ function choosePlan(plan) {
   const curRank = PLAN_RANK[currentPlan] || 1;
   const wantRank = PLAN_RANK[plan] || 1;
 
-  // Basic - darrov dashboard
   if (plan === "basic") {
     localStorage.setItem("plan", "basic");
     showPage(pages.dashboard);
     return;
   }
 
-  // ✅ NEW: allaqachon shu plan yoki undan yuqori bo'lsa -> payment emas, info
   if (curRank >= wantRank && currentPlan !== "basic") {
     const daysLeft = getDaysLeft();
     if (daysLeft !== null) {
@@ -457,7 +483,6 @@ function choosePlan(plan) {
     return;
   }
 
-  // Premium/Pro - payment page
   preparePayment(plan);
   showPage(pages.payment, "flex");
 }
@@ -489,7 +514,6 @@ const accessControl = {
 
 /* ================= FEATURE LOCK ================= */
 function applyFeatureLock() {
-  // ✅ Admin uchun hammasi ochiq
   if (isAdminRole()) {
     document.querySelectorAll(".locked").forEach((el) => el.classList.remove("locked"));
     return;
@@ -534,13 +558,11 @@ function initFeatureClick() {
 
       const feature = btn.dataset.feature;
 
-      // ✅ listening (sizning praktika qismingiz) o‘zgarmaydi
       if (feature === "listening") {
         showPage(pages.listening, "block");
         return;
       }
 
-      // ✅ NEW: Top features -> skeleton pages ochilsin (content yuklashga tayyor)
       const skeletonMap = {
         vocabulary: pages.vocabulary,
         reading: pages.reading,
@@ -551,17 +573,14 @@ function initFeatureClick() {
       };
 
       if (skeletonMap[feature]) {
-        // ✅ NEW: reading bosilganda DB engine ishga tushsin
         if (feature === "reading") {
           openReadingModule();
           return;
         }
-
         showPage(skeletonMap[feature], "block");
         return;
       }
 
-      // ✅ qolganlari (sidebar feature lar) avvalgidek featureContent’da ishlaydi
       buttons.forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
 
@@ -607,10 +626,9 @@ function goUpgrade() {
     return;
   }
 
-  const currentPlan = getCurrentPlan(); // basic/premium/pro
+  const currentPlan = getCurrentPlan();
   const daysLeft = getDaysLeft();
 
-  // pro bo'lsa -> info
   if (currentPlan === "pro") {
     const msg = daysLeft !== null
       ? `✅ Siz allaqachon PRO planidasiz.\n⏳ Qolgan muddat: ${daysLeft} kun.`
@@ -620,7 +638,6 @@ function goUpgrade() {
     return;
   }
 
-  // basic bo'lsa premiumga, premium bo'lsa proga
   const nextPlan = currentPlan === "premium" ? "pro" : "premium";
   preparePayment(nextPlan);
   showPage(pages.payment, "flex");
@@ -633,127 +650,14 @@ function cleanupAdminArtifacts() {
 
   const dropdown = document.getElementById("userDropdown");
   if (dropdown) {
-    dropdown.classList.remove("open");   // faqat class olib tashlaymiz
-    dropdown.style.display = "";         // ✅ inline display ni bekor qilamiz
-  }
-}
-
-/* ================= (OLD ADMIN API FUNCTIONS) ================= */
-/* Pastdagi funksiyalarni o‘chirmadim — hech narsa tushib qolmasin deding.
-   Lekin endi toggleAdminPanel ularni chaqirmaydi.
-   Agar xohlasang keyin bularni admin.js ga ko‘chirib, index.js dan olib tashlaymiz. */
-
-async function loadAdminUsers() {
-  const token = localStorage.getItem("token");
-
-  try {
-    const res = await fetch(`${API_BASE}/admin/users`, {
-      headers: { Authorization: "Bearer " + token }
-    });
-
-    if (res.status === 403) {
-      alert("Only admin allowed");
-      return;
-    }
-
-    if (!res.ok) return;
-
-    const users = await res.json();
-    const dashboardMain = document.querySelector(".main");
-    if (!dashboardMain) return;
-
-    let oldTable = document.getElementById("adminUsersTable");
-    if (oldTable) oldTable.remove();
-
-    const table = document.createElement("table");
-    table.id = "adminUsersTable";
-    table.style.width = "100%";
-    table.style.marginTop = "30px";
-
-    table.innerHTML = `
-      <tr>
-        <th>ID</th>
-        <th>Username</th>
-        <th>Email</th>
-        <th>Role</th>
-        <th>Created</th>
-        <th>Actions</th>
-      </tr>
-    `;
-
-    users.forEach((user) => {
-      const tr = document.createElement("tr");
-
-      tr.innerHTML = `
-        <td>${user.id}</td>
-        <td>${user.username}</td>
-        <td>${user.email}</td>
-        <td>${user.role}</td>
-        <td>${new Date(user.created_at).toLocaleString()}</td>
-        <td>
-          <button onclick="deleteUser(${user.id})">Delete</button>
-          <button onclick="changeRole(${user.id}, '${user.role === "admin" ? "user" : "admin"}')">
-            ${user.role === "admin" ? "Make User" : "Make Admin"}
-          </button>
-        </td>
-      `;
-
-      table.appendChild(tr);
-    });
-
-    dashboardMain.appendChild(table);
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-async function deleteUser(userId) {
-  if (localStorage.getItem("role") !== "admin") return;
-
-  if (!confirm("Are you sure to delete this user?")) return;
-
-  try {
-    const res = await fetch(`${API_BASE}/admin/users/${userId}`, {
-      method: "DELETE",
-      headers: { Authorization: "Bearer " + localStorage.getItem("token") }
-    });
-
-    if (res.ok) loadAdminUsers();
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-async function changeRole(userId, newRole) {
-  if (localStorage.getItem("role") !== "admin") return;
-
-  try {
-    const res = await fetch(`${API_BASE}/admin/users/${userId}/role`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + localStorage.getItem("token")
-      },
-      body: JSON.stringify({ role: newRole })
-    });
-
-    if (res.ok) loadAdminUsers();
-  } catch (err) {
-    console.error(err);
+    dropdown.classList.remove("open");
+    dropdown.style.display = "";
   }
 }
 
 /* ================= PAYMENT (MANUAL) ================= */
-const PLAN_PRICES = {
-  premium: "99 000 so‘m",
-  pro: "149 000 so‘m"
-};
-
-/* ✅ NEW: amount DBga son bo‘lib borishi uchun */
-const PLAN_AMOUNTS = {
-  premium: 99000,
-  pro: 149000
-};
+const PLAN_PRICES = { premium: "99 000 so‘m", pro: "149 000 so‘m" };
+const PLAN_AMOUNTS = { premium: 99000, pro: 149000 };
 
 const CARD_INFO = {
   number: "9860 3501 4364 6296",
@@ -799,7 +703,6 @@ function copyText(elId) {
   alert("Copied ✅");
 }
 
-/* ✅ UPDATED: endi demo emas, real backendga yuboradi */
 async function submitPaymentRequest() {
   const token = localStorage.getItem("token");
   if (!token) {
@@ -834,9 +737,7 @@ async function submitPaymentRequest() {
   try {
     const res = await fetch(`${API_BASE}/api/payments/request`, {
       method: "POST",
-      headers: {
-        Authorization: "Bearer " + token
-      },
+      headers: { Authorization: "Bearer " + token },
       body: fd
     });
 
@@ -862,7 +763,6 @@ async function submitPaymentRequest() {
 }
 
 /* ================= READING MODULE (DB ENGINE + 75% UNLOCK) ================= */
-
 function getAuthHeaders() {
   const token = localStorage.getItem("token");
   return { Authorization: "Bearer " + token };
@@ -1061,3 +961,31 @@ async function submitReading(materialId, answers) {
     if (resultEl) resultEl.innerHTML = `<p style="color:crimson;">Server error</p>`;
   }
 }
+
+/* ================= ✅ GLOBAL EXPORTS (onclick FIX) ================= */
+window.goRegister = goRegister;
+window.goLogin = goLogin;
+window.goMain = goMain;
+window.login = login;
+window.logout = logout;
+
+window.verifyEmailCode = verifyEmailCode;
+window.resendVerifyCode = resendVerifyCode;
+
+window.choosePlan = choosePlan;
+window.goDashboard = goDashboard;
+
+window.openForgot = openForgot;
+window.backToLogin = backToLogin;
+window.sendReset = sendReset;
+
+window.loginWithGoogle = loginWithGoogle;
+window.loginWithApple = loginWithApple;
+
+window.toggleAdminPanel = toggleAdminPanel;
+window.goUpgrade = goUpgrade;
+
+window.submitPaymentRequest = submitPaymentRequest;
+window.copyText = copyText;
+
+window.openReadingModule = openReadingModule;
