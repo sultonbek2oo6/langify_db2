@@ -530,10 +530,10 @@ app.get("/api/me", authenticateToken, async (req, res) => {
   }
 });
 
-/* ================= CONTENT API (SKELETON READY) ================= */
+//* ================= CONTENT API (SKELETON READY) ================= */
 
 // public: modul bo‘yicha content ro‘yxati
-app.get("/api/modules/:slug", async (req, res) => {
+app.get("/api/content/modules/:slug", async (req, res) => {
   try {
     const { slug } = req.params;
 
@@ -562,7 +562,7 @@ app.get("/api/modules/:slug", async (req, res) => {
 });
 
 // public: content detail (files + questions)
-app.get("/api/contents/:id", async (req, res) => {
+app.get("/api/content/contents/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
 
@@ -946,6 +946,34 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
       [userId, materialId, correct, total, score]
     );
 
+    // ================= LEADERBOARD UPSERT (REAL) =================
+    await conn.query(
+    `
+    INSERT INTO leaderboard
+    (user_id, module, attempts_count, best_score, score_sum, avg_score, correct_sum, total_sum, last_attempt_at, updated_at)
+    VALUES
+    (?, ?, 1, ?, ?, ?, ?, ?, NOW(), NOW())
+    ON DUPLICATE KEY UPDATE
+    attempts_count = attempts_count + 1,
+    best_score     = GREATEST(best_score, VALUES(best_score)),
+    score_sum      = score_sum + VALUES(score_sum),
+    avg_score      = ROUND((score_sum + VALUES(score_sum)) / (attempts_count + 1), 2),
+    correct_sum    = correct_sum + VALUES(correct_sum),
+    total_sum      = total_sum + VALUES(total_sum),
+    last_attempt_at= NOW(),
+    updated_at     = NOW()
+    `,
+    [
+    userId,
+    material.module,   // 👈 materials jadvalidan olingan module (reading/listening)
+    score,
+    score,
+    score,
+    correct,
+    total
+   ]
+    );
+
     const prevBest = pRows.length ? Number(pRows[0].best_score || 0) : 0;
     const newBest = Math.max(prevBest, score);
 
@@ -1006,6 +1034,48 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Submit attempt error." });
   } finally {
     conn.release();
+  }
+});
+
+// ================= LEADERBOARD GET =================
+// GET /api/leaderboard?module=reading|listening
+app.get("/api/leaderboard", authenticateToken, async (req, res) => {
+  try {
+    const module = String(req.query.module || "").trim().toLowerCase();
+
+    const params = [];
+    let where = "";
+    if (module) {
+      where = "WHERE l.module = ?";
+      params.push(module);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        l.user_id,
+        u.username,
+        u.email,
+        l.module,
+        l.attempts_count,
+        l.best_score,
+        l.avg_score,
+        l.correct_sum,
+        l.total_sum,
+        l.last_attempt_at
+      FROM leaderboard l
+      JOIN users u ON u.id = l.user_id
+      ${where}
+      ORDER BY l.best_score DESC, l.avg_score DESC, l.attempts_count DESC
+      LIMIT 50
+      `,
+      params
+    );
+
+    res.json({ module: module || "all", items: rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Leaderboard error" });
   }
 });
 

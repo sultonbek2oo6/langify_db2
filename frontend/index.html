@@ -316,47 +316,54 @@
 <!-- ================= LISTENING PAGE ================= -->
 <div id="listeningPage" class="page" style="display:none;">
 
-    <div class="page-header">
-        <button onclick="showPage(pages.dashboard)">⬅ Back</button>
-        <h1>🎧 IELTS Listening Tests</h1>
-        <p>Authentic audio materials with native speakers</p>
+  <div class="page-header">
+    <button onclick="showPage(pages.dashboard)">⬅ Back</button>
+    <h1>🎧 IELTS Listening Tests</h1>
+    <p>Authentic audio materials with native speakers</p>
+  </div>
+
+  <div class="listening-layout">
+
+    <aside class="filter-sidebar">
+      <h3>Filter Tests</h3>
+      <ul>
+        <li class="active">All Tests</li>
+        <li>IELTS Trainer 1</li>
+        <li>IELTS Trainer 2</li>
+        <li>Premium Tests</li>
+      </ul>
+    </aside>
+
+    <!-- ✅ DB LIST CHIQADIGAN JOY -->
+    <div class="tests-grid" id="listeningTestGrid">
+      <div>Loading...</div>
     </div>
+    
+    <!-- ✅ TEST OCHILADIGAN JOY -->
+    <div id="listeningRight" style="margin-top:16px;"></div>
 
-    <div class="listening-layout">
+  </div>
+</div>
 
-        <aside class="filter-sidebar">
-            <h3>Filter Tests</h3>
-            <ul>
-                <li class="active">All Tests</li>
-                <li>IELTS Trainer 1</li>
-                <li>IELTS Trainer 2</li>
-                <li>Premium Tests</li>
-            </ul>
-        </aside>
+<div id="leaderboardPage" class="page" style="display:none;">
+  <div class="page-header">
+    <button onclick="showPage(pages.dashboard)">⬅ Back</button>
+    <h1>🏆 Leaderboard</h1>
+    <p>Top students and rankings</p>
+  </div>
 
-        <div class="tests-grid">
+  <!-- ✅ NEW: card wrapper -->
+  <div class="lb-wrap">
+    <div class="lb-card">
+      <div class="lb-tabs">
+        <button class="lb-tab" onclick="openLeaderboard('reading')">Reading</button>
+        <button class="lb-tab" onclick="openLeaderboard('listening')">Listening</button>
+        <button class="lb-tab" onclick="openLeaderboard('')">All</button>
+      </div>
 
-            <div class="test-card">
-                <span class="badge free">Free</span>
-                <h4>IELTS Trainer 1 - Test 1</h4>
-                <button style="padding: 10px; width: 90%; text-align: center ; margin-top: 5px; background-color: blueviolet;color: white;border-radius: 10px;">Start</button>
-            </div>
-
-            <div class="test-card">
-                <span class="badge free">Free</span>
-                <h4>IELTS Trainer 1 - Test 2</h4>
-                <button style="padding: 10px; width: 90%; text-align: center ; margin-top: 5px; background-color: blueviolet;color: white;border-radius: 10px;">Start</button>
-            </div>
-
-            <div class="test-card premium">
-                <span class="badge premium">Premium</span>
-                <h4>IELTS Trainer 2 - Test 1</h4>
-                <button style="padding: 10px; width: 90%; text-align: center ; margin-top: 5px; background-color: blueviolet;color: white;border-radius: 10px;">Start</button>
-            </div>
-
-        </div>
-
+      <div id="leaderboardBody">Loading...</div>
     </div>
+  </div>
 </div>
 
 <!-- ================= VOCABULARY PAGE (SKELETON) ================= -->

@@ -8,7 +8,7 @@ const pages = {
   forgot: document.getElementById("forgotPage"),
   verify: document.getElementById("verifyPage"),
   listening: document.getElementById("listeningPage"),
-
+  leaderboard: document.getElementById("leaderboardPage"),
   // ✅ NEW: Skeleton pages (index.html da shu idlar bo‘lishi kerak)
   vocabulary: document.getElementById("vocabularyPage"),
   reading: document.getElementById("readingPage"),
@@ -16,6 +16,7 @@ const pages = {
   speaking: document.getElementById("speakingPage"),
   band9: document.getElementById("band9Page"),
   mock: document.getElementById("mockPage")
+  
 };
 
 /* ================= API BASE (NEW) ================= */
@@ -581,9 +582,15 @@ function initFeatureClick() {
 
       const feature = btn.dataset.feature;
 
+      if (feature === "leaderboard") {
+      showPage(pages.leaderboard, "block");
+      openLeaderboard("");
+      return;
+      }
+
       if (feature === "listening") {
-        showPage(pages.listening, "block");
-        return;
+     openListeningModule();
+      return;
       }
 
       const skeletonMap = {
@@ -913,6 +920,208 @@ function getAuthHeaders() {
   return { Authorization: "Bearer " + token };
 }
 
+/* ================= LISTENING MODULE (DB ENGINE) ================= */
+async function openListeningModule() {
+  await showPage(pages.listening, "block");
+  await loadListeningList();
+}
+
+async function loadListeningList() {
+  const grid = document.getElementById("listeningTestGrid");
+  const right = document.getElementById("listeningRight");
+
+  if (!grid) {
+    console.warn("listeningTestGrid topilmadi. index.html ga id='listeningTestGrid' qo‘shing.");
+    return;
+  }
+
+  const token = localStorage.getItem("token");
+  if (!token) {
+    grid.innerHTML = `<div style="opacity:.8;">Avval login qiling 🔑</div>`;
+    if (right) right.innerHTML = "";
+    return;
+  }
+
+  grid.innerHTML = "Loading...";
+  if (right) right.innerHTML = "";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/modules/listening/list`, {
+      headers: getAuthHeaders()
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      grid.innerHTML = `<div style="color:crimson;">${data.message || "Failed"}</div>`;
+      return;
+    }
+
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (!items.length) {
+      grid.innerHTML = `<div>No listening tests yet</div>`;
+      return;
+    }
+
+    grid.innerHTML = "";
+    items.forEach((it) => {
+      const unlocked = Number(it.is_unlocked) === 1;
+
+      const card = document.createElement("div");
+      card.className = "test-card" + (unlocked ? "" : " premium"); // classni xohlasang o‘zgartirasan
+      card.style.cursor = unlocked ? "pointer" : "not-allowed";
+      card.style.opacity = unlocked ? "1" : "0.6";
+
+      card.innerHTML = `
+        <span class="badge ${unlocked ? "free" : "premium"}">${unlocked ? "Open" : "Locked"}</span>
+        <h4>${it.order_no}. ${it.title}</h4>
+        <button style="padding:10px;width:90%;margin-top:6px;background:blueviolet;color:#fff;border:none;border-radius:10px;"
+          ${unlocked ? "" : "disabled"}>${unlocked ? "Start" : "75% kerak"}</button>
+      `;
+
+      if (unlocked) {
+        card.addEventListener("click", () => openListeningTest(it.id));
+      }
+
+      grid.appendChild(card);
+    });
+  } catch (e) {
+    console.error(e);
+    grid.innerHTML = `<div style="color:crimson;">Server error</div>`;
+  }
+}
+
+async function openListeningTest(materialId) {
+  const right = document.getElementById("listeningRight");
+  if (!right) return;
+
+  right.innerHTML = `<div style="padding:14px;background:#ffffff14;border-radius:12px;">Loading...</div>`;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/materials/${materialId}`, {
+      headers: getAuthHeaders()
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      right.innerHTML = `<div style="color:crimson;">${data.message || "Failed to load"}</div>`;
+      return;
+    }
+
+    const material = data.material || {};
+    const questions = Array.isArray(data.questions) ? data.questions : [];
+
+    // content'dan audio ni olish
+    let audioUrl = "";
+    try {
+      const obj = typeof material.content === "string" ? JSON.parse(material.content) : null;
+      if (obj && obj.audio) audioUrl = obj.audio;
+    } catch (_) {}
+
+    let html = `
+      <div style="background:#ffffff14;padding:14px;border-radius:12px;margin-bottom:12px;">
+        <h3 style="margin:0 0 10px 0;">${material.title || "Listening Test"}</h3>
+
+        ${audioUrl ? `
+          <audio controls style="width:100%;">
+            <source src="${audioUrl}">
+          </audio>
+          <p style="opacity:.8;margin:8px 0 0 0;">Audio topilmasa, audio fayl yo‘lini tekshiring: <b>${audioUrl}</b></p>
+        ` : `<p style="color:orange;">⚠️ Audio URL topilmadi (materials.content ichiga {"audio":"..."} qo‘ying)</p>`}
+      </div>
+
+      <form id="listeningForm">
+    `;
+
+    questions.forEach((q, idx) => {
+      html += `
+        <div style="background:#ffffff14;padding:14px;border-radius:12px;margin:10px 0;">
+          <b>${idx + 1}) ${q.question_text || ""}</b>
+          <div style="margin-top:10px;display:grid;gap:8px;">
+            ${["A","B","C","D"].map((k) => {
+              const opt = q["option_" + k.toLowerCase()];
+              if (!opt) return "";
+              return `
+                <label style="display:flex;gap:8px;align-items:center;">
+                  <input type="radio" name="q_${q.id}" value="${k}" />
+                  <span>${k}) ${opt}</span>
+                </label>
+              `;
+            }).join("")}
+          </div>
+        </div>
+      `;
+    });
+
+    html += `
+        <button type="submit" style="padding:12px 16px;border-radius:10px;border:none;background:blueviolet;color:#fff;">
+          Submit
+        </button>
+        <div id="listeningResult" style="margin-top:12px;"></div>
+      </form>
+    `;
+
+    right.innerHTML = html;
+
+    const form = document.getElementById("listeningForm");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const answers = questions.map((q) => {
+        const v = form.querySelector(`input[name="q_${q.id}"]:checked`)?.value || "";
+        return { question_id: q.id, answer: v };
+      });
+      await submitListening(materialId, answers);
+    });
+
+  } catch (e) {
+    console.error(e);
+    right.innerHTML = `<div style="color:crimson;">Server error</div>`;
+  }
+}
+
+async function submitListening(materialId, answers) {
+  const resultEl = document.getElementById("listeningResult");
+  if (resultEl) resultEl.innerHTML = "Submitting...";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/attempts/submit`, {
+      method: "POST",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ material_id: materialId, answers })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (resultEl) resultEl.innerHTML = `<p style="color:crimson;">${data.message || "Submit error"}</p>`;
+      return;
+    }
+
+    const correct = Number(data.correct_count || 0);
+    const total = Number(data.total_count || 0);
+    const wrong = Math.max(total - correct, 0);
+    const score = Number(data.score || 0);
+    const passed = !!data.passed;
+    const unlockedNext = !!data.next_unlocked;
+
+    if (resultEl) {
+      resultEl.innerHTML = `
+        <div style="background:#ffffffb3;border:1px solid rgba(15,23,42,.08);padding:12px;border-radius:14px;">
+          <p style="margin:0 0 8px 0;font-weight:800;">
+            Natija: <span style="color:${passed ? "green" : "orangered"}">${score}%</span> ${passed ? "✅" : "🔒"}
+          </p>
+          <p style="margin:0;">✅ To‘g‘ri: <b>${correct}</b> / ${total}  |  ❌ Xato: <b>${wrong}</b></p>
+          ${unlockedNext ? `<p style="margin:8px 0 0 0;color:green;font-weight:700;">✅ Keyingi test ochildi!</p>` : ""}
+        </div>
+      `;
+    }
+
+    await loadListeningList(); // lock/unlock yangilansin
+  } catch (e) {
+    console.error(e);
+    if (resultEl) resultEl.innerHTML = `<p style="color:crimson;">Server error</p>`;
+  }
+}
+
+
 async function openReadingModule() {
   await showPage(pages.reading, "block");
   await loadReadingList();
@@ -940,7 +1149,7 @@ async function loadReadingList() {
 
   listEl.innerHTML = `<li>Loading...</li>`;
   const hasOpenTest = !!document.getElementById("readingForm");
-if (!hasOpenTest) {
+  if (!hasOpenTest) {
   titleEl.textContent = "Select a test";
   bodyEl.innerHTML = `<p>Chapdan test tanlang.</p>`;
 }
@@ -1140,6 +1349,81 @@ async function submitReading(materialId, answers) {
   }
 }
 
+// ================= LEADERBOARD UI =================
+async function openLeaderboard(module = "") {
+  const titleEl = document.querySelector("#leaderboardPage h1");
+  const bodyEl = document.getElementById("leaderboardBody");
+
+  if (!titleEl || !bodyEl) return;
+
+  titleEl.textContent = "Leaderboard";
+  bodyEl.innerHTML = "Loading...";
+
+  try {
+    const qs = module ? `?module=${encodeURIComponent(module)}` : "";
+    const res = await fetch(`${API_BASE}/api/leaderboard${qs}`, {
+      headers: getAuthHeaders()
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      bodyEl.innerHTML = `<p style="color:crimson;">${data.message || "Failed"}</p>`;
+      return;
+    }
+
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (!items.length) {
+      bodyEl.innerHTML = "<p>Leaderboard hozircha bo‘sh.</p>";
+      return;
+    }
+
+    let html = `
+      <div style="display:flex;gap:10px;margin-bottom:10px;">
+        <button onclick="openLeaderboard('reading')" style="padding:8px 12px;border-radius:10px;border:none;background:#ffffff22;color:#fff;">Reading</button>
+        <button onclick="openLeaderboard('listening')" style="padding:8px 12px;border-radius:10px;border:none;background:#ffffff22;color:#fff;">Listening</button>
+        <button onclick="openLeaderboard('')" style="padding:8px 12px;border-radius:10px;border:none;background:#ffffff22;color:#fff;">All</button>
+      </div>
+
+      <div style="overflow:auto;">
+        <table style="width:100%;border-collapse:collapse;background:#ffffff14;border-radius:12px;">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">#</th>
+              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">User</th>
+              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">Best</th>
+              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">Avg</th>
+              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">Attempts</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    items.forEach((u, i) => {
+      html += `
+        <tr>
+          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${i + 1}</td>
+          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${u.username || "-"}</td>
+          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${u.best_score}%</td>
+          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${u.avg_score}%</td>
+          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${u.attempts_count}</td>
+        </tr>
+      `;
+    });
+
+    html += `
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    bodyEl.innerHTML = html;
+
+  } catch (err) {
+    console.error(err);
+    bodyEl.innerHTML = "<p style='color:crimson;'>Error loading leaderboard</p>";
+  }
+}
+
 /* ================= ✅ GLOBAL EXPORTS (onclick FIX) ================= */
 window.goRegister = goRegister;
 window.goLogin = goLogin;
@@ -1177,3 +1461,5 @@ window.sendReset = sendReset;
 
 window.openForgot = openForgot;
 window.backToLogin = backToLogin;
+window.openLeaderboard = openLeaderboard;
+window.openListeningModule = openListeningModule;

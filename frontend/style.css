@@ -1575,3 +1575,57 @@ audio{
   font-weight: 700;
   box-shadow: 0 14px 30px rgba(0,0,0,0.15);
 }
+/* ================= LEADERBOARD PAGE (CARD UI) ================= */
+.lb-wrap{
+  width: min(1100px, 92vw);
+  margin: 18px auto 40px auto;
+}
+
+.lb-card{
+  background: rgba(255,255,255,0.78);
+  border: 1px solid rgba(15,23,42,0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.12);
+}
+
+.lb-tabs{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom: 12px;
+}
+
+.lb-tab{
+  border: 1px solid rgba(15,23,42,0.10);
+  background: rgba(255,255,255,0.65);
+  padding: 8px 12px;
+  border-radius: 12px;
+  cursor:pointer;
+  font-weight: 600;
+}
+
+.lb-tab:hover{
+  transform: translateY(-1px);
+}
+
+#leaderboardBody table{
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#leaderboardBody th, #leaderboardBody td{
+  padding: 12px 10px;
+  border-bottom: 1px solid rgba(15,23,42,0.08);
+}
+
+#leaderboardBody th{
+  text-align: left;
+  font-weight: 800;
+}
+
+#leaderboardBody tr:hover td{
+  background: rgba(255,255,255,0.55);
+}
