@@ -241,8 +241,9 @@ app.post("/api/auth/verify-code", async (req, res) => {
       return res.status(400).json({ message: "Email va kod kerak." });
     }
 
+    // ✅ role/is_active/plan ham olamiz (token va yo‘naltirish uchun)
     const [rows] = await pool.query(
-      `SELECT id, is_verified, verify_code, verify_code_expires
+      `SELECT id, email, role, plan, is_active, is_verified, verify_code, verify_code_expires
        FROM users
        WHERE email=? LIMIT 1`,
       [email]
@@ -252,8 +253,13 @@ app.post("/api/auth/verify-code", async (req, res) => {
 
     const u = rows[0];
 
+    if (Number(u.is_active) !== 1) {
+      return res.status(403).json({ message: "Account block qilingan." });
+    }
+
     if (Number(u.is_verified) === 1) {
-      return res.json({ message: "Allaqachon tasdiqlangan." });
+      // (ixtiyoriy) bu holatda token bermaymiz, chunki password tekshirilmagan
+      return res.json({ message: "Allaqachon tasdiqlangan. Endi login qiling." });
     }
 
     if (!u.verify_code || String(u.verify_code) !== String(code)) {
@@ -273,7 +279,21 @@ app.post("/api/auth/verify-code", async (req, res) => {
       [u.id]
     );
 
-    res.json({ message: "Email tasdiqlandi. Endi login qilishingiz mumkin." });
+    // ✅ subscription expire bo'lsa basic/free ga tushirish
+    await refreshSubscriptionIfExpired(u.id);
+
+    // ✅ AUT0-LOGIN: token qaytaramiz
+    const token = jwt.sign(
+      { id: u.id, email: u.email, role: u.role },
+      JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    return res.json({
+      message: "✅ Email tasdiqlandi. Xush kelibsiz!",
+      token,
+      role: u.role
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server xatosi." });
@@ -317,6 +337,104 @@ app.post("/api/auth/resend-code", async (req, res) => {
   }
 });
 
+/* ================= FORGOT PASSWORD (SEND RESET CODE) ================= */
+
+app.post("/api/auth/forgot-password", async (req, res) => {
+  try {
+    let { email } = req.body;
+    email = String(email || "").trim().toLowerCase();
+    if (!email) return res.status(400).json({ message: "Email kerak." });
+
+    const [rows] = await pool.query(
+      "SELECT id, username, is_active FROM users WHERE email=? LIMIT 1",
+      [email]
+    );
+
+    // email mavjud/yo‘qligini oshkor qilmaslik uchun
+    if (!rows.length) {
+      return res.json({ message: "Agar email mavjud bo‘lsa, kod yuborildi." });
+    }
+
+    const u = rows[0];
+    if (Number(u.is_active) !== 1) {
+      return res.status(403).json({ message: "Account block qilingan." });
+    }
+
+    const code = genCode6();
+    const expires = new Date(Date.now() + 10 * 60 * 1000);
+
+    await pool.query(
+      "UPDATE users SET reset_code=?, reset_code_expires=?, updated_at=NOW() WHERE id=?",
+      [code, expires, u.id]
+    );
+
+    await transporter.sendMail({
+      from: `"Langify" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: "Langify parolni tiklash kodi",
+      html: `
+        <h3>Assalomu alaykum, ${u.username || "user"}!</h3>
+        <p>Parolni tiklash uchun kod:</p>
+        <h2 style="letter-spacing:2px;">${code}</h2>
+        <p>Kod 10 daqiqa amal qiladi.</p>
+      `,
+    });
+
+    res.json({ message: "Kod emailingizga yuborildi." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server xatosi." });
+  }
+});
+
+/* ================= RESET PASSWORD (CODE + NEW PASSWORD) ================= */
+
+app.post("/api/auth/reset-password", async (req, res) => {
+  try {
+    let { email, code, newPassword } = req.body;
+
+    email = String(email || "").trim().toLowerCase();
+    code = String(code || "").trim();
+    newPassword = String(newPassword || "").trim();
+
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ message: "Email, kod va yangi parol kerak." });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "Parol kamida 6 ta belgi bo‘lsin." });
+    }
+
+    const [rows] = await pool.query(
+      "SELECT id, reset_code, reset_code_expires FROM users WHERE email=? LIMIT 1",
+      [email]
+    );
+
+    if (!rows.length) return res.status(404).json({ message: "User topilmadi." });
+
+    const u = rows[0];
+
+    if (!u.reset_code || String(u.reset_code) !== String(code)) {
+      return res.status(400).json({ message: "Kod noto‘g‘ri." });
+    }
+
+    if (u.reset_code_expires && new Date(u.reset_code_expires).getTime() < Date.now()) {
+      return res.status(400).json({ message: "Kod vaqti tugagan." });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+
+    await pool.query(
+      "UPDATE users SET password=?, reset_code=NULL, reset_code_expires=NULL, updated_at=NOW() WHERE id=?",
+      [hashed, u.id]
+    );
+
+    res.json({ message: "✅ Parol yangilandi. Endi login qiling." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server xatosi." });
+  }
+});
 /* ================= LOGIN (FIXED ORDER) ================= */
 
 app.post("/api/auth/login", async (req, res) => {

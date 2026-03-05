@@ -110,9 +110,23 @@
         <h2>Reset Password</h2>
         <p>Enter your email to receive a reset link</p>
 
-        <input type="email" placeholder="Email address">
-        <button onclick="sendReset()">Send Reset Link</button>
+       
+        <input id="forgotEmail" type="email" placeholder="Email address">
 
+        <button onclick="sendResetCode()">Send Code</button>
+
+       <!-- RESET STEP 2 -->
+        <div id="resetStep2" style="display:none; margin-top:10px;">
+
+        <input id="resetCode" type="text" placeholder="Enter code">
+
+        <input id="resetNewPassword" type="password" placeholder="New password">
+
+        <input id="resetNewPassword2" type="password" placeholder="Confirm password">
+
+        <button onclick="resetPassword()">Reset Password</button>
+
+        </div>
         <p class="switch">
             <span onclick="backToLogin()">Back to login</span>
         </p>

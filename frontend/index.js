@@ -364,8 +364,31 @@ async function verifyEmailCode() {
       return;
     }
 
+    // ✅ agar server token qaytargan bo'lsa — avtomatik kiramiz
+    if (data.token) {
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("userEmail", email);
+      localStorage.setItem("role", data.role || "user");
+
+      await syncPlanFromServer();
+      cleanupAdminArtifacts();
+
+      // login() dagi logika bilan bir xil yo'naltiramiz
+      if ((data.role || getRole()) === "admin") {
+        await showPage(pages.dashboard);
+      } else {
+        const p = getCurrentPlan();
+        if (p !== "basic") await showPage(pages.dashboard);
+        else await showPage(pages.main);
+      }
+
+      return;
+    }
+
+    // token bo'lmasa (masalan allaqachon verified) — oddiy login
     alert(data.message || "Email tasdiqlandi. Endi login qiling.");
     await showPage(pages.login);
+
   } catch (e) {
     console.error(e);
     alert("Server bilan bog‘lanib bo‘lmadi");
@@ -596,10 +619,130 @@ function initFeatureClick() {
   });
 }
 
-/* ================= PASSWORD RESET ================= */
+/* ================= PASSWORD RESET (OTP) ================= */
 function openForgot() { showPage(pages.forgot); }
 function backToLogin() { showPage(pages.login); }
-function sendReset() { alert("📧 Reset link sent!"); backToLogin(); }
+
+// 1) Emailga reset kodi yuborish
+async function sendResetCode() {
+  const emailEl = document.getElementById("forgotEmail");
+  const email = (emailEl?.value || "").trim().toLowerCase();
+
+  if (!email) {
+    alert("Emailni kiriting");
+    if (emailEl) emailEl.focus();
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      alert(data.message || "Xatolik");
+      return;
+    }
+
+    alert(data.message || "Kod yuborildi");
+
+    // ✅ Step-2 (kod + yangi parol) formani ko‘rsatamiz
+    const step2 = document.getElementById("resetStep2");
+    if (step2) step2.style.display = "block";
+
+    // ✅ Reset email input bo‘lsa to‘ldiramiz (bo‘lmasa ham mayli)
+    const rEmail = document.getElementById("resetEmail");
+    if (rEmail) rEmail.value = email;
+
+    // ✅ Kod inputiga fokus (agar bo‘lsa)
+    const codeEl = document.getElementById("resetCode");
+    if (codeEl) codeEl.focus();
+
+  } catch (e) {
+    console.error(e);
+    alert("Server bilan bog‘lanib bo‘lmadi");
+  }
+}
+
+// 2) Kod + yangi parol bilan parolni yangilash
+async function resetPassword() {
+  // ✅ Emailni resetEmail bo‘lmasa forgotEmail’dan olamiz
+  const resetEmailEl = document.getElementById("resetEmail");
+  const forgotEmailEl = document.getElementById("forgotEmail");
+
+  const email = ((resetEmailEl?.value || forgotEmailEl?.value) || "").trim().toLowerCase();
+
+  const codeEl = document.getElementById("resetCode");
+  const pass1El = document.getElementById("resetNewPassword");
+  const pass2El = document.getElementById("resetNewPassword2");
+
+  const code  = (codeEl?.value || "").trim();
+  const pass1 = (pass1El?.value || "").trim();
+  const pass2 = (pass2El?.value || "").trim();
+
+  if (!email) {
+    alert("Email topilmadi. Avval emailingizni kiriting.");
+    if (forgotEmailEl) forgotEmailEl.focus();
+    return;
+  }
+
+  if (!code || !pass1 || !pass2) {
+    alert("Hamma maydonlarni to‘ldiring");
+    if (!code && codeEl) codeEl.focus();
+    else if (!pass1 && pass1El) pass1El.focus();
+    else if (!pass2 && pass2El) pass2El.focus();
+    return;
+  }
+
+  if (pass1.length < 6) {
+    alert("Parol kamida 6 ta belgi bo‘lsin");
+    if (pass1El) pass1El.focus();
+    return;
+  }
+
+  if (pass1 !== pass2) {
+    alert("Parollar mos emas");
+    if (pass2El) pass2El.focus();
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, code, newPassword: pass1 })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      alert(data.message || "Xatolik");
+      return;
+    }
+
+    alert(data.message || "Parol yangilandi");
+
+    // ✅ maydonlarni tozalab qo‘yamiz
+    if (codeEl) codeEl.value = "";
+    if (pass1El) pass1El.value = "";
+    if (pass2El) pass2El.value = "";
+
+    // ✅ step2 ni yashiramiz (xohlasang qoldirsa ham bo‘ladi)
+    const step2 = document.getElementById("resetStep2");
+    if (step2) step2.style.display = "none";
+
+    await showPage(pages.login);
+
+  } catch (e) {
+    console.error(e);
+    alert("Server bilan bog‘lanib bo‘lmadi");
+  }
+}
+
 
 /* ================= SOCIAL LOGIN ================= */
 function loginWithGoogle() {
@@ -1024,3 +1167,13 @@ window.submitPaymentRequest = submitPaymentRequest;
 window.copyText = copyText;
 
 window.openReadingModule = openReadingModule;
+window.sendResetCode = sendResetCode;
+window.resetPassword = resetPassword;
+function sendReset() {
+  return sendResetCode();
+}
+window.sendReset = sendReset;
+// ✅ onclick ishlashi uchun (agar pastda allaqachon bo'lsa, takror qo‘shma)
+
+window.openForgot = openForgot;
+window.backToLogin = backToLogin;
