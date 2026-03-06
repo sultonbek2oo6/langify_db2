@@ -3,31 +3,25 @@ const pages = {
   login: document.getElementById("loginPage"),
   register: document.getElementById("registerPage"),
   main: document.getElementById("mainPage"),
-  payment: document.getElementById("paymentPage"), // ✅ NEW: payment page
+  payment: document.getElementById("paymentPage"),
   dashboard: document.getElementById("dashboard"),
   forgot: document.getElementById("forgotPage"),
   verify: document.getElementById("verifyPage"),
   listening: document.getElementById("listeningPage"),
   leaderboard: document.getElementById("leaderboardPage"),
-  // ✅ NEW: Skeleton pages (index.html da shu idlar bo‘lishi kerak)
+  studentResults: document.getElementById("studentResultsPage"),
   vocabulary: document.getElementById("vocabularyPage"),
   reading: document.getElementById("readingPage"),
   writing: document.getElementById("writingPage"),
   speaking: document.getElementById("speakingPage"),
   band9: document.getElementById("band9Page"),
   mock: document.getElementById("mockPage")
-  
 };
 
-/* ================= API BASE (NEW) ================= */
+/* ================= API BASE ================= */
 const API_BASE = "http://localhost:3000";
 
-/* ================= GOOGLE VERIFY (NEW) ================= */
-/**
- * Maqsad:
- * - User registerdan oldin Google orqali emailini tasdiqlaydi
- * - Backend /api/auth/google-verify ga ID token yuboriladi
- */
+/* ================= GOOGLE VERIFY ================= */
 const GOOGLE_VERIFY = {
   idToken: null,
   email: null,
@@ -55,23 +49,16 @@ function initGoogleVerifyButton() {
   const btnWrap = document.getElementById("googleVerifyBtn");
   if (!btnWrap) return;
 
-  // Google script yuklanmagan bo‘lsa
   if (!window.google?.accounts?.id) {
-    setGoogleVerifyStatus(
-      "Google script yuklanmadi. (gsi/client) qo‘shilganini tekshiring."
-    );
+    setGoogleVerifyStatus("Google script yuklanmadi. (gsi/client) qo‘shilganini tekshiring.");
     return;
   }
 
-  // Client ID qo‘yilmagan bo‘lsa
   if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.includes("PASTE_YOUR")) {
-    setGoogleVerifyStatus(
-      "GOOGLE_CLIENT_ID qo‘yilmagan. index.js dagi GOOGLE_CLIENT_ID ni to‘ldiring."
-    );
+    setGoogleVerifyStatus("GOOGLE_CLIENT_ID qo‘yilmagan. index.js dagi GOOGLE_CLIENT_ID ni to‘ldiring.");
     return;
   }
 
-  // qayta render bo‘lganda button ko‘payib ketmasin
   btnWrap.innerHTML = "";
 
   google.accounts.id.initialize({
@@ -79,7 +66,8 @@ function initGoogleVerifyButton() {
     callback: (response) => {
       GOOGLE_VERIFY.idToken = response?.credential || null;
       GOOGLE_VERIFY.verified = !!GOOGLE_VERIFY.idToken;
-      GOOGLE_VERIFY.email = null; // emailni backend verify qaytaradi
+      GOOGLE_VERIFY.email = null;
+
       if (GOOGLE_VERIFY.idToken) {
         setGoogleVerifyStatus("✅ Google token olindi. Endi Register bosing.", true);
       } else {
@@ -88,7 +76,6 @@ function initGoogleVerifyButton() {
     }
   });
 
-  // tugma chizish
   google.accounts.id.renderButton(btnWrap, {
     theme: "outline",
     size: "large",
@@ -98,19 +85,20 @@ function initGoogleVerifyButton() {
   setGoogleVerifyStatus("Google orqali emailni tasdiqlang (Verify).");
 }
 
-/* ================= ROLE HELPERS (NEW) ================= */
+/* ================= ROLE HELPERS ================= */
 function getRole() {
   return localStorage.getItem("role") || "user";
 }
+
 function isAdminRole() {
   return getRole() === "admin";
 }
 
-/* ================= PLAN HELPERS (NEW) ================= */
+/* ================= PLAN HELPERS ================= */
 const PLAN_RANK = { basic: 1, premium: 2, pro: 3 };
 
 function getCurrentPlan() {
-  return localStorage.getItem("plan") || "basic"; // basic/premium/pro
+  return localStorage.getItem("plan") || "basic";
 }
 
 function getDaysLeft() {
@@ -121,14 +109,12 @@ function getDaysLeft() {
   const now = new Date();
   const diffMs = end - now;
 
-  // agar muddat o'tib ketgan bo'lsa
   if (diffMs <= 0) return 0;
 
-  const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  return days;
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 }
 
-/* ================= (NEW) SYNC PLAN FROM SERVER ================= */
+/* ================= SYNC PLAN FROM SERVER ================= */
 async function syncPlanFromServer() {
   const token = localStorage.getItem("token");
   if (!token) return;
@@ -137,21 +123,23 @@ async function syncPlanFromServer() {
     const res = await fetch(`${API_BASE}/api/me`, {
       headers: { Authorization: "Bearer " + token }
     });
+
     const data = await res.json().catch(() => ({}));
     if (!res.ok) return;
 
-    // ✅ DB plan: free/premium/pro -> frontend plan: basic/premium/pro
     if (data.plan) {
       localStorage.setItem("plan", data.plan === "free" ? "basic" : data.plan);
     }
 
-    // role ham sync bo'lsin
-    if (data.role) localStorage.setItem("role", data.role);
+    if (data.role) {
+      localStorage.setItem("role", data.role);
+    }
 
-    // ✅ NEW: expires_at ham sync bo'lsin (qolgan kun ko'rsatish uchun)
-    if (data.expires_at) localStorage.setItem("expires_at", data.expires_at);
-    else localStorage.removeItem("expires_at");
-
+    if (data.expires_at) {
+      localStorage.setItem("expires_at", data.expires_at);
+    } else {
+      localStorage.removeItem("expires_at");
+    }
   } catch (e) {
     console.error("syncPlanFromServer error", e);
   }
@@ -166,36 +154,39 @@ function hideAllPages() {
   });
 }
 
-/* ✅ FIX: showPage async bo'ldi, dashboard kirganda initDashboard await bo'ladi */
 async function showPage(page, display = "flex") {
   if (!page) return;
 
   hideAllPages();
   page.style.display = display;
 
-  // ✅ Background state (blur + image switch)
+  requestAnimationFrame(() => {
+    page.classList.add("show");
+  });
+
   document.body.classList.remove("is-auth", "is-main", "is-dashboard");
 
   if (
     page === pages.login ||
     page === pages.register ||
     page === pages.forgot ||
-    page === pages.verify // ✅ NEW
+    page === pages.verify
   ) {
     document.body.classList.add("is-auth");
   }
 
-  // ✅ UPDATED: Skeleton pages ham main fonni olsin
   if (
     page === pages.main ||
     page === pages.payment ||
     page === pages.listening ||
+    page === pages.studentResults ||
     page === pages.vocabulary ||
     page === pages.reading ||
     page === pages.writing ||
     page === pages.speaking ||
     page === pages.band9 ||
-    page === pages.mock
+    page === pages.mock ||
+    page === pages.leaderboard
   ) {
     document.body.classList.add("is-main");
   }
@@ -206,57 +197,60 @@ async function showPage(page, display = "flex") {
 
   page.classList.add("show", "active");
 
+  setTimeout(() => {
+    initRevealObserver();
+  }, 80);
+
   if (page === pages.dashboard) {
-    // ✅ async initDashboard endi to'liq ishlaydi
     await initDashboard();
 
-    // ✅ Admin tugma faqat admin bo‘lsa ko‘rinsin
     const adminBtn = document.getElementById("adminToggleBtn");
-    if (adminBtn) adminBtn.style.display = isAdminRole() ? "block" : "none";
+    if (adminBtn) {
+      adminBtn.style.display = isAdminRole() ? "block" : "none";
+    }
 
-    // ✅ Upgrade tugma faqat user uchun (endi top-barda)
     const upgradeTop = document.getElementById("upgradeBtnTop");
-    if (upgradeTop) upgradeTop.style.display = isAdminRole() ? "none" : "inline-flex";
+    if (upgradeTop) {
+      upgradeTop.style.display = isAdminRole() ? "none" : "inline-flex";
+    }
 
-    // ✅ Dashboardga kirganda eski admin table qolib ketmasin
     cleanupAdminArtifacts();
   }
 
   if (page === pages.main) {
-    // ✅ Adminlar pricing sahifaga kirmasin
     if (isAdminRole()) {
       await showPage(pages.dashboard);
       return;
     }
-    initFeatureClick();
   }
 
-  // ✅ Register page ochilganda Google verify holatini tozalaymiz va tugmani chizamiz
   if (page === pages.register) {
     resetGoogleVerify();
     initGoogleVerifyButton();
   }
+
+  initFeatureClick();
 }
 
-/* ================= DROPDOWN (CLICK FIX) ================= */
+/* ================= DROPDOWN ================= */
 function setupUserDropdown() {
   const avatarBtn = document.getElementById("avatarBtn");
   const dropdown = document.getElementById("userDropdown");
 
   if (!avatarBtn || !dropdown) return;
 
-  // avatar bosilganda open/close
+  if (avatarBtn.dataset.bound === "1") return;
+  avatarBtn.dataset.bound = "1";
+
   avatarBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     dropdown.classList.toggle("open");
   });
 
-  // dropdown ichiga bosilganda yopilmasin
   dropdown.addEventListener("click", (e) => {
     e.stopPropagation();
   });
 
-  // tashqariga bosilganda yopilsin
   document.addEventListener("click", () => {
     dropdown.classList.remove("open");
   });
@@ -275,40 +269,39 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (savedUser && token) {
     await syncPlanFromServer();
 
-    // ADMIN paneldan qaytsa
     if (goDash) {
       await showPage(pages.dashboard);
     } else {
-      // ✅ ADMIN bo‘lsa darrov dashboard
       if (isAdminRole()) {
         await showPage(pages.dashboard);
       } else {
-        // ✅ NEW: premium/pro bo'lsa mainPage emas, darrov dashboard
         const p = getCurrentPlan();
-        if (p !== "basic") await showPage(pages.dashboard);
-        else await showPage(pages.main);
+        if (p !== "basic") {
+          await showPage(pages.dashboard);
+        } else {
+          await showPage(pages.main);
+        }
       }
     }
   } else {
     await showPage(pages.login);
   }
-
-  initFeatureClick();
 });
 
 /* ================= AUTH ================= */
 function goRegister() {
   showPage(pages.register);
 }
+
 function goLogin() {
   showPage(pages.login);
 }
 
 /* -------- REGISTER -------- */
 async function goMain() {
-  const username = document.getElementById("registerUsername").value.trim();
-  const email = document.getElementById("registerEmail").value.trim();
-  const password = document.getElementById("registerPassword").value.trim();
+  const username = document.getElementById("registerUsername")?.value.trim() || "";
+  const email = document.getElementById("registerEmail")?.value.trim() || "";
+  const password = document.getElementById("registerPassword")?.value.trim() || "";
 
   if (!username || !email || !password) {
     alert("Barcha maydonlarni to‘ldiring");
@@ -344,7 +337,7 @@ async function goMain() {
 /* ================= VERIFY EMAIL (OTP) ================= */
 async function verifyEmailCode() {
   const email = document.getElementById("verifyEmail")?.value?.trim() || "";
-  const code  = document.getElementById("verifyCode")?.value?.trim() || "";
+  const code = document.getElementById("verifyCode")?.value?.trim() || "";
 
   if (!email || !code) {
     alert("Email va 6 xonali kodni kiriting");
@@ -365,7 +358,6 @@ async function verifyEmailCode() {
       return;
     }
 
-    // ✅ agar server token qaytargan bo'lsa — avtomatik kiramiz
     if (data.token) {
       localStorage.setItem("token", data.token);
       localStorage.setItem("userEmail", email);
@@ -374,22 +366,22 @@ async function verifyEmailCode() {
       await syncPlanFromServer();
       cleanupAdminArtifacts();
 
-      // login() dagi logika bilan bir xil yo'naltiramiz
       if ((data.role || getRole()) === "admin") {
         await showPage(pages.dashboard);
       } else {
         const p = getCurrentPlan();
-        if (p !== "basic") await showPage(pages.dashboard);
-        else await showPage(pages.main);
+        if (p !== "basic") {
+          await showPage(pages.dashboard);
+        } else {
+          await showPage(pages.main);
+        }
       }
 
       return;
     }
 
-    // token bo'lmasa (masalan allaqachon verified) — oddiy login
     alert(data.message || "Email tasdiqlandi. Endi login qiling.");
     await showPage(pages.login);
-
   } catch (e) {
     console.error(e);
     alert("Server bilan bog‘lanib bo‘lmadi");
@@ -424,14 +416,10 @@ async function resendVerifyCode() {
   }
 }
 
-/* ✅✅✅ FIX: onclick ko‘rishi uchun globalga chiqaramiz */
-window.verifyEmailCode = verifyEmailCode;
-window.resendVerifyCode = resendVerifyCode;
-
 /* -------- LOGIN -------- */
 async function login() {
-  const email = document.getElementById("loginEmail").value.trim();
-  const password = document.getElementById("loginPassword").value.trim();
+  const email = document.getElementById("loginEmail")?.value.trim() || "";
+  const password = document.getElementById("loginPassword")?.value.trim() || "";
 
   if (!email || !password) {
     alert("Email va parolni kiriting");
@@ -445,7 +433,7 @@ async function login() {
       body: JSON.stringify({ email, password })
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
       alert(data.message || "Login xato");
@@ -454,7 +442,7 @@ async function login() {
 
     localStorage.setItem("token", data.token);
     localStorage.setItem("userEmail", email);
-    localStorage.setItem("role", data.role);
+    localStorage.setItem("role", data.role || "user");
 
     await syncPlanFromServer();
     cleanupAdminArtifacts();
@@ -463,8 +451,11 @@ async function login() {
       await showPage(pages.dashboard);
     } else {
       const p = getCurrentPlan();
-      if (p !== "basic") await showPage(pages.dashboard);
-      else await showPage(pages.main);
+      if (p !== "basic") {
+        await showPage(pages.dashboard);
+      } else {
+        await showPage(pages.main);
+      }
     }
   } catch (e) {
     console.error(e);
@@ -486,7 +477,7 @@ function choosePlan(plan) {
     return;
   }
 
-  const currentPlan = getCurrentPlan(); // basic/premium/pro
+  const currentPlan = getCurrentPlan();
   const curRank = PLAN_RANK[currentPlan] || 1;
   const wantRank = PLAN_RANK[plan] || 1;
 
@@ -498,11 +489,13 @@ function choosePlan(plan) {
 
   if (curRank >= wantRank && currentPlan !== "basic") {
     const daysLeft = getDaysLeft();
+
     if (daysLeft !== null) {
       alert(`✅ Siz allaqachon "${currentPlan.toUpperCase()}" planidasiz.\n⏳ Qolgan muddat: ${daysLeft} kun.`);
     } else {
       alert(`✅ Siz allaqachon "${currentPlan.toUpperCase()}" planidasiz.`);
     }
+
     showPage(pages.dashboard);
     return;
   }
@@ -549,8 +542,13 @@ function applyFeatureLock() {
   const sidebarItems = document.querySelectorAll(".sidebar [data-feature]");
   const topItems = document.querySelectorAll(".feature-buttons [data-feature]");
 
-  sidebarItems.forEach((el, index) => el.classList.toggle("locked", index >= limits.sidebarLimit));
-  topItems.forEach((el, index) => el.classList.toggle("locked", index >= limits.topLimit));
+  sidebarItems.forEach((el, index) => {
+    el.classList.toggle("locked", index >= limits.sidebarLimit);
+  });
+
+  topItems.forEach((el, index) => {
+    el.classList.toggle("locked", index >= limits.topLimit);
+  });
 }
 
 /* ================= FEATURE DATA ================= */
@@ -572,9 +570,10 @@ function initFeatureClick() {
   const buttons = document.querySelectorAll("[data-feature]");
 
   buttons.forEach((btn) => {
-    btn.onclick = null;
+    if (btn.dataset.featureBound === "1") return;
+    btn.dataset.featureBound = "1";
 
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       if (!isAdminRole() && btn.classList.contains("locked")) {
         alert("🔒 This feature is locked. Upgrade your plan.");
         return;
@@ -583,14 +582,19 @@ function initFeatureClick() {
       const feature = btn.dataset.feature;
 
       if (feature === "leaderboard") {
-      showPage(pages.leaderboard, "block");
-      openLeaderboard("");
-      return;
+        await showPage(pages.leaderboard, "block");
+        openLeaderboard("");
+        return;
       }
 
       if (feature === "listening") {
-     openListeningModule();
-      return;
+        openListeningModule();
+        return;
+      }
+
+      if (feature === "students") {
+        openStudentResults();
+        return;
       }
 
       const skeletonMap = {
@@ -627,10 +631,14 @@ function initFeatureClick() {
 }
 
 /* ================= PASSWORD RESET (OTP) ================= */
-function openForgot() { showPage(pages.forgot); }
-function backToLogin() { showPage(pages.login); }
+function openForgot() {
+  showPage(pages.forgot);
+}
 
-// 1) Emailga reset kodi yuborish
+function backToLogin() {
+  showPage(pages.login);
+}
+
 async function sendResetCode() {
   const emailEl = document.getElementById("forgotEmail");
   const email = (emailEl?.value || "").trim().toLowerCase();
@@ -657,27 +665,21 @@ async function sendResetCode() {
 
     alert(data.message || "Kod yuborildi");
 
-    // ✅ Step-2 (kod + yangi parol) formani ko‘rsatamiz
     const step2 = document.getElementById("resetStep2");
     if (step2) step2.style.display = "block";
 
-    // ✅ Reset email input bo‘lsa to‘ldiramiz (bo‘lmasa ham mayli)
     const rEmail = document.getElementById("resetEmail");
     if (rEmail) rEmail.value = email;
 
-    // ✅ Kod inputiga fokus (agar bo‘lsa)
     const codeEl = document.getElementById("resetCode");
     if (codeEl) codeEl.focus();
-
   } catch (e) {
     console.error(e);
     alert("Server bilan bog‘lanib bo‘lmadi");
   }
 }
 
-// 2) Kod + yangi parol bilan parolni yangilash
 async function resetPassword() {
-  // ✅ Emailni resetEmail bo‘lmasa forgotEmail’dan olamiz
   const resetEmailEl = document.getElementById("resetEmail");
   const forgotEmailEl = document.getElementById("forgotEmail");
 
@@ -687,7 +689,7 @@ async function resetPassword() {
   const pass1El = document.getElementById("resetNewPassword");
   const pass2El = document.getElementById("resetNewPassword2");
 
-  const code  = (codeEl?.value || "").trim();
+  const code = (codeEl?.value || "").trim();
   const pass1 = (pass1El?.value || "").trim();
   const pass2 = (pass2El?.value || "").trim();
 
@@ -733,28 +735,29 @@ async function resetPassword() {
 
     alert(data.message || "Parol yangilandi");
 
-    // ✅ maydonlarni tozalab qo‘yamiz
     if (codeEl) codeEl.value = "";
     if (pass1El) pass1El.value = "";
     if (pass2El) pass2El.value = "";
 
-    // ✅ step2 ni yashiramiz (xohlasang qoldirsa ham bo‘ladi)
     const step2 = document.getElementById("resetStep2");
     if (step2) step2.style.display = "none";
 
     await showPage(pages.login);
-
   } catch (e) {
     console.error(e);
     alert("Server bilan bog‘lanib bo‘lmadi");
   }
 }
 
+function sendReset() {
+  return sendResetCode();
+}
 
 /* ================= SOCIAL LOGIN ================= */
 function loginWithGoogle() {
   window.location.href = `${API_BASE}/api/auth/google`;
 }
+
 function loginWithApple() {
   window.location.href = `${API_BASE}/api/auth/apple`;
 }
@@ -769,7 +772,7 @@ function toggleAdminPanel() {
   window.location.href = "admin.html";
 }
 
-/* ================= UPGRADE (UPDATED) ================= */
+/* ================= UPGRADE ================= */
 function goUpgrade() {
   if (isAdminRole()) {
     alert("Admin uchun Upgrade kerak emas.");
@@ -783,6 +786,7 @@ function goUpgrade() {
     const msg = daysLeft !== null
       ? `✅ Siz allaqachon PRO planidasiz.\n⏳ Qolgan muddat: ${daysLeft} kun.`
       : `✅ Siz allaqachon PRO planidasiz.`;
+
     alert(msg);
     showPage(pages.dashboard);
     return;
@@ -805,7 +809,7 @@ function cleanupAdminArtifacts() {
   }
 }
 
-/* ================= PAYMENT (MANUAL) ================= */
+/* ================= PAYMENT ================= */
 const PLAN_PRICES = { premium: "99 000 so‘m", pro: "149 000 so‘m" };
 const PLAN_AMOUNTS = { premium: 99000, pro: 149000 };
 
@@ -912,15 +916,14 @@ async function submitPaymentRequest() {
   }
 }
 
-/* ================= READING MODULE (DB ENGINE + 75% UNLOCK) ================= */
-/* ✅ FIXED: token bo'lmasa header yubormaydi */
+/* ================= AUTH HEADER ================= */
 function getAuthHeaders() {
   const token = localStorage.getItem("token");
   if (!token) return {};
   return { Authorization: "Bearer " + token };
 }
 
-/* ================= LISTENING MODULE (DB ENGINE) ================= */
+/* ================= LISTENING MODULE ================= */
 async function openListeningModule() {
   await showPage(pages.listening, "block");
   await loadListeningList();
@@ -963,11 +966,12 @@ async function loadListeningList() {
     }
 
     grid.innerHTML = "";
+
     items.forEach((it) => {
       const unlocked = Number(it.is_unlocked) === 1;
 
       const card = document.createElement("div");
-      card.className = "test-card" + (unlocked ? "" : " premium"); // classni xohlasang o‘zgartirasan
+      card.className = "test-card" + (unlocked ? "" : " premium");
       card.style.cursor = unlocked ? "pointer" : "not-allowed";
       card.style.opacity = unlocked ? "1" : "0.6";
 
@@ -1010,7 +1014,6 @@ async function openListeningTest(materialId) {
     const material = data.material || {};
     const questions = Array.isArray(data.questions) ? data.questions : [];
 
-    // content'dan audio ni olish
     let audioUrl = "";
     try {
       const obj = typeof material.content === "string" ? JSON.parse(material.content) : null;
@@ -1037,7 +1040,7 @@ async function openListeningTest(materialId) {
         <div style="background:#ffffff14;padding:14px;border-radius:12px;margin:10px 0;">
           <b>${idx + 1}) ${q.question_text || ""}</b>
           <div style="margin-top:10px;display:grid;gap:8px;">
-            ${["A","B","C","D"].map((k) => {
+            ${["A", "B", "C", "D"].map((k) => {
               const opt = q["option_" + k.toLowerCase()];
               if (!opt) return "";
               return `
@@ -1063,15 +1066,18 @@ async function openListeningTest(materialId) {
     right.innerHTML = html;
 
     const form = document.getElementById("listeningForm");
+    if (!form) return;
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+
       const answers = questions.map((q) => {
         const v = form.querySelector(`input[name="q_${q.id}"]:checked`)?.value || "";
         return { question_id: q.id, answer: v };
       });
+
       await submitListening(materialId, answers);
     });
-
   } catch (e) {
     console.error(e);
     right.innerHTML = `<div style="color:crimson;">Server error</div>`;
@@ -1085,13 +1091,18 @@ async function submitListening(materialId, answers) {
   try {
     const res = await fetch(`${API_BASE}/api/attempts/submit`, {
       method: "POST",
-      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({ material_id: materialId, answers })
     });
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      if (resultEl) resultEl.innerHTML = `<p style="color:crimson;">${data.message || "Submit error"}</p>`;
+      if (resultEl) {
+        resultEl.innerHTML = `<p style="color:crimson;">${data.message || "Submit error"}</p>`;
+      }
       return;
     }
 
@@ -1108,26 +1119,25 @@ async function submitListening(materialId, answers) {
           <p style="margin:0 0 8px 0;font-weight:800;">
             Natija: <span style="color:${passed ? "green" : "orangered"}">${score}%</span> ${passed ? "✅" : "🔒"}
           </p>
-          <p style="margin:0;">✅ To‘g‘ri: <b>${correct}</b> / ${total}  |  ❌ Xato: <b>${wrong}</b></p>
+          <p style="margin:0;">✅ To‘g‘ri: <b>${correct}</b> / ${total} | ❌ Xato: <b>${wrong}</b></p>
           ${unlockedNext ? `<p style="margin:8px 0 0 0;color:green;font-weight:700;">✅ Keyingi test ochildi!</p>` : ""}
         </div>
       `;
     }
 
-    await loadListeningList(); // lock/unlock yangilansin
+    await loadListeningList();
   } catch (e) {
     console.error(e);
     if (resultEl) resultEl.innerHTML = `<p style="color:crimson;">Server error</p>`;
   }
 }
 
-
+/* ================= READING MODULE ================= */
 async function openReadingModule() {
   await showPage(pages.reading, "block");
   await loadReadingList();
 }
 
-/* ✅ FIXED: it.is_unlocked bilan ishlaydi, token yo'q bo'lsa login deydi */
 async function loadReadingList() {
   const listEl = document.getElementById("readingTestList");
   const titleEl = document.getElementById("readingTitle");
@@ -1141,44 +1151,47 @@ async function loadReadingList() {
 
   const token = localStorage.getItem("token");
   if (!token) {
-    listEl.innerHTML = `<li>Avval login qiling 🔑</li>`;
+    listEl.innerHTML = `<li class="reveal">Avval login qiling 🔑</li>`;
     titleEl.textContent = "Login required";
-    bodyEl.innerHTML = `<p>Reading testlarni ko‘rish uchun login qiling.</p>`;
+    bodyEl.innerHTML = `<p class="reveal">Reading testlarni ko‘rish uchun login qiling.</p>`;
+    initRevealObserver();
     return;
   }
 
-  listEl.innerHTML = `<li>Loading...</li>`;
+  listEl.innerHTML = `<li class="reveal">Loading...</li>`;
+
   const hasOpenTest = !!document.getElementById("readingForm");
   if (!hasOpenTest) {
-  titleEl.textContent = "Select a test";
-  bodyEl.innerHTML = `<p>Chapdan test tanlang.</p>`;
-}
+    titleEl.textContent = "Select a test";
+    bodyEl.innerHTML = `<p class="reveal">Chapdan test tanlang.</p>`;
+  }
 
   try {
-    // ✅ Backend endpoint:
-    // GET /api/modules/reading/list
     const res = await fetch(`${API_BASE}/api/modules/reading/list`, {
       headers: getAuthHeaders()
     });
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      listEl.innerHTML = `<li>Error: ${data.message || "Failed"}</li>`;
+      listEl.innerHTML = `<li class="reveal">Error: ${data.message || "Failed"}</li>`;
+      initRevealObserver();
       return;
     }
 
     const items = Array.isArray(data.items) ? data.items : [];
     if (!items.length) {
-      listEl.innerHTML = `<li>No tests yet</li>`;
+      listEl.innerHTML = `<li class="reveal">No tests yet</li>`;
+      initRevealObserver();
       return;
     }
 
     listEl.innerHTML = "";
+
     items.forEach((it) => {
       const li = document.createElement("li");
+      li.classList.add("reveal");
       li.textContent = `${it.order_no}. ${it.title}`;
 
-      // ✅ backend field: is_unlocked
       const unlocked = Number(it.is_unlocked) === 1;
 
       if (!unlocked) {
@@ -1192,9 +1205,12 @@ async function loadReadingList() {
 
       listEl.appendChild(li);
     });
+
+    initRevealObserver();
   } catch (e) {
     console.error(e);
-    listEl.innerHTML = `<li>Server error</li>`;
+    listEl.innerHTML = `<li class="reveal">Server error</li>`;
+    initRevealObserver();
   }
 }
 
@@ -1207,8 +1223,6 @@ async function openReadingTest(materialId) {
   bodyEl.innerHTML = `<p>Loading...</p>`;
 
   try {
-    // ✅ server.js endpoint:
-    // GET /api/materials/:id  -> { material, questions, progress }
     const res = await fetch(`${API_BASE}/api/materials/${materialId}`, {
       headers: getAuthHeaders()
     });
@@ -1224,7 +1238,6 @@ async function openReadingTest(materialId) {
 
     titleEl.textContent = material.title || "Reading Test";
 
-    // ✅ NEW: content JSON bo'lsa passage ni ajratib chiqaramiz
     let passageText = material.content || "Passage hali yo‘q";
     try {
       const obj = typeof passageText === "string" ? JSON.parse(passageText) : null;
@@ -1244,18 +1257,16 @@ async function openReadingTest(materialId) {
         <div style="background:#ffffff14;padding:14px;border-radius:12px;margin:10px 0;">
           <b>${idx + 1}) ${q.question_text || ""}</b>
           <div style="margin-top:10px;display:grid;gap:8px;">
-            ${["A", "B", "C", "D"]
-              .map((k) => {
-                const opt = q["option_" + k.toLowerCase()];
-                if (!opt) return "";
-                return `
-                  <label style="display:flex;gap:8px;align-items:center;">
-                    <input type="radio" name="q_${q.id}" value="${k}" />
-                    <span>${k}) ${opt}</span>
-                  </label>
-                `;
-              })
-              .join("")}
+            ${["A", "B", "C", "D"].map((k) => {
+              const opt = q["option_" + k.toLowerCase()];
+              if (!opt) return "";
+              return `
+                <label style="display:flex;gap:8px;align-items:center;">
+                  <input type="radio" name="q_${q.id}" value="${k}" />
+                  <span>${k}) ${opt}</span>
+                </label>
+              `;
+            }).join("")}
           </div>
         </div>
       `;
@@ -1291,13 +1302,11 @@ async function openReadingTest(materialId) {
   }
 }
 
-/* ✅ FIXED: submit endpoint to'g'ri: POST /api/attempts/submit */
 async function submitReading(materialId, answers) {
   const resultEl = document.getElementById("readingResult");
   if (resultEl) resultEl.innerHTML = "Submitting...";
 
   try {
-    // ✅ TO‘G‘RI endpoint: /api/attempts/submit
     const res = await fetch(`${API_BASE}/api/attempts/submit`, {
       method: "POST",
       headers: {
@@ -1340,16 +1349,14 @@ async function submitReading(materialId, answers) {
       `;
     }
 
-    // ro‘yxatni yangilab qo‘yamiz (lock/unlock ko‘rinishi uchun)
     await loadReadingList();
-
   } catch (e) {
     console.error(e);
     if (resultEl) resultEl.innerHTML = `<p style="color:crimson;">Server error</p>`;
   }
 }
 
-// ================= LEADERBOARD UI =================
+/* ================= LEADERBOARD UI ================= */
 async function openLeaderboard(module = "") {
   const titleEl = document.querySelector("#leaderboardPage h1");
   const bodyEl = document.getElementById("leaderboardBody");
@@ -1417,14 +1424,157 @@ async function openLeaderboard(module = "") {
     `;
 
     bodyEl.innerHTML = html;
-
   } catch (err) {
     console.error(err);
     bodyEl.innerHTML = "<p style='color:crimson;'>Error loading leaderboard</p>";
   }
 }
 
-/* ================= ✅ GLOBAL EXPORTS (onclick FIX) ================= */
+/* ================= STUDENT RESULTS ================= */
+async function openStudentResults() {
+  await showPage(pages.studentResults, "block");
+
+  const totalAttemptsEl = document.getElementById("totalAttempts");
+  const bestScoreEl = document.getElementById("bestScore");
+  const averageScoreEl = document.getElementById("averageScore");
+  const totalCorrectEl = document.getElementById("totalCorrect");
+  const accuracyEl = document.getElementById("accuracy");
+  const currentRankEl = document.getElementById("currentRank");
+
+  const recentAttemptsList = document.getElementById("recentAttemptsList");
+  const studentRankingList = document.getElementById("studentRankingList");
+
+  if (recentAttemptsList) {
+    recentAttemptsList.innerHTML = `<tr><td colspan="4">Loading...</td></tr>`;
+  }
+
+  if (studentRankingList) {
+    studentRankingList.innerHTML = `<tr><td colspan="6">Loading...</td></tr>`;
+  }
+
+  try {
+    const meRes = await fetch(`${API_BASE}/api/results/me`, {
+      headers: getAuthHeaders()
+    });
+
+    const meData = await meRes.json().catch(() => ({}));
+
+    if (!meRes.ok) {
+      alert(meData.message || "Student resultsni yuklashda xatolik");
+      return;
+    }
+
+    if (totalAttemptsEl) totalAttemptsEl.textContent = meData.totalAttempts ?? 0;
+    if (bestScoreEl) bestScoreEl.textContent = meData.bestScore ?? 0;
+    if (averageScoreEl) averageScoreEl.textContent = meData.averageScore ?? 0;
+    if (totalCorrectEl) totalCorrectEl.textContent = meData.totalCorrect ?? 0;
+    if (accuracyEl) accuracyEl.textContent = `${meData.accuracy ?? 0}%`;
+    if (currentRankEl) currentRankEl.textContent = meData.currentRank ? `#${meData.currentRank}` : "-";
+
+    const attempts = Array.isArray(meData.recentAttempts) ? meData.recentAttempts : [];
+
+    if (!attempts.length) {
+      if (recentAttemptsList) {
+        recentAttemptsList.innerHTML = `<tr><td colspan="4">No attempts yet</td></tr>`;
+      }
+    } else {
+      let attemptsHtml = "";
+      attempts.forEach((item) => {
+        attemptsHtml += `
+          <tr>
+            <td>${item.material_id ?? "-"}</td>
+            <td>${item.correct_count ?? 0} / ${item.total_count ?? 0}</td>
+            <td>${item.score ?? 0}</td>
+            <td>${item.created_at ? new Date(item.created_at).toLocaleString() : "-"}</td>
+          </tr>
+        `;
+      });
+
+      if (recentAttemptsList) {
+        recentAttemptsList.innerHTML = attemptsHtml;
+      }
+    }
+
+    const rankingRes = await fetch(`${API_BASE}/api/results/leaderboard`, {
+      headers: getAuthHeaders()
+    });
+
+    const rankingData = await rankingRes.json().catch(() => ({}));
+
+    if (!rankingRes.ok) {
+      if (studentRankingList) {
+        studentRankingList.innerHTML = `<tr><td colspan="6">Failed to load ranking</td></tr>`;
+      }
+      return;
+    }
+
+    const items = Array.isArray(rankingData.items) ? rankingData.items : [];
+
+    if (!items.length) {
+      if (studentRankingList) {
+        studentRankingList.innerHTML = `<tr><td colspan="6">No ranking data yet</td></tr>`;
+      }
+      return;
+    }
+
+    let rankingHtml = "";
+    items.forEach((user) => {
+      let badge = "-";
+      if (Number(user.rankPosition) === 1) badge = "🥇 Top 1";
+      else if (Number(user.rankPosition) === 2) badge = "🥈 Top 2";
+      else if (Number(user.rankPosition) === 3) badge = "🥉 Top 3";
+
+      rankingHtml += `
+        <tr>
+          <td>#${user.rankPosition}</td>
+          <td>${user.username || "-"}</td>
+          <td>${user.bestScore ?? 0}</td>
+          <td>${user.averageScore ?? 0}</td>
+          <td>${user.attemptsCount ?? 0}</td>
+          <td>${badge}</td>
+        </tr>
+      `;
+    });
+
+    if (studentRankingList) {
+      studentRankingList.innerHTML = rankingHtml;
+    }
+  } catch (error) {
+    console.error("openStudentResults error:", error);
+
+    if (recentAttemptsList) {
+      recentAttemptsList.innerHTML = `<tr><td colspan="4">Server bilan bog‘lanib bo‘lmadi</td></tr>`;
+    }
+
+    if (studentRankingList) {
+      studentRankingList.innerHTML = `<tr><td colspan="6">Server bilan bog‘lanib bo‘lmadi</td></tr>`;
+    }
+  }
+}
+
+/* ================= REVEAL OBSERVER ================= */
+function initRevealObserver() {
+  const items = document.querySelectorAll(".reveal, .reveal-left, .reveal-right, .reveal-scale");
+  if (!items.length) return;
+
+  const observer = new IntersectionObserver((entries, obs) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add("show");
+        obs.unobserve(entry.target);
+      }
+    });
+  }, {
+    threshold: 0.12,
+    rootMargin: "0px 0px -40px 0px"
+  });
+
+  items.forEach((item) => observer.observe(item));
+}
+
+window.addEventListener("load", initRevealObserver);
+
+/* ================= GLOBAL EXPORTS ================= */
 window.goRegister = goRegister;
 window.goLogin = goLogin;
 window.goMain = goMain;
@@ -1439,6 +1589,8 @@ window.goDashboard = goDashboard;
 
 window.openForgot = openForgot;
 window.backToLogin = backToLogin;
+window.sendResetCode = sendResetCode;
+window.resetPassword = resetPassword;
 window.sendReset = sendReset;
 
 window.loginWithGoogle = loginWithGoogle;
@@ -1451,15 +1603,6 @@ window.submitPaymentRequest = submitPaymentRequest;
 window.copyText = copyText;
 
 window.openReadingModule = openReadingModule;
-window.sendResetCode = sendResetCode;
-window.resetPassword = resetPassword;
-function sendReset() {
-  return sendResetCode();
-}
-window.sendReset = sendReset;
-// ✅ onclick ishlashi uchun (agar pastda allaqachon bo'lsa, takror qo‘shma)
-
-window.openForgot = openForgot;
-window.backToLogin = backToLogin;
-window.openLeaderboard = openLeaderboard;
 window.openListeningModule = openListeningModule;
+window.openLeaderboard = openLeaderboard;
+window.openStudentResults = openStudentResults;

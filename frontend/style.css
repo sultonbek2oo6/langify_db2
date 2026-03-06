@@ -1629,3 +1629,370 @@ audio{
 #leaderboardBody tr:hover td{
   background: rgba(255,255,255,0.55);
 }
+/* ================= STUDENT RESULTS PAGE ================= */
+#studentResultsPage {
+  min-height: 100vh;
+  padding: 36px 18px;
+  box-sizing: border-box;
+}
+
+.student-results-shell {
+  width: min(1200px, 100%);
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 26px;
+  padding: 28px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(15, 23, 42, 0.05);
+}
+
+.student-results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.student-results-header h2 {
+  margin: 0 0 8px 0;
+  font-size: 38px;
+  line-height: 1.1;
+  color: #176b5a;
+  font-weight: 800;
+}
+
+.student-results-header p {
+  margin: 0;
+  color: #4b5563;
+  font-size: 16px;
+}
+
+.student-back-btn {
+  border: none;
+  outline: none;
+  background: linear-gradient(135deg, #1f7a67, #155e52);
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 14px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  box-shadow: 0 8px 20px rgba(31, 122, 103, 0.20);
+}
+
+.student-back-btn:hover {
+  transform: translateY(-2px);
+  opacity: 0.96;
+}
+
+.student-back-btn:active {
+  transform: translateY(0);
+}
+
+.student-section {
+  margin-top: 26px;
+  background: rgba(255, 255, 255, 0.82);
+  border-radius: 22px;
+  padding: 22px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(23, 107, 90, 0.06);
+}
+
+.student-section-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.student-section-top h3 {
+  margin: 0;
+  font-size: 28px;
+  color: #176b5a;
+  font-weight: 800;
+}
+
+.student-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 18px;
+}
+
+.student-stat-card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 20px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.student-stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 26px rgba(0, 0, 0, 0.08);
+}
+
+.student-stat-card h4 {
+  margin: 0 0 10px 0;
+  font-size: 15px;
+  color: #176b5a;
+  font-weight: 700;
+}
+
+.student-stat-card p {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.student-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 16px;
+}
+
+.student-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  background: #ffffff;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.student-table thead {
+  background: linear-gradient(135deg, #1f7a67, #155e52);
+}
+
+.student-table thead th {
+  color: #fff;
+  text-align: left;
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.student-table tbody tr {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  transition: background 0.2s ease;
+}
+
+.student-table tbody tr:hover {
+  background: #f7fbfa;
+}
+
+.student-table tbody td {
+  padding: 14px 16px;
+  font-size: 14px;
+  color: #1f2937;
+  vertical-align: middle;
+}
+
+.student-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+/* Ranking badge ranglari */
+.student-table tbody td:last-child {
+  font-weight: 700;
+}
+
+/* Top rank row highlight */
+.student-table tbody tr:nth-child(1) {
+  background: rgba(255, 215, 0, 0.08);
+}
+
+.student-table tbody tr:nth-child(2) {
+  background: rgba(192, 192, 192, 0.08);
+}
+
+.student-table tbody tr:nth-child(3) {
+  background: rgba(205, 127, 50, 0.08);
+}
+
+/* Empty/loading holatlar */
+.student-table tbody td[colspan] {
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+  padding: 20px;
+}
+
+/* Scrollbar biroz chiroyli */
+.student-table-wrap::-webkit-scrollbar {
+  height: 10px;
+}
+
+.student-table-wrap::-webkit-scrollbar-track {
+  background: #edf2f7;
+  border-radius: 999px;
+}
+
+.student-table-wrap::-webkit-scrollbar-thumb {
+  background: #b7c8c3;
+  border-radius: 999px;
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+  .student-results-header h2 {
+    font-size: 32px;
+  }
+
+  .student-section-top h3 {
+    font-size: 24px;
+  }
+
+  .student-stat-card p {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 768px) {
+  #studentResultsPage {
+    padding: 20px 12px;
+  }
+
+  .student-results-shell {
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .student-results-header {
+    align-items: flex-start;
+  }
+
+  .student-results-header h2 {
+    font-size: 28px;
+  }
+
+  .student-results-header p {
+    font-size: 15px;
+  }
+
+  .student-section {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .student-section-top h3 {
+    font-size: 21px;
+  }
+
+  .student-stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .student-stat-card {
+    padding: 16px;
+    min-height: 100px;
+  }
+
+  .student-stat-card p {
+    font-size: 20px;
+  }
+
+  .student-back-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 520px) {
+  .student-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .student-results-header h2 {
+    font-size: 24px;
+  }
+
+  .student-table {
+    min-width: 620px;
+  }
+}
+/* ================= PAGE TRANSITION ================= */
+
+.page {
+  opacity: 0;
+  transform: translateY(20px) scale(0.98);
+  transition: all 0.45s ease;
+}
+
+.page.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.page.hide {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.97);
+}
+/* ================= CARD HOVER ================= */
+
+.student-stat-card,
+.test-card,
+.feature,
+.result-card {
+  transition: all 0.25s ease;
+}
+
+.student-stat-card:hover,
+.test-card:hover,
+.feature:hover,
+.result-card:hover {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 14px 30px rgba(0,0,0,0.12);
+}
+/* ================= SCROLL REVEAL ================= */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(35px);
+  transition: all 0.6s ease;
+}
+
+.reveal.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+/* ================= SCROLL REVEAL ================= */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(35px);
+  transition: all 0.6s ease;
+}
+
+.reveal.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+#readingTestList li,
+#listeningTestGrid .test-card,
+.student-stat-card,
+.student-table tbody tr {
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+
+#readingTestList li:hover,
+#listeningTestGrid .test-card:hover,
+.student-stat-card:hover,
+.student-table tbody tr:hover {
+  transform: translateY(-4px);
+}

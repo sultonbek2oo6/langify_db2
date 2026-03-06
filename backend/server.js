@@ -1079,6 +1079,108 @@ app.get("/api/leaderboard", authenticateToken, async (req, res) => {
   }
 });
 
+/* ================= STUDENT RESULTS ================= */
+// GET /api/results/me
+app.get("/api/results/me", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // 1) User stats
+    const [statsRows] = await pool.query(
+      `
+      SELECT
+        COUNT(*) AS totalAttempts,
+        COALESCE(MAX(score), 0) AS bestScore,
+        COALESCE(ROUND(AVG(score), 2), 0) AS averageScore,
+        COALESCE(SUM(correct_count), 0) AS totalCorrect,
+        COALESCE(SUM(total_count), 0) AS totalQuestions
+      FROM attempts
+      WHERE user_id = ?
+      `,
+      [userId]
+    );
+
+    const stats = statsRows[0] || {};
+    const totalCorrect = Number(stats.totalCorrect || 0);
+    const totalQuestions = Number(stats.totalQuestions || 0);
+    const accuracy =
+      totalQuestions > 0
+        ? Number(((totalCorrect / totalQuestions) * 100).toFixed(2))
+        : 0;
+
+    // 2) Recent attempts
+    const [recentRows] = await pool.query(
+      `
+      SELECT id, material_id, correct_count, total_count, score, created_at
+      FROM attempts
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+      LIMIT 10
+      `,
+      [userId]
+    );
+
+    // 3) Current rank (global ranking ichida user nechanchi o‘rinda)
+    const [rankRows] = await pool.query(
+      `
+      SELECT ranked.user_id, ranked.rank_position
+      FROM (
+        SELECT
+          a.user_id,
+          DENSE_RANK() OVER (ORDER BY MAX(a.score) DESC, AVG(a.score) DESC) AS rank_position
+        FROM attempts a
+        GROUP BY a.user_id
+      ) AS ranked
+      WHERE ranked.user_id = ?
+      `,
+      [userId]
+    );
+
+    const currentRank = rankRows.length ? rankRows[0].rank_position : null;
+
+    res.json({
+      totalAttempts: Number(stats.totalAttempts || 0),
+      bestScore: Number(stats.bestScore || 0),
+      averageScore: Number(stats.averageScore || 0),
+      totalCorrect,
+      totalQuestions,
+      accuracy,
+      currentRank,
+      recentAttempts: recentRows || []
+    });
+  } catch (error) {
+    console.error("Student results error:", error);
+    res.status(500).json({ message: "Student resultsni olishda xatolik" });
+  }
+});
+// GET /api/results/leaderboard
+app.get("/api/results/leaderboard", authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT
+        a.user_id,
+        u.username,
+        COUNT(*) AS attemptsCount,
+        ROUND(MAX(a.score), 2) AS bestScore,
+        ROUND(AVG(a.score), 2) AS averageScore,
+        DENSE_RANK() OVER (ORDER BY MAX(a.score) DESC, AVG(a.score) DESC) AS rankPosition
+      FROM attempts a
+      JOIN users u ON u.id = a.user_id
+      GROUP BY a.user_id, u.username
+      ORDER BY rankPosition ASC, bestScore DESC, averageScore DESC
+      LIMIT 10
+      `
+    );
+
+    res.json({
+      items: rows || []
+    });
+  } catch (error) {
+    console.error("Student ranking error:", error);
+    res.status(500).json({ message: "Student rankingni olishda xatolik" });
+  }
+});
 /* ================= ADMIN ROUTES ================= */
 
 app.get("/admin/users", authenticateToken, isAdmin, async (req, res) => {

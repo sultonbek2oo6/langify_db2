@@ -313,6 +313,111 @@
     </main>
 </div>
 
+<!-- ================= STUDENT RESULTS PAGE ================= -->
+<div id="studentResultsPage" class="page" style="display:none;">
+  <div class="student-results-shell">
+
+    <div class="student-results-header">
+      <div>
+        <h2>Student Results Dashboard</h2>
+        <p>Your personal performance and student ranking</p>
+      </div>
+      <button class="student-back-btn" onclick="goDashboard()">Back to Dashboard</button>
+    </div>
+
+    <!-- A. MY PERFORMANCE -->
+    <div class="student-section">
+      <div class="student-section-top">
+        <h3>My Performance</h3>
+      </div>
+
+      <div class="student-stats-grid">
+        <div class="student-stat-card reveal">
+          <h4>Total Attempts</h4>
+          <p id="totalAttempts">0</p>
+        </div>
+
+        <div class="student-stat-card reveal">
+          <h4>Best Score</h4>
+          <p id="bestScore">0</p>
+        </div>
+
+        <div class="student-stat-card reveal">
+          <h4>Average Score</h4>
+          <p id="averageScore">0</p>
+        </div>
+
+        <div class="student-stat-card reveal">
+          <h4>Total Correct</h4>
+          <p id="totalCorrect">0</p>
+        </div>
+
+        <div class="student-stat-card reveal">
+          <h4>Accuracy</h4>
+          <p id="accuracy">0%</p>
+        </div>
+
+        <div class="student-stat-card reveal">
+          <h4>Current Rank</h4>
+          <p id="currentRank">-</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECENT ATTEMPTS -->
+    <div class="student-section">
+      <div class="student-section-top">
+        <h3>Recent Attempts</h3>
+      </div>
+
+      <div class="student-table-wrap reveal">
+        <table class="student-table">
+          <thead>
+            <tr>
+              <th>Material</th>
+              <th>Correct</th>
+              <th>Score</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="recentAttemptsList">
+            <tr>
+              <td colspan="4">Loading...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- B. STUDENT RANKING -->
+    <div class="student-section">
+      <div class="student-section-top">
+        <h3>Student Ranking</h3>
+      </div>
+
+      <div class="student-table-wrap">
+        <table class="student-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Username</th>
+              <th>Best Score</th>
+              <th>Avg Score</th>
+              <th>Attempts</th>
+              <th>Badge</th>
+            </tr>
+          </thead>
+          <tbody id="studentRankingList">
+            <tr>
+              <td colspan="6">Loading...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
 <!-- ================= LISTENING PAGE ================= -->
 <div id="listeningPage" class="page" style="display:none;">
 
