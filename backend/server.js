@@ -859,6 +859,240 @@ app.get("/api/materials/:id", authenticateToken, async (req, res) => {
   }
 });
 
+/* ================= VOCABULARY QUIZ ================= */
+app.get("/api/vocabulary/:id/questions", authenticateToken, async (req, res) => {
+  try {
+    const materialId = Number(req.params.id);
+    if (!materialId) {
+      return res.status(400).json({ message: "material id noto‘g‘ri." });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT id, question_text, option_a, option_b, option_c, option_d
+       FROM vocabulary_questions
+       WHERE material_id = ?
+       ORDER BY id ASC`,
+      [materialId]
+    );
+
+    res.json({ items: rows || [] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Vocabulary quiz error." });
+  }
+});
+
+app.post("/api/vocabulary/:id/submit", authenticateToken, async (req, res) => {
+  const conn = await pool.getConnection();
+
+  try {
+    const userId = req.user.id;
+    const materialId = Number(req.params.id);
+    const answers = Array.isArray(req.body.answers) ? req.body.answers : [];
+    const PASS_SCORE = 75;
+
+    if (!materialId) {
+      return res.status(400).json({ message: "material id noto‘g‘ri." });
+    }
+
+    await conn.beginTransaction();
+
+    // 1) Materialni olish
+    const [mRows] = await conn.query(
+      `SELECT id, module, order_no, is_published
+       FROM materials
+       WHERE id = ? LIMIT 1`,
+      [materialId]
+    );
+
+    if (!mRows.length) {
+      await conn.rollback();
+      return res.status(404).json({ message: "Material topilmadi." });
+    }
+
+    const material = mRows[0];
+
+    if (!material.is_published) {
+      await conn.rollback();
+      return res.status(404).json({ message: "Material topilmadi." });
+    }
+
+    // 2) Birinchi lessonni avtomatik unlock qilib qo'yish
+    const [firstRows] = await conn.query(
+      `SELECT id
+       FROM materials
+       WHERE module = ? AND is_published = 1
+       ORDER BY order_no ASC, id ASC
+       LIMIT 1`,
+      [material.module]
+    );
+
+    if (firstRows.length) {
+      const firstId = firstRows[0].id;
+
+      await conn.query(
+        `INSERT INTO user_progress (user_id, material_id, score, best_score, is_unlocked, attempts_count)
+         VALUES (?, ?, 0, 0, 1, 0)
+         ON DUPLICATE KEY UPDATE is_unlocked = 1`,
+        [userId, firstId]
+      );
+    }
+
+    // 3) Hozirgi material unlock bo‘lganmi?
+    const [pRows] = await conn.query(
+      `SELECT is_unlocked, best_score, attempts_count
+       FROM user_progress
+       WHERE user_id = ? AND material_id = ?
+       LIMIT 1`,
+      [userId, materialId]
+    );
+
+    const isUnlocked = pRows.length ? Number(pRows[0].is_unlocked) : 0;
+
+    if (!isUnlocked) {
+      await conn.rollback();
+      return res.status(403).json({
+        message: `🔒 Locked. Avval oldingi lessondan ${PASS_SCORE}% oling.`,
+        required: PASS_SCORE
+      });
+    }
+
+    // 4) Quiz savollarini olish
+    const [questions] = await conn.query(
+      `SELECT id, correct_option
+       FROM vocabulary_questions
+       WHERE material_id = ?`,
+      [materialId]
+    );
+
+    if (!questions.length) {
+      await conn.rollback();
+      return res.status(400).json({ message: "Bu lesson uchun quiz yo‘q." });
+    }
+
+    // 5) Javoblarni tekshirish
+    const answerMap = new Map();
+    answers.forEach((a) => {
+      const qid = Number(a.question_id);
+      const val = String(a.answer || "").toUpperCase().trim();
+
+      if (qid && ["A", "B", "C", "D"].includes(val)) {
+        answerMap.set(qid, val);
+      }
+    });
+
+    let correct = 0;
+
+    questions.forEach((q) => {
+      const given = answerMap.get(Number(q.id));
+      const right = String(q.correct_option || "").toUpperCase().trim();
+      if (given && given === right) correct++;
+    });
+
+    const total = questions.length;
+    const wrong = total - correct;
+    const score = Math.round((correct / total) * 100);
+    const passed = score >= PASS_SCORE;
+
+    // 6) attempts jadvaliga yozish
+    await conn.query(
+      `INSERT INTO attempts (user_id, material_id, correct_count, total_count, score, created_at)
+       VALUES (?, ?, ?, ?, ?, NOW())`,
+      [userId, materialId, correct, total, score]
+    );
+      await conn.query(
+         `
+         INSERT INTO leaderboard
+         (user_id, module, attempts_count, best_score, score_sum, avg_score, correct_sum, total_sum, last_attempt_at, updated_at)
+         VALUES
+         (?, ?, 1, ?, ?, ?, ?, ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE
+         attempts_count = attempts_count + 1,
+         best_score     = GREATEST(best_score, VALUES(best_score)),
+         score_sum      = score_sum + VALUES(score_sum),
+         avg_score      = ROUND((score_sum + VALUES(score_sum)) / (attempts_count + 1), 2),
+         correct_sum    = correct_sum + VALUES(correct_sum),
+         total_sum      = total_sum + VALUES(total_sum),
+         last_attempt_at= NOW(),
+         updated_at     = NOW()
+         `,
+         [
+         userId,
+         material.module,
+         score,
+         score,
+         score,
+         correct,
+         total
+         ]
+     );
+    // 7) user_progress ni update qilish
+    const prevBest = pRows.length ? Number(pRows[0].best_score || 0) : 0;
+    const newBest = Math.max(prevBest, score);
+
+    await conn.query(
+      `INSERT INTO user_progress
+       (user_id, material_id, score, best_score, is_unlocked, attempts_count, last_attempt_at, completed_at)
+       VALUES (?, ?, ?, ?, 1, 1, NOW(), NOW())
+       ON DUPLICATE KEY UPDATE
+         score = VALUES(score),
+         best_score = GREATEST(best_score, VALUES(best_score)),
+         attempts_count = attempts_count + 1,
+         last_attempt_at = NOW(),
+         completed_at = NOW()`,
+      [userId, materialId, score, newBest]
+    );
+
+    // 8) Agar passed bo‘lsa keyingi lessonni unlock qilish
+    let nextUnlocked = false;
+    let nextMaterialId = null;
+
+    if (passed) {
+      const [nextRows] = await conn.query(
+        `SELECT id
+         FROM materials
+         WHERE module = ?
+           AND is_published = 1
+           AND (order_no > ? OR (order_no = ? AND id > ?))
+         ORDER BY order_no ASC, id ASC
+         LIMIT 1`,
+        [material.module, material.order_no, material.order_no, materialId]
+      );
+
+      if (nextRows.length) {
+        nextMaterialId = nextRows[0].id;
+
+        await conn.query(
+          `INSERT INTO user_progress (user_id, material_id, score, best_score, is_unlocked, attempts_count)
+           VALUES (?, ?, 0, 0, 1, 0)
+           ON DUPLICATE KEY UPDATE is_unlocked = 1`,
+          [userId, nextMaterialId]
+        );
+
+        nextUnlocked = true;
+      }
+    }
+
+    await conn.commit();
+
+    res.json({
+      correct_count: correct,
+      wrong_count: wrong,
+      total_count: total,
+      score,
+      passed,
+      next_unlocked: nextUnlocked,
+      next_material_id: nextMaterialId
+    });
+  } catch (err) {
+    await conn.rollback();
+    console.error(err);
+    res.status(500).json({ message: "Vocabulary submit error." });
+  } finally {
+    conn.release();
+  }
+});
+
 app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
   const conn = await pool.getConnection();
   try {

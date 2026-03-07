@@ -598,21 +598,25 @@ function initFeatureClick() {
       }
 
       const skeletonMap = {
-        vocabulary: pages.vocabulary,
-        reading: pages.reading,
-        writing: pages.writing,
-        speaking: pages.speaking,
-        band9: pages.band9,
-        mock: pages.mock
+      writing: pages.writing,
+      speaking: pages.speaking,
+      band9: pages.band9,
+      mock: pages.mock
       };
 
+      if (feature === "vocabulary") {
+      openVocabularyModule();
+      return;
+      }
+
+      if (feature === "reading") {
+      openReadingModule();
+      return;
+      }
+
       if (skeletonMap[feature]) {
-        if (feature === "reading") {
-          openReadingModule();
-          return;
-        }
-        showPage(skeletonMap[feature], "block");
-        return;
+      showPage(skeletonMap[feature], "block");
+      return;
       }
 
       buttons.forEach((b) => b.classList.remove("active"));
@@ -1132,6 +1136,296 @@ async function submitListening(materialId, answers) {
   }
 }
 
+/* ================= VOCABULARY MODULE ================= */
+async function openVocabularyModule() {
+  await showPage(pages.vocabulary, "block");
+  await loadVocabularyList();
+}
+
+async function loadVocabularyList() {
+  const listEl = document.getElementById("vocabularyList");
+  const titleEl = document.getElementById("vocabularyTitle");
+  const bodyEl = document.getElementById("vocabularyBody");
+
+  if (!listEl || !titleEl || !bodyEl) {
+    console.warn("vocabularyPage elementlari topilmadi (vocabularyList/vocabularyTitle/vocabularyBody).");
+    return;
+  }
+
+  const token = localStorage.getItem("token");
+  if (!token) {
+    listEl.innerHTML = `<li>Avval login qiling 🔑</li>`;
+    titleEl.textContent = "Login required";
+    bodyEl.innerHTML = `<p>Vocabulary lessonlarni ko‘rish uchun login qiling.</p>`;
+    return;
+  }
+
+  listEl.innerHTML = `<li>Loading...</li>`;
+  titleEl.textContent = "Select a lesson";
+  bodyEl.innerHTML = `<p>Chapdan vocabulary lesson tanlang.</p>`;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/materials?module=vocabulary`, {
+      headers: getAuthHeaders()
+    });
+
+    const data = await res.json().catch(() => []);
+    if (!res.ok) {
+      listEl.innerHTML = `<li>Xatolik: ${data.message || "Failed"}</li>`;
+      return;
+    }
+
+    const items = Array.isArray(data) ? data : [];
+    if (!items.length) {
+      listEl.innerHTML = `<li>Vocabulary lessonlar hali yo‘q</li>`;
+      return;
+    }
+
+    listEl.innerHTML = "";
+
+    items.forEach((item) => {
+     const li = document.createElement("li");
+     li.textContent = `${item.order_no || item.id}. ${item.title}`;
+     li.style.cursor = "pointer";
+     li.style.padding = "10px 12px";
+     li.style.borderRadius = "10px";
+     li.style.background = "#ffffff10";
+     li.style.transition = "0.2s ease";
+
+     li.addEventListener("click", async () => {
+     listEl.querySelectorAll("li").forEach((x) => {
+      x.style.background = "#ffffff10";
+      x.style.fontWeight = "500";
+     });
+
+     li.style.background = "rgba(255,255,255,0.55)";
+     li.style.fontWeight = "800";
+
+     await openVocabularyLesson(item.id);
+     });
+
+     li.addEventListener("mouseenter", () => {
+     if (li.style.fontWeight !== "800") {
+      li.style.background = "#ffffff22";
+     }
+     });
+
+     li.addEventListener("mouseleave", () => {
+     if (li.style.fontWeight !== "800") {
+      li.style.background = "#ffffff10";
+     }
+     });
+
+     listEl.appendChild(li);
+    });
+    } catch (e) {
+    console.error(e);
+    listEl.innerHTML = `<li>Server error</li>`;
+  }
+}
+
+async function openVocabularyLesson(materialId) {
+  const titleEl = document.getElementById("vocabularyTitle");
+  const bodyEl = document.getElementById("vocabularyBody");
+
+  if (!titleEl || !bodyEl) return;
+
+  titleEl.textContent = "Loading lesson...";
+  bodyEl.innerHTML = `<p>Loading...</p>`;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/materials/${materialId}`, {
+      headers: getAuthHeaders()
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      bodyEl.innerHTML = `<p>${data.message || "Failed to load"}</p>`;
+      return;
+    }
+
+    const material = data.material || {};
+    titleEl.textContent = material.title || "Vocabulary Lesson";
+
+    let lessonContent = material.content || "Content yo‘q";
+
+    try {
+      const obj = typeof lessonContent === "string" ? JSON.parse(lessonContent) : null;
+      if (obj && obj.words) {
+        lessonContent = `
+          <div style="display:grid;gap:14px;">
+            ${obj.words.map((w, i) => `
+              <div style="
+                background: rgba(255,255,255,0.78);
+                border: 1px solid rgba(15,23,42,0.08);
+                padding: 16px;
+                border-radius: 16px;
+                box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+                color: #173d35;
+               ">
+                <h4 style="margin:0 0 10px 0;font-size:24px;font-weight:800;">
+                 ${i + 1}. ${w.word || "-"}
+                </h4>
+
+                <p style="margin:6px 0;font-size:18px;line-height:1.6;">
+                 <b>Meaning:</b> ${w.meaning || "-"}
+                </p>
+
+                <p style="margin:6px 0;font-size:17px;line-height:1.6;">
+                 <b>Example:</b> ${w.example || "-"}
+                </p>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      } else if (obj && obj.text) {
+        lessonContent = `<p style="line-height:1.7;">${String(obj.text).replace(/\n/g, "<br>")}</p>`;
+      } else {
+        lessonContent = `<p style="line-height:1.7;">${String(material.content || "").replace(/\n/g, "<br>")}</p>`;
+      }
+    } catch (_) {
+      lessonContent = `<p style="line-height:1.7;">${String(material.content || "").replace(/\n/g, "<br>")}</p>`;
+    }
+
+    bodyEl.innerHTML = `
+      <div style="background:#ffffff14;padding:14px;border-radius:12px;">
+        <div style="background:rgba(255,255,255,0.75);padding:12px 14px;border-radius:12px;margin-bottom:14px;color:#173d35;">
+          <b>How to use this lesson:</b>
+          <p style="margin:8px 0 0 0;">
+           Avval so‘zlarni o‘qing, meaning va examplelarni tushunib chiqing. So‘ng quizni ishlang.
+          </p>
+        </div>
+
+        ${lessonContent}
+
+        <div style="margin-top:16px;">
+          <button
+            onclick="startVocabularyQuiz(${materialId})"
+            style="padding:12px 18px;border:none;border-radius:12px;background:blueviolet;color:#fff;font-weight:700;cursor:pointer;">
+            Start Quiz
+          </button>
+        </div>
+
+        <div id="vocabularyQuizBox" style="margin-top:16px;"></div>
+      </div>
+    `;
+  } catch (e) {
+    console.error(e);
+    bodyEl.innerHTML = `<p>Server error</p>`;
+  }
+}
+
+async function startVocabularyQuiz(materialId) {
+  const quizBox = document.getElementById("vocabularyQuizBox");
+  if (!quizBox) return;
+
+  quizBox.innerHTML = "<p>Loading quiz...</p>";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/vocabulary/${materialId}/questions`, {
+      headers: getAuthHeaders()
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      quizBox.innerHTML = `<p style="color:crimson;">${data.message || "Quiz yuklanmadi"}</p>`;
+      return;
+    }
+
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (!items.length) {
+      quizBox.innerHTML = `<p>Bu lesson uchun quiz hali qo‘shilmagan.</p>`;
+      return;
+    }
+
+    let html = `
+      <form id="vocabularyQuizForm">
+        <h3 style="margin:0 0 12px 0;">Vocabulary Quiz</h3>
+    `;
+
+    items.forEach((q, idx) => {
+      html += `
+        <div style="background:rgba(255,255,255,0.78);padding:14px;border-radius:14px;margin-bottom:12px;color:#173d35;">
+          <b>${idx + 1}) ${q.question_text}</b>
+          <div style="display:grid;gap:8px;margin-top:10px;">
+            ${["A", "B", "C", "D"].map((k) => `
+              <label style="display:flex;gap:8px;align-items:center;">
+                <input type="radio" name="vq_${q.id}" value="${k}">
+                <span>${k}) ${q["option_" + k.toLowerCase()]}</span>
+              </label>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    });
+
+    html += `
+        <button type="submit" style="padding:12px 18px;border:none;border-radius:12px;background:#198754;color:#fff;font-weight:700;cursor:pointer;">
+          Submit Quiz
+        </button>
+        <div id="vocabularyQuizResult" style="margin-top:14px;"></div>
+      </form>
+    `;
+
+    quizBox.innerHTML = html;
+
+    const form = document.getElementById("vocabularyQuizForm");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const answers = items.map((q) => {
+        const value = form.querySelector(`input[name="vq_${q.id}"]:checked`)?.value || "";
+        return { question_id: q.id, answer: value };
+      });
+
+      await submitVocabularyQuiz(materialId, answers);
+    });
+  } catch (e) {
+    console.error(e);
+    quizBox.innerHTML = `<p style="color:crimson;">Server error</p>`;
+  }
+}
+
+async function submitVocabularyQuiz(materialId, answers) {
+  const resultEl = document.getElementById("vocabularyQuizResult");
+  if (resultEl) resultEl.innerHTML = "Submitting...";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/vocabulary/${materialId}/submit`, {
+      method: "POST",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ answers })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (resultEl) {
+        resultEl.innerHTML = `<p style="color:crimson;">${data.message || "Submit error"}</p>`;
+      }
+      return;
+    }
+
+    if (resultEl) {
+      resultEl.innerHTML = `
+        <div style="background:#ffffffcc;padding:14px;border-radius:14px;color:#173d35;border:1px solid rgba(15,23,42,.08);">
+         <p style="margin:0 0 8px 0;font-weight:800;">Natija: ${data.score}% ${data.passed ? "✅" : "🔒"}</p>
+         <p style="margin:0;">✅ To‘g‘ri: <b>${data.correct_count}</b> / ${data.total_count}</p>
+         <p style="margin:6px 0 0 0;">❌ Xato: <b>${data.wrong_count}</b></p>
+         ${data.next_unlocked ? `<p style="margin:8px 0 0 0;color:green;font-weight:700;">✅ Keyingi lesson ochildi!</p>` : ""}
+        </div>
+      `;
+    }
+    
+
+  } catch (e) {
+    console.error(e);
+    if (resultEl) resultEl.innerHTML = `<p style="color:crimson;">Server error</p>`;
+  }
+}
+
 /* ================= READING MODULE ================= */
 async function openReadingModule() {
   await showPage(pages.reading, "block");
@@ -1606,3 +1900,5 @@ window.openReadingModule = openReadingModule;
 window.openListeningModule = openListeningModule;
 window.openLeaderboard = openLeaderboard;
 window.openStudentResults = openStudentResults;
+window.openVocabularyModule = openVocabularyModule;
+window.startVocabularyQuiz = startVocabularyQuiz;
