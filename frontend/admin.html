@@ -18,6 +18,7 @@
 
       <a class="active" id="navUsers">Users</a>
       <a id="navPayments">Payments</a>
+      <a id="navMaterials">Materials</a>
       <a id="navSettings">Settings</a>
 
       <div class="admin-sidebar-hint">
@@ -157,7 +158,67 @@
           </div>
         </div>
       </section>
+      <!-- ================= MATERIALS SECTION ================= -->
+      <section id="materialsSection" style="display:none;">
+        <div class="admin-card admin-controls">
+         <div class="admin-controls-left">
+           <div class="admin-search" style="min-width:240px;">
+             <select id="matStatus" style="width:100%; padding:10px; border-radius:10px;">
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
 
+          <div class="admin-search" style="min-width:240px;">
+            <select id="matModule" style="width:100%; padding:10px; border-radius:10px;">
+              <option value="">All modules</option>
+              <option value="reading">Reading</option>
+              <option value="listening">Listening</option>
+             <option value="vocabulary">Vocabulary</option>
+             <option value="writing">Writing</option>
+             <option value="speaking">Speaking</option>
+            </select>
+          </div>
+
+          <button class="admin-btn admin-btn-primary" id="matRefreshBtn">Refresh</button>
+        </div>
+
+        <div class="admin-controls-right">
+          <small style="color:#6b7280;">materials jadvalidan o‘qiydi</small>
+        </div>
+       </div>
+
+       <div class="admin-card admin-table-wrap">
+        <div class="admin-table-scroll">
+          <table class="admin-table">
+           <thead>
+             <tr>
+              <th style="width:70px;">ID</th>
+              <th style="width:120px;">Module</th>
+              <th>Title</th>
+              <th style="width:90px;">Order</th>
+              <th style="width:90px;">Level</th>
+              <th style="width:110px;">Questions</th>
+              <th style="width:120px;">Status</th>
+              <th style="width:190px;">Created</th>
+              <th style="width:260px;">Actions</th>
+            </tr>
+           </thead>
+           <tbody id="materialsTable">
+             <tr><td colspan="9">Loading...</td></tr>
+           </tbody>
+          </table>
+         </div>
+       </div>
+
+       <div class="admin-card" style="margin-top:16px;">
+         <h3 style="margin-bottom:12px;">Material Preview</h3>
+         <div id="materialPreview">
+          <p>Select / Preview hali yuklanmagan.</p>
+         </div>
+       </div>
+      </section>
       <!-- Toast -->
       <div class="admin-toast" id="toast" aria-live="polite"></div>
 

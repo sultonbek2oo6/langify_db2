@@ -17,18 +17,23 @@ let PENDING_DELETE_ID = null;
 function showAdminSection(name) {
   const usersSection = $("usersSection");
   const paymentsSection = $("paymentsSection");
+  const materialsSection = $("materialsSection");
 
   const navUsers = $("navUsers");
   const navPayments = $("navPayments");
+  const navMaterials = $("navMaterials");
 
   if (usersSection) usersSection.style.display = name === "users" ? "block" : "none";
   if (paymentsSection) paymentsSection.style.display = name === "payments" ? "block" : "none";
+  if (materialsSection) materialsSection.style.display = name === "materials" ? "block" : "none";
 
   if (navUsers) navUsers.classList.toggle("active", name === "users");
   if (navPayments) navPayments.classList.toggle("active", name === "payments");
+  if (navMaterials) navMaterials.classList.toggle("active", name === "materials");
 
   if (name === "users") loadUsers(STATE.page);
   if (name === "payments") loadPaymentRequests();
+  if (name === "materials") loadMaterials();
 }
 
 // ====================== INIT ======================
@@ -45,6 +50,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // NAV
   $("navUsers")?.addEventListener("click", () => showAdminSection("users"));
   $("navPayments")?.addEventListener("click", () => showAdminSection("payments"));
+  $("navMaterials")?.addEventListener("click", () => showAdminSection("materials"));
+  $("matRefreshBtn")?.addEventListener("click", (e) => {
+  e.preventDefault();
+  loadMaterials();
+  });
+  $("matStatus")?.addEventListener("change", () => loadMaterials());
+  $("matModule")?.addEventListener("change", () => loadMaterials());
 
   // Logout
   $("logoutBtn")?.addEventListener("click", (e) => {
@@ -496,6 +508,263 @@ async function rejectRequest(id) {
   }
 }
 
+// ====================== MATERIALS ======================
+
+async function loadMaterials() {
+  const token = localStorage.getItem("token");
+  const tbody = $("materialsTable");
+  const preview = $("materialPreview");
+  if (!tbody) return;
+
+  const status = $("matStatus")?.value || "pending";
+  const module = $("matModule")?.value || "";
+
+  const qs = new URLSearchParams({ status });
+  if (module) qs.set("module", module);
+
+  tbody.innerHTML = `<tr><td colspan="9">Loading...</td></tr>`;
+  if (preview) preview.innerHTML = `<p>Loading preview...</p>`;
+
+  try {
+    const res = await fetch(`${API}/admin/materials?${qs.toString()}`, {
+      headers: { Authorization: "Bearer " + token }
+    });
+
+    const data = await safeJson(res);
+
+    if (!res.ok) {
+      toast(data?.message || "Materials load error ❌");
+      tbody.innerHTML = `<tr><td colspan="9">${escapeHtml(data?.message || "Error")}</td></tr>`;
+      if (preview) preview.innerHTML = `<p>Error loading preview.</p>`;
+      return;
+    }
+
+    renderMaterials(Array.isArray(data.items) ? data.items : []);
+  } catch (e) {
+    console.error(e);
+    toast("Connection error ❌");
+    tbody.innerHTML = `<tr><td colspan="9">Connection error</td></tr>`;
+    if (preview) preview.innerHTML = `<p>Connection error</p>`;
+  }
+}
+
+function renderMaterials(items) {
+  const tbody = $("materialsTable");
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+
+  if (!items.length) {
+    tbody.innerHTML = `<tr><td colspan="9">No materials</td></tr>`;
+    return;
+  }
+
+  items.forEach((m) => {
+    const tr = document.createElement("tr");
+
+    let actionHtml = `
+      <div class="admin-actions">
+        <button class="admin-btn admin-mini save" data-id="${m.id}" data-action="preview">Preview</button>
+    `;
+
+    if (m.review_status === "pending") {
+      actionHtml += `
+        <button class="admin-btn admin-mini save" data-id="${m.id}" data-action="approve">Approve</button>
+        <button class="admin-btn admin-mini delete" data-id="${m.id}" data-action="reject">Reject</button>
+      `;
+    } else if (m.review_status === "approved") {
+      actionHtml += `
+        <button class="admin-btn admin-mini block" data-id="${m.id}" data-action="unpublish">Unpublish</button>
+      `;
+    }
+
+    actionHtml += `</div>`;
+
+    tr.innerHTML = `
+      <td>${m.id}</td>
+      <td>${escapeHtml(m.module || "-")}</td>
+      <td>${escapeHtml(m.title || "-")}</td>
+      <td>${m.order_no ?? "-"}</td>
+      <td>${escapeHtml(m.level || "-")}</td>
+      <td>${m.questions_count ?? 0}</td>
+      <td>${escapeHtml(m.review_status || "-")}</td>
+      <td>${formatDate(m.created_at)}</td>
+      <td>${actionHtml}</td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll("button[data-action='preview']").forEach((btn) => {
+    btn.onclick = () => previewMaterial(btn.dataset.id);
+  });
+
+  tbody.querySelectorAll("button[data-action='approve']").forEach((btn) => {
+    btn.onclick = () => approveMaterial(btn.dataset.id);
+  });
+
+  tbody.querySelectorAll("button[data-action='reject']").forEach((btn) => {
+    btn.onclick = () => rejectMaterial(btn.dataset.id);
+  });
+
+  tbody.querySelectorAll("button[data-action='unpublish']").forEach((btn) => {
+    btn.onclick = () => unpublishMaterial(btn.dataset.id);
+  });
+}
+
+async function previewMaterial(id) {
+  const token = localStorage.getItem("token");
+  const preview = $("materialPreview");
+  if (!preview) return;
+
+  preview.innerHTML = `<p>Loading...</p>`;
+
+  try {
+    const res = await fetch(`${API}/admin/materials/${id}`, {
+      headers: { Authorization: "Bearer " + token }
+    });
+
+    const data = await safeJson(res);
+
+    if (!res.ok) {
+      preview.innerHTML = `<p>${escapeHtml(data?.message || "Error")}</p>`;
+      return;
+    }
+
+    const material = data.material || {};
+    const questions = Array.isArray(data.questions) ? data.questions : [];
+
+    let contentHtml = "";
+    try {
+      const parsed = typeof material.content === "string" ? JSON.parse(material.content) : null;
+      if (parsed?.passage) {
+        contentHtml = `<div style="white-space:pre-wrap;line-height:1.6;">${escapeHtml(parsed.passage)}</div>`;
+      } else if (parsed?.audio) {
+        contentHtml = `<p><b>Audio:</b> ${escapeHtml(parsed.audio)}</p>`;
+      } else if (parsed?.words) {
+        contentHtml = `<pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(parsed.words, null, 2))}</pre>`;
+      } else {
+        contentHtml = `<div style="white-space:pre-wrap;line-height:1.6;">${escapeHtml(material.content || "")}</div>`;
+      }
+    } catch {
+      contentHtml = `<div style="white-space:pre-wrap;line-height:1.6;">${escapeHtml(material.content || "")}</div>`;
+    }
+
+    let questionsHtml = "<p>No questions</p>";
+    if (questions.length) {
+      questionsHtml = `
+        <div style="display:grid;gap:10px;">
+          ${questions.map((q, i) => `
+            <div style="padding:12px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;">
+              <b>${i + 1}) ${escapeHtml(q.question_text || "")}</b>
+              <div style="margin-top:8px;display:grid;gap:4px;">
+                <div>A) ${escapeHtml(q.option_a || "")}</div>
+                <div>B) ${escapeHtml(q.option_b || "")}</div>
+                <div>C) ${escapeHtml(q.option_c || "")}</div>
+                <div>D) ${escapeHtml(q.option_d || "")}</div>
+                <div style="margin-top:6px;color:#059669;"><b>Correct:</b> ${escapeHtml(q.correct_option || "-")}</div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    preview.innerHTML = `
+      <div style="display:grid;gap:14px;">
+        <div>
+          <h4 style="margin-bottom:8px;">${escapeHtml(material.title || "-")}</h4>
+          <p><b>Module:</b> ${escapeHtml(material.module || "-")}</p>
+          <p><b>Type:</b> ${escapeHtml(material.type || "-")}</p>
+          <p><b>Level:</b> ${escapeHtml(material.level || "-")}</p>
+          <p><b>Status:</b> ${escapeHtml(material.review_status || "-")}</p>
+        </div>
+
+        <div>
+          <h4 style="margin-bottom:8px;">Content</h4>
+          ${contentHtml}
+        </div>
+
+        <div>
+          <h4 style="margin-bottom:8px;">Questions</h4>
+          ${questionsHtml}
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    console.error(e);
+    preview.innerHTML = `<p>Connection error</p>`;
+  }
+}
+
+async function approveMaterial(id) {
+  const token = localStorage.getItem("token");
+
+  try {
+    const res = await fetch(`${API}/admin/materials/${id}/approve`, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token }
+    });
+
+    const data = await safeJson(res);
+    if (!res.ok) {
+      toast(data?.message || "Approve error ❌");
+      return;
+    }
+
+    toast("Material approved ✅");
+    loadMaterials();
+  } catch (e) {
+    console.error(e);
+    toast("Approve error ❌");
+  }
+}
+
+async function rejectMaterial(id) {
+  const token = localStorage.getItem("token");
+
+  try {
+    const res = await fetch(`${API}/admin/materials/${id}/reject`, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token }
+    });
+
+    const data = await safeJson(res);
+    if (!res.ok) {
+      toast(data?.message || "Reject error ❌");
+      return;
+    }
+
+    toast("Material rejected ✅");
+    loadMaterials();
+  } catch (e) {
+    console.error(e);
+    toast("Reject error ❌");
+  }
+}
+
+async function unpublishMaterial(id) {
+  const token = localStorage.getItem("token");
+
+  try {
+    const res = await fetch(`${API}/admin/materials/${id}/unpublish`, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token }
+    });
+
+    const data = await safeJson(res);
+    if (!res.ok) {
+      toast(data?.message || "Unpublish error ❌");
+      return;
+    }
+
+    toast("Material unpublished ✅");
+    loadMaterials();
+  } catch (e) {
+    console.error(e);
+    toast("Unpublish error ❌");
+  }
+}
 // ====================== UTIL ======================
 function toast(msg) {
   const el = $("toast");

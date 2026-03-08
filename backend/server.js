@@ -1319,7 +1319,7 @@ app.get("/api/results/me", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // 1) User stats
+    // 1) Quiz/Test stats
     const [statsRows] = await pool.query(
       `
       SELECT
@@ -1354,7 +1354,7 @@ app.get("/api/results/me", authenticateToken, async (req, res) => {
       [userId]
     );
 
-    // 3) Current rank (global ranking ichida user nechanchi o‘rinda)
+    // 3) Current rank
     const [rankRows] = await pool.query(
       `
       SELECT ranked.user_id, ranked.rank_position
@@ -1372,6 +1372,43 @@ app.get("/api/results/me", authenticateToken, async (req, res) => {
 
     const currentRank = rankRows.length ? rankRows[0].rank_position : null;
 
+    // 4) Writing stats
+    const [writingRows] = await pool.query(
+      `
+      SELECT
+        COUNT(*) AS totalSubmissions,
+        COALESCE(SUM(CASE WHEN status = 'checked' THEN 1 ELSE 0 END), 0) AS checkedSubmissions,
+        COALESCE(SUM(CASE WHEN status = 'submitted' THEN 1 ELSE 0 END), 0) AS pendingSubmissions,
+        COALESCE(MAX(word_count), 0) AS maxWords,
+        COALESCE(ROUND(AVG(word_count), 2), 0) AS averageWords,
+        MAX(submitted_at) AS lastSubmittedAt
+      FROM writing_submissions
+      WHERE user_id = ?
+      `,
+      [userId]
+    );
+
+    const writing = writingRows[0] || {};
+
+    // 5) Recent writing submissions
+    const [recentWritingRows] = await pool.query(
+      `
+      SELECT
+        ws.id,
+        ws.word_count,
+        ws.status,
+        ws.submitted_at,
+        wt.title,
+        wt.task_type
+      FROM writing_submissions ws
+      JOIN writing_tasks wt ON wt.id = ws.task_id
+      WHERE ws.user_id = ?
+      ORDER BY ws.submitted_at DESC, ws.id DESC
+      LIMIT 5
+      `,
+      [userId]
+    );
+
     res.json({
       totalAttempts: Number(stats.totalAttempts || 0),
       bestScore: Number(stats.bestScore || 0),
@@ -1380,7 +1417,17 @@ app.get("/api/results/me", authenticateToken, async (req, res) => {
       totalQuestions,
       accuracy,
       currentRank,
-      recentAttempts: recentRows || []
+      recentAttempts: recentRows || [],
+
+      writingStats: {
+        totalSubmissions: Number(writing.totalSubmissions || 0),
+        checkedSubmissions: Number(writing.checkedSubmissions || 0),
+        pendingSubmissions: Number(writing.pendingSubmissions || 0),
+        maxWords: Number(writing.maxWords || 0),
+        averageWords: Number(writing.averageWords || 0),
+        lastSubmittedAt: writing.lastSubmittedAt || null
+      },
+      recentWritingSubmissions: recentWritingRows || []
     });
   } catch (error) {
     console.error("Student results error:", error);
@@ -1690,6 +1737,345 @@ app.post("/api/auth/google-verify", async (req, res) => {
     });
   } catch (err) {
     res.status(400).json({ message: "Google verify failed" });
+  }
+});
+
+/* ================= WRITING PRACTICE API ================= */
+
+// GET /api/writing/tasks
+app.get("/api/writing/tasks", authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT id, title, task_type, prompt, min_words, time_limit, created_at
+      FROM writing_tasks
+      WHERE is_active = 1
+      ORDER BY id ASC
+      `
+    );
+
+    res.json({ items: rows || [] });
+  } catch (err) {
+    console.error("GET /api/writing/tasks error:", err);
+    res.status(500).json({ message: "Writing tasksni olishda xatolik." });
+  }
+});
+
+// GET /api/writing/tasks/:id
+app.get("/api/writing/tasks/:id", authenticateToken, async (req, res) => {
+  try {
+    const taskId = Number(req.params.id);
+    if (!taskId) {
+      return res.status(400).json({ message: "Task id noto‘g‘ri." });
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT id, title, task_type, prompt, min_words, time_limit, created_at
+      FROM writing_tasks
+      WHERE id = ? AND is_active = 1
+      LIMIT 1
+      `,
+      [taskId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Writing task topilmadi." });
+    }
+
+    res.json({ task: rows[0] });
+  } catch (err) {
+    console.error("GET /api/writing/tasks/:id error:", err);
+    res.status(500).json({ message: "Writing taskni olishda xatolik." });
+  }
+});
+
+// POST /api/writing/submit
+app.post("/api/writing/submit", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const task_id = Number(req.body.task_id);
+    const essay_text = String(req.body.essay_text || "").trim();
+
+    if (!task_id) {
+      return res.status(400).json({ message: "task_id kerak." });
+    }
+
+    if (!essay_text) {
+      return res.status(400).json({ message: "Essay matni bo‘sh bo‘lmasligi kerak." });
+    }
+
+    const [taskRows] = await pool.query(
+      `
+      SELECT id, min_words, is_active
+      FROM writing_tasks
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [task_id]
+    );
+
+    if (!taskRows.length || Number(taskRows[0].is_active) !== 1) {
+      return res.status(404).json({ message: "Writing task topilmadi." });
+    }
+
+    const minWords = Number(taskRows[0].min_words || 0);
+    const word_count = essay_text.split(/\s+/).filter(Boolean).length;
+
+    if (word_count < minWords) {
+      return res.status(400).json({
+        message: `Kamida ${minWords} ta so‘z yozing. Hozir ${word_count} ta.`,
+      });
+    }
+
+    const [result] = await pool.query(
+      `
+      INSERT INTO writing_submissions
+      (user_id, task_id, essay_text, word_count, status, submitted_at)
+      VALUES (?, ?, ?, ?, 'submitted', NOW())
+      `,
+      [userId, task_id, essay_text, word_count]
+    );
+
+    res.json({
+      message: "Essay muvaffaqiyatli yuborildi.",
+      submission_id: result.insertId,
+      word_count,
+      status: "submitted",
+    });
+  } catch (err) {
+    console.error("POST /api/writing/submit error:", err);
+    res.status(500).json({ message: "Essay yuborishda xatolik." });
+  }
+});
+
+// GET /api/writing/my-submissions
+app.get("/api/writing/my-submissions", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        ws.id,
+        ws.task_id,
+        wt.title,
+        wt.task_type,
+        ws.word_count,
+        ws.status,
+        ws.submitted_at
+      FROM writing_submissions ws
+      JOIN writing_tasks wt ON wt.id = ws.task_id
+      WHERE ws.user_id = ?
+      ORDER BY ws.submitted_at DESC, ws.id DESC
+      LIMIT 20
+      `,
+      [userId]
+    );
+
+    res.json({ items: rows || [] });
+  } catch (err) {
+    console.error("GET /api/writing/my-submissions error:", err);
+    res.status(500).json({ message: "Writing submissionsni olishda xatolik." });
+  }
+});
+
+/* ================= ADMIN MATERIAL APPROVAL ================= */
+
+// Pending / approved / rejected materials list
+app.get("/admin/materials", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const status = String(req.query.status || "pending").trim().toLowerCase();
+    const module = String(req.query.module || "").trim().toLowerCase();
+
+    const allowedStatuses = ["pending", "approved", "rejected"];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ message: "status noto‘g‘ri." });
+    }
+
+    let sql = `
+      SELECT
+        m.id,
+        m.type,
+        m.module,
+        m.order_no,
+        m.level,
+        m.is_published,
+        m.review_status,
+        m.title,
+        m.created_at,
+        m.approved_at,
+        u.username AS approved_by_name,
+        (
+          SELECT COUNT(*)
+          FROM material_questions mq
+          WHERE mq.material_id = m.id
+        ) AS questions_count
+      FROM materials m
+      LEFT JOIN users u ON u.id = m.approved_by
+      WHERE m.review_status = ?
+    `;
+    const params = [status];
+
+    if (module) {
+      sql += ` AND m.module = ?`;
+      params.push(module);
+    }
+
+    sql += ` ORDER BY m.created_at DESC, m.id DESC`;
+
+    const [rows] = await pool.query(sql, params);
+    res.json({ items: rows || [] });
+  } catch (err) {
+    console.error("GET /admin/materials error:", err);
+    res.status(500).json({ message: "Materials list error." });
+  }
+});
+
+// Single material detail + questions
+app.get("/admin/materials/:id", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const materialId = Number(req.params.id);
+    if (!materialId) {
+      return res.status(400).json({ message: "Material id noto‘g‘ri." });
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        m.*,
+        u.username AS approved_by_name
+      FROM materials m
+      LEFT JOIN users u ON u.id = m.approved_by
+      WHERE m.id = ?
+      LIMIT 1
+      `,
+      [materialId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Material topilmadi." });
+    }
+
+    const [questions] = await pool.query(
+      `
+      SELECT id, question_text, option_a, option_b, option_c, option_d, correct_option
+      FROM material_questions
+      WHERE material_id = ?
+      ORDER BY id ASC
+      `,
+      [materialId]
+    );
+
+    res.json({
+      material: rows[0],
+      questions: questions || []
+    });
+  } catch (err) {
+    console.error("GET /admin/materials/:id error:", err);
+    res.status(500).json({ message: "Material detail error." });
+  }
+});
+
+// Approve material
+app.post("/admin/materials/:id/approve", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const materialId = Number(req.params.id);
+    if (!materialId) {
+      return res.status(400).json({ message: "Material id noto‘g‘ri." });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT id FROM materials WHERE id = ? LIMIT 1`,
+      [materialId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Material topilmadi." });
+    }
+
+    await pool.query(
+      `
+      UPDATE materials
+      SET
+        review_status = 'approved',
+        is_published = 1,
+        approved_by = ?,
+        approved_at = NOW()
+      WHERE id = ?
+      `,
+      [req.user.id, materialId]
+    );
+
+    res.json({ message: "Material approved qilindi." });
+  } catch (err) {
+    console.error("POST /admin/materials/:id/approve error:", err);
+    res.status(500).json({ message: "Approve error." });
+  }
+});
+
+// Reject material
+app.post("/admin/materials/:id/reject", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const materialId = Number(req.params.id);
+    if (!materialId) {
+      return res.status(400).json({ message: "Material id noto‘g‘ri." });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT id FROM materials WHERE id = ? LIMIT 1`,
+      [materialId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Material topilmadi." });
+    }
+
+    await pool.query(
+      `
+      UPDATE materials
+      SET
+        review_status = 'rejected',
+        is_published = 0,
+        approved_by = NULL,
+        approved_at = NULL
+      WHERE id = ?
+      `,
+      [materialId]
+    );
+
+    res.json({ message: "Material reject qilindi." });
+  } catch (err) {
+    console.error("POST /admin/materials/:id/reject error:", err);
+    res.status(500).json({ message: "Reject error." });
+  }
+});
+
+// Optional: published materialni qayta yopish
+app.post("/admin/materials/:id/unpublish", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const materialId = Number(req.params.id);
+    if (!materialId) {
+      return res.status(400).json({ message: "Material id noto‘g‘ri." });
+    }
+
+    await pool.query(
+      `
+      UPDATE materials
+      SET
+        is_published = 0,
+        review_status = 'pending',
+        approved_by = NULL,
+        approved_at = NULL
+      WHERE id = ?
+      `,
+      [materialId]
+    );
+
+    res.json({ message: "Material unpublished qilindi." });
+  } catch (err) {
+    console.error("POST /admin/materials/:id/unpublish error:", err);
+    res.status(500).json({ message: "Unpublish error." });
   }
 });
 

@@ -388,7 +388,63 @@
         </table>
       </div>
     </div>
+    <!-- WRITING RESULTS -->
+    <div class="student-section">
+      <div class="student-section-top">
+       <h3>Writing Results</h3>
+      </div>
 
+      <div class="student-stats-grid">
+       <div class="student-stat-card reveal">
+       <h4>Total Writings</h4>
+       <p id="writingTotalSubmissions">0</p>
+      </div>
+
+      <div class="student-stat-card reveal">
+       <h4>Checked</h4>
+       <p id="writingCheckedSubmissions">0</p>
+      </div>
+
+      <div class="student-stat-card reveal">
+       <h4>Pending</h4>
+       <p id="writingPendingSubmissions">0</p>
+      </div>
+
+      <div class="student-stat-card reveal">
+       <h4>Max Words</h4>
+       <p id="writingMaxWords">0</p>
+      </div>
+
+      <div class="student-stat-card reveal">
+        <h4>Average Words</h4>
+        <p id="writingAverageWords">0</p>
+      </div>
+
+      <div class="student-stat-card reveal">
+        <h4>Last Writing</h4>
+        <p id="writingLastSubmitted">-</p>
+       </div>
+      </div>
+
+      <div class="student-table-wrap reveal" style="margin-top:16px;">
+        <table class="student-table">
+          <thead>
+           <tr>
+           <th>Task</th>
+           <th>Type</th>
+           <th>Words</th>
+           <th>Status</th>
+           <th>Date</th>
+           </tr>
+          </thead>
+          <tbody id="recentWritingList">
+            <tr>
+             <td colspan="5">Loading...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
     <!-- B. STUDENT RANKING -->
     <div class="student-section">
       <div class="student-section-top">
@@ -542,25 +598,60 @@
   </div>
 </div>
 
-<!-- ================= WRITING PAGE (SKELETON) ================= -->
+<!-- ================= WRITING PAGE ================= -->
 <div id="writingPage" class="page" style="display:none;">
   <div class="page-header">
     <button onclick="showPage(pages.dashboard)">⬅ Back</button>
     <h1>✍️ Writing Practice</h1>
-    <p>Task 1 / Task 2 prompt yuklashga tayyor</p>
+    <p>IELTS writing tasklarni ishlang va essay yuboring</p>
   </div>
 
-  <div class="skeleton-wrap">
-    <div class="skeleton-card">
-      <h3>Writing Prompt (bo‘sh)</h3>
-      <div class="skeleton-line"></div>
-      <div class="skeleton-line short"></div>
+  <div class="reading-shell" style="display:grid;grid-template-columns:280px 1fr;gap:16px;margin-top:16px;">
+    <!-- Left list -->
+    <div class="reading-left" style="background:#ffffff14;border-radius:14px;padding:12px;">
+      <h4 style="margin:6px 0 12px 0;">Writing Tasks</h4>
+      <ul id="writingTaskList" style="list-style:none;padding:0;margin:0;display:grid;gap:8px;">
+        <li>Loading...</li>
+      </ul>
+    </div>
 
-      <h4 style="margin-top:16px;">Student Answer</h4>
-      <div class="skeleton-box"></div>
+    <!-- Right content -->
+    <div class="reading-right" style="background:#ffffff14;border-radius:14px;padding:14px;min-height:260px;">
+      <h3 id="writingTaskTitle" style="margin:0 0 10px 0;">Select a task</h3>
 
-      <button class="ghost-btn" disabled>Submit (keyin aktiv bo‘ladi)</button>
-      <p class="muted">Keyin: AI scoring / teacher check qo‘shiladi.</p>
+      <div id="writingTaskMeta" style="margin-bottom:10px;opacity:.9;"></div>
+
+      <div id="writingTaskPrompt" style="margin-bottom:14px;">
+        <p>Chapdan writing task tanlang.</p>
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <textarea
+          id="writingEssay"
+          placeholder="Write your essay here..."
+          style="width:100%;min-height:260px;padding:14px;border-radius:12px;border:none;outline:none;resize:vertical;"
+        ></textarea>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div id="writingWordCount" style="font-weight:700;">Words: 0</div>
+        <button
+          id="writingSubmitBtn"
+          onclick="submitWritingEssay()"
+          style="padding:12px 18px;border:none;border-radius:12px;background:blueviolet;color:#fff;font-weight:700;cursor:pointer;"
+        >
+          Submit Essay
+        </button>
+      </div>
+
+      <div id="writingSubmitResult" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <div style="margin-top:18px;background:#ffffff14;border-radius:14px;padding:14px;">
+    <h3 style="margin:0 0 12px 0;">My Writing Submissions</h3>
+    <div id="myWritingSubmissions">
+      <p>Loading...</p>
     </div>
   </div>
 </div>

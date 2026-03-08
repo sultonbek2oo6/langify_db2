@@ -598,25 +598,29 @@ function initFeatureClick() {
       }
 
       const skeletonMap = {
-      writing: pages.writing,
-      speaking: pages.speaking,
-      band9: pages.band9,
-      mock: pages.mock
+        speaking: pages.speaking,
+        band9: pages.band9,
+        mock: pages.mock
       };
 
       if (feature === "vocabulary") {
-      openVocabularyModule();
-      return;
+        openVocabularyModule();
+        return;
       }
 
       if (feature === "reading") {
-      openReadingModule();
-      return;
+       openReadingModule();
+       return;
+      }
+
+      if (feature === "writing") {
+       openWritingModule();
+       return;
       }
 
       if (skeletonMap[feature]) {
-      showPage(skeletonMap[feature], "block");
-      return;
+       showPage(skeletonMap[feature], "block");
+       return;
       }
 
       buttons.forEach((b) => b.classList.remove("active"));
@@ -1426,6 +1430,291 @@ async function submitVocabularyQuiz(materialId, answers) {
   }
 }
 
+/* ================= WRITING MODULE ================= */
+
+let CURRENT_WRITING_TASK_ID = null;
+
+function countWords(text) {
+  return String(text || "").trim().split(/\s+/).filter(Boolean).length;
+}
+
+async function openWritingModule() {
+  await showPage(pages.writing, "block");
+  await loadWritingTasks();
+  await loadMyWritingSubmissions();
+  bindWritingWordCounter();
+}
+
+function bindWritingWordCounter() {
+  const textarea = document.getElementById("writingEssay");
+  const counter = document.getElementById("writingWordCount");
+
+  if (!textarea || !counter) return;
+
+  if (textarea.dataset.bound === "1") return;
+  textarea.dataset.bound = "1";
+
+  textarea.addEventListener("input", () => {
+    counter.textContent = `Words: ${countWords(textarea.value)}`;
+  });
+}
+
+async function loadWritingTasks() {
+  const listEl = document.getElementById("writingTaskList");
+  const titleEl = document.getElementById("writingTaskTitle");
+  const metaEl = document.getElementById("writingTaskMeta");
+  const promptEl = document.getElementById("writingTaskPrompt");
+  const essayEl = document.getElementById("writingEssay");
+  const resultEl = document.getElementById("writingSubmitResult");
+  const counterEl = document.getElementById("writingWordCount");
+
+  if (!listEl || !titleEl || !metaEl || !promptEl || !essayEl || !resultEl || !counterEl) {
+    console.warn("writingPage elementlari topilmadi.");
+    return;
+  }
+
+  listEl.innerHTML = `<li>Loading...</li>`;
+  titleEl.textContent = "Select a task";
+  metaEl.innerHTML = "";
+  promptEl.innerHTML = `<p>Chapdan writing task tanlang.</p>`;
+  essayEl.value = "";
+  resultEl.innerHTML = "";
+  counterEl.textContent = "Words: 0";
+  CURRENT_WRITING_TASK_ID = null;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/writing/tasks`, {
+      headers: getAuthHeaders()
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      listEl.innerHTML = `<li>${data.message || "Failed"}</li>`;
+      return;
+    }
+
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (!items.length) {
+      listEl.innerHTML = `<li>Writing tasklar hali yo‘q</li>`;
+      return;
+    }
+
+    listEl.innerHTML = "";
+
+    items.forEach((item) => {
+      const li = document.createElement("li");
+      li.textContent = `${item.id}. ${item.title}`;
+      li.style.cursor = "pointer";
+      li.style.padding = "10px 12px";
+      li.style.borderRadius = "10px";
+      li.style.background = "#ffffff10";
+      li.style.transition = "0.2s ease";
+
+      li.addEventListener("click", async () => {
+        listEl.querySelectorAll("li").forEach((x) => {
+          x.style.background = "#ffffff10";
+          x.style.fontWeight = "500";
+        });
+
+        li.style.background = "rgba(255,255,255,0.55)";
+        li.style.fontWeight = "800";
+
+        await openWritingTask(item.id);
+      });
+
+      li.addEventListener("mouseenter", () => {
+        if (li.style.fontWeight !== "800") {
+          li.style.background = "#ffffff22";
+        }
+      });
+
+      li.addEventListener("mouseleave", () => {
+        if (li.style.fontWeight !== "800") {
+          li.style.background = "#ffffff10";
+        }
+      });
+
+      listEl.appendChild(li);
+    });
+  } catch (e) {
+    console.error(e);
+    listEl.innerHTML = `<li>Server error</li>`;
+  }
+}
+
+async function openWritingTask(taskId) {
+  const titleEl = document.getElementById("writingTaskTitle");
+  const metaEl = document.getElementById("writingTaskMeta");
+  const promptEl = document.getElementById("writingTaskPrompt");
+  const essayEl = document.getElementById("writingEssay");
+  const resultEl = document.getElementById("writingSubmitResult");
+  const counterEl = document.getElementById("writingWordCount");
+
+  if (!titleEl || !metaEl || !promptEl || !essayEl || !resultEl || !counterEl) return;
+
+  titleEl.textContent = "Loading task...";
+  metaEl.innerHTML = "";
+  promptEl.innerHTML = `<p>Loading...</p>`;
+  resultEl.innerHTML = "";
+  essayEl.value = "";
+  counterEl.textContent = "Words: 0";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/writing/tasks/${taskId}`, {
+      headers: getAuthHeaders()
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      titleEl.textContent = "Error";
+      promptEl.innerHTML = `<p>${data.message || "Failed to load"}</p>`;
+      return;
+    }
+
+    const task = data.task || {};
+    CURRENT_WRITING_TASK_ID = task.id;
+
+    titleEl.textContent = task.title || "Writing Task";
+    metaEl.innerHTML = `
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <span style="background:#ffffff22;padding:6px 10px;border-radius:999px;">Type: ${task.task_type || "-"}</span>
+        <span style="background:#ffffff22;padding:6px 10px;border-radius:999px;">Min words: ${task.min_words || 0}</span>
+        <span style="background:#ffffff22;padding:6px 10px;border-radius:999px;">Time: ${task.time_limit || 0} min</span>
+      </div>
+    `;
+
+    promptEl.innerHTML = `
+      <div style="background:rgba(255,255,255,0.75);padding:12px 14px;border-radius:12px;color:#173d35;line-height:1.7;">
+        ${String(task.prompt || "").replace(/\n/g, "<br>")}
+      </div>
+    `;
+  } catch (e) {
+    console.error(e);
+    titleEl.textContent = "Server error";
+    promptEl.innerHTML = `<p>Server error</p>`;
+  }
+}
+
+async function submitWritingEssay() {
+  const resultEl = document.getElementById("writingSubmitResult");
+  const essayEl = document.getElementById("writingEssay");
+
+  if (!resultEl || !essayEl) return;
+
+  if (!CURRENT_WRITING_TASK_ID) {
+    alert("Avval writing task tanlang.");
+    return;
+  }
+
+  const essayText = essayEl.value.trim();
+  if (!essayText) {
+    alert("Essay yozing.");
+    return;
+  }
+
+  resultEl.innerHTML = "Submitting...";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/writing/submit`, {
+      method: "POST",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        task_id: CURRENT_WRITING_TASK_ID,
+        essay_text: essayText
+      })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      resultEl.innerHTML = `<p style="color:crimson;">${data.message || "Submit error"}</p>`;
+      return;
+    }
+
+    resultEl.innerHTML = `
+      <div style="background:#ffffffcc;padding:14px;border-radius:14px;color:#173d35;border:1px solid rgba(15,23,42,.08);">
+        <p style="margin:0 0 8px 0;font-weight:800;">✅ Essay yuborildi</p>
+        <p style="margin:0;">Word count: <b>${data.word_count || 0}</b></p>
+        <p style="margin:6px 0 0 0;">Status: <b>${data.status || "submitted"}</b></p>
+      </div>
+    `;
+
+    essayEl.value = "";
+    const counterEl = document.getElementById("writingWordCount");
+    if (counterEl) counterEl.textContent = "Words: 0";
+
+    await loadMyWritingSubmissions();
+  } catch (e) {
+    console.error(e);
+    resultEl.innerHTML = `<p style="color:crimson;">Server error</p>`;
+  }
+}
+
+async function loadMyWritingSubmissions() {
+  const box = document.getElementById("myWritingSubmissions");
+  if (!box) return;
+
+  box.innerHTML = "<p>Loading...</p>";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/writing/my-submissions`, {
+      headers: getAuthHeaders()
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      box.innerHTML = `<p style="color:crimson;">${data.message || "Failed"}</p>`;
+      return;
+    }
+
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (!items.length) {
+      box.innerHTML = `<p>Hozircha writing submission yo‘q.</p>`;
+      return;
+    }
+
+    let html = `
+      <div style="overflow:auto;">
+        <table style="width:100%;border-collapse:collapse;background:#ffffff10;border-radius:12px;">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">Task</th>
+              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">Type</th>
+              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">Words</th>
+              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">Status</th>
+              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">Date</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    items.forEach((it) => {
+      html += `
+        <tr>
+          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${it.title || "-"}</td>
+          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${it.task_type || "-"}</td>
+          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${it.word_count || 0}</td>
+          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${it.status || "-"}</td>
+          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${it.submitted_at ? new Date(it.submitted_at).toLocaleString() : "-"}</td>
+        </tr>
+      `;
+    });
+
+    html += `
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    box.innerHTML = html;
+  } catch (e) {
+    console.error(e);
+    box.innerHTML = `<p style="color:crimson;">Server error</p>`;
+  }
+}
+
 /* ================= READING MODULE ================= */
 async function openReadingModule() {
   await showPage(pages.reading, "block");
@@ -1738,12 +2027,25 @@ async function openStudentResults() {
   const recentAttemptsList = document.getElementById("recentAttemptsList");
   const studentRankingList = document.getElementById("studentRankingList");
 
+  // ✅ Writing elements
+  const writingTotalSubmissionsEl = document.getElementById("writingTotalSubmissions");
+  const writingCheckedSubmissionsEl = document.getElementById("writingCheckedSubmissions");
+  const writingPendingSubmissionsEl = document.getElementById("writingPendingSubmissions");
+  const writingMaxWordsEl = document.getElementById("writingMaxWords");
+  const writingAverageWordsEl = document.getElementById("writingAverageWords");
+  const writingLastSubmittedEl = document.getElementById("writingLastSubmitted");
+  const recentWritingList = document.getElementById("recentWritingList");
+
   if (recentAttemptsList) {
     recentAttemptsList.innerHTML = `<tr><td colspan="4">Loading...</td></tr>`;
   }
 
   if (studentRankingList) {
     studentRankingList.innerHTML = `<tr><td colspan="6">Loading...</td></tr>`;
+  }
+
+  if (recentWritingList) {
+    recentWritingList.innerHTML = `<tr><td colspan="5">Loading...</td></tr>`;
   }
 
   try {
@@ -1758,6 +2060,7 @@ async function openStudentResults() {
       return;
     }
 
+    // ================= MAIN STATS =================
     if (totalAttemptsEl) totalAttemptsEl.textContent = meData.totalAttempts ?? 0;
     if (bestScoreEl) bestScoreEl.textContent = meData.bestScore ?? 0;
     if (averageScoreEl) averageScoreEl.textContent = meData.averageScore ?? 0;
@@ -1765,6 +2068,7 @@ async function openStudentResults() {
     if (accuracyEl) accuracyEl.textContent = `${meData.accuracy ?? 0}%`;
     if (currentRankEl) currentRankEl.textContent = meData.currentRank ? `#${meData.currentRank}` : "-";
 
+    // ================= RECENT ATTEMPTS =================
     const attempts = Array.isArray(meData.recentAttempts) ? meData.recentAttempts : [];
 
     if (!attempts.length) {
@@ -1789,6 +2093,65 @@ async function openStudentResults() {
       }
     }
 
+    // ================= WRITING STATS =================
+    const writingStats = meData.writingStats || {};
+
+    if (writingTotalSubmissionsEl) {
+      writingTotalSubmissionsEl.textContent = writingStats.totalSubmissions ?? 0;
+    }
+
+    if (writingCheckedSubmissionsEl) {
+      writingCheckedSubmissionsEl.textContent = writingStats.checkedSubmissions ?? 0;
+    }
+
+    if (writingPendingSubmissionsEl) {
+      writingPendingSubmissionsEl.textContent = writingStats.pendingSubmissions ?? 0;
+    }
+
+    if (writingMaxWordsEl) {
+      writingMaxWordsEl.textContent = writingStats.maxWords ?? 0;
+    }
+
+    if (writingAverageWordsEl) {
+      writingAverageWordsEl.textContent = writingStats.averageWords ?? 0;
+    }
+
+    if (writingLastSubmittedEl) {
+      writingLastSubmittedEl.textContent = writingStats.lastSubmittedAt
+        ? new Date(writingStats.lastSubmittedAt).toLocaleString()
+        : "-";
+    }
+
+    // ================= RECENT WRITING =================
+    const recentWriting = Array.isArray(meData.recentWritingSubmissions)
+      ? meData.recentWritingSubmissions
+      : [];
+
+    if (!recentWriting.length) {
+      if (recentWritingList) {
+        recentWritingList.innerHTML = `<tr><td colspan="5">No writing submissions yet</td></tr>`;
+      }
+    } else {
+      let writingHtml = "";
+
+      recentWriting.forEach((item) => {
+        writingHtml += `
+          <tr>
+            <td>${item.title || "-"}</td>
+            <td>${item.task_type || "-"}</td>
+            <td>${item.word_count || 0}</td>
+            <td>${item.status || "-"}</td>
+            <td>${item.submitted_at ? new Date(item.submitted_at).toLocaleString() : "-"}</td>
+          </tr>
+        `;
+      });
+
+      if (recentWritingList) {
+        recentWritingList.innerHTML = writingHtml;
+      }
+    }
+
+    // ================= RANKING =================
     const rankingRes = await fetch(`${API_BASE}/api/results/leaderboard`, {
       headers: getAuthHeaders()
     });
@@ -1842,6 +2205,10 @@ async function openStudentResults() {
 
     if (studentRankingList) {
       studentRankingList.innerHTML = `<tr><td colspan="6">Server bilan bog‘lanib bo‘lmadi</td></tr>`;
+    }
+
+    if (recentWritingList) {
+      recentWritingList.innerHTML = `<tr><td colspan="5">Server bilan bog‘lanib bo‘lmadi</td></tr>`;
     }
   }
 }
@@ -1902,3 +2269,5 @@ window.openLeaderboard = openLeaderboard;
 window.openStudentResults = openStudentResults;
 window.openVocabularyModule = openVocabularyModule;
 window.startVocabularyQuiz = startVocabularyQuiz;
+window.openWritingModule = openWritingModule;
+window.submitWritingEssay = submitWritingEssay;
