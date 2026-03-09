@@ -62,6 +62,47 @@ const upload = multer({
   limits: { fileSize: 3 * 1024 * 1024 }, // 3MB
 });
 
+/* ================= SPEAKING AUDIO UPLOAD ================= */
+
+const AUDIO_UPLOAD_DIR = path.join(UPLOAD_DIR, "audio");
+if (!fs.existsSync(AUDIO_UPLOAD_DIR)) fs.mkdirSync(AUDIO_UPLOAD_DIR, { recursive: true });
+
+const audioStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, AUDIO_UPLOAD_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname || "") || ".webm";
+    cb(
+      null,
+      `speaking_${Date.now()}_${Math.random().toString(16).slice(2)}${ext}`
+    );
+  },
+});
+
+function audioFileFilter(req, file, cb) {
+  const allowed = [
+    "audio/webm",
+    "audio/mp4",
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/wav",
+    "audio/ogg",
+    "audio/x-m4a",
+    "video/webm" // ba'zi brauzerlar shuni yuboradi
+  ];
+
+  if (!allowed.includes(file.mimetype)) {
+    return cb(new Error("Only audio files allowed"), false);
+  }
+
+  cb(null, true);
+}
+
+const audioUpload = multer({
+  storage: audioStorage,
+  fileFilter: audioFileFilter,
+  limits: { fileSize: 15 * 1024 * 1024 } // 15MB
+});
+
 /* ================= EMAIL OTP (NEW) ================= */
 
 const transporter = nodemailer.createTransport({
@@ -1879,6 +1920,144 @@ app.get("/api/writing/my-submissions", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Writing submissionsni olishda xatolik." });
   }
 });
+/* ================= SPEAKING PRACTICE API ================= */
+
+// GET /api/speaking/tasks
+app.get("/api/speaking/tasks", authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT id, title, task_type, prompt, cue_points, prep_time, speak_time, created_at
+      FROM speaking_tasks
+      WHERE is_active = 1 AND review_status = 'approved'
+      ORDER BY id ASC
+      `
+    );
+
+    res.json({ items: rows || [] });
+  } catch (err) {
+    console.error("GET /api/speaking/tasks error:", err);
+    res.status(500).json({ message: "Speaking tasklarni olishda xatolik." });
+  }
+});
+
+// GET /api/speaking/tasks/:id
+app.get("/api/speaking/tasks/:id", authenticateToken, async (req, res) => {
+  try {
+    const taskId = Number(req.params.id);
+    if (!taskId) {
+      return res.status(400).json({ message: "Task id noto‘g‘ri." });
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT id, title, task_type, prompt, cue_points, prep_time, speak_time, created_at
+      FROM speaking_tasks
+      WHERE id = ? AND is_active = 1 AND review_status = 'approved'
+      LIMIT 1
+      `,
+      [taskId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Speaking task topilmadi." });
+    }
+
+    res.json({ task: rows[0] });
+  } catch (err) {
+    console.error("GET /api/speaking/tasks/:id error:", err);
+    res.status(500).json({ message: "Speaking taskni olishda xatolik." });
+  }
+});
+
+// POST /api/speaking/submit-audio
+app.post(
+  "/api/speaking/submit-audio",
+  authenticateToken,
+  audioUpload.single("audio"),
+  async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const task_id = Number(req.body.task_id);
+      const duration_seconds = Number(req.body.duration_seconds || 0);
+
+      if (!task_id) {
+        return res.status(400).json({ message: "task_id kerak." });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "Audio fayl kerak." });
+      }
+
+      const [taskRows] = await pool.query(
+        `
+        SELECT id, is_active
+        FROM speaking_tasks
+        WHERE id = ?
+        LIMIT 1
+        `,
+        [task_id]
+      );
+
+      if (!taskRows.length || Number(taskRows[0].is_active) !== 1) {
+        return res.status(404).json({ message: "Speaking task topilmadi." });
+      }
+
+      const audio_url = `/uploads/audio/${req.file.filename}`;
+
+      const [result] = await pool.query(
+        `
+        INSERT INTO speaking_submissions
+        (user_id, task_id, audio_url, mime_type, duration_seconds, status, submitted_at)
+        VALUES (?, ?, ?, ?, ?, 'submitted', NOW())
+        `,
+        [userId, task_id, audio_url, req.file.mimetype || null, duration_seconds]
+      );
+
+      res.json({
+        message: "Speaking audio muvaffaqiyatli yuborildi.",
+        submission_id: result.insertId,
+        audio_url,
+        status: "submitted"
+      });
+    } catch (err) {
+      console.error("POST /api/speaking/submit-audio error:", err);
+      res.status(500).json({ message: "Speaking audio yuborishda xatolik." });
+    }
+  }
+);
+
+// GET /api/speaking/my-submissions
+app.get("/api/speaking/my-submissions", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        ss.id,
+        ss.task_id,
+        st.title,
+        st.task_type,
+        ss.audio_url,
+        ss.duration_seconds,
+        ss.status,
+        ss.submitted_at
+      FROM speaking_submissions ss
+      JOIN speaking_tasks st ON st.id = ss.task_id
+      WHERE ss.user_id = ?
+      ORDER BY ss.submitted_at DESC, ss.id DESC
+      LIMIT 20
+      `,
+      [userId]
+    );
+
+    res.json({ items: rows || [] });
+  } catch (err) {
+    console.error("GET /api/speaking/my-submissions error:", err);
+    res.status(500).json({ message: "Speaking submissionsni olishda xatolik." });
+  }
+});
 
 /* ================= ADMIN MATERIAL APPROVAL ================= */
 
@@ -2079,6 +2258,152 @@ app.post("/admin/materials/:id/unpublish", authenticateToken, isAdmin, async (re
   }
 });
 
+/* ================= ADMIN SPEAKING APPROVAL ================= */
+
+// pending / approved / rejected speaking tasks list
+app.get("/admin/speaking-tasks", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const status = String(req.query.status || "pending").trim().toLowerCase();
+
+    if (!["pending", "approved", "rejected"].includes(status)) {
+      return res.status(400).json({ message: "status noto‘g‘ri." });
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        st.id,
+        st.title,
+        st.task_type,
+        st.prompt,
+        st.cue_points,
+        st.prep_time,
+        st.speak_time,
+        st.is_active,
+        st.review_status,
+        st.created_at,
+        st.approved_at,
+        u.username AS approved_by_name
+      FROM speaking_tasks st
+      LEFT JOIN users u ON u.id = st.approved_by
+      WHERE st.review_status = ?
+      ORDER BY st.created_at DESC, st.id DESC
+      `,
+      [status]
+    );
+
+    res.json({ items: rows || [] });
+  } catch (err) {
+    console.error("GET /admin/speaking-tasks error:", err);
+    res.status(500).json({ message: "Speaking tasks list error." });
+  }
+});
+
+// single speaking task detail
+app.get("/admin/speaking-tasks/:id", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const taskId = Number(req.params.id);
+    if (!taskId) {
+      return res.status(400).json({ message: "Task id noto‘g‘ri." });
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        st.*,
+        u.username AS approved_by_name
+      FROM speaking_tasks st
+      LEFT JOIN users u ON u.id = st.approved_by
+      WHERE st.id = ?
+      LIMIT 1
+      `,
+      [taskId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Speaking task topilmadi." });
+    }
+
+    res.json({ task: rows[0] });
+  } catch (err) {
+    console.error("GET /admin/speaking-tasks/:id error:", err);
+    res.status(500).json({ message: "Speaking task detail error." });
+  }
+});
+
+// approve speaking task
+app.post("/admin/speaking-tasks/:id/approve", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const taskId = Number(req.params.id);
+    if (!taskId) {
+      return res.status(400).json({ message: "Task id noto‘g‘ri." });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT id FROM speaking_tasks WHERE id = ? LIMIT 1`,
+      [taskId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Speaking task topilmadi." });
+    }
+
+    await pool.query(
+      `
+      UPDATE speaking_tasks
+      SET
+        review_status = 'approved',
+        is_active = 1,
+        approved_by = ?,
+        approved_at = NOW()
+      WHERE id = ?
+      `,
+      [req.user.id, taskId]
+    );
+
+    res.json({ message: "Speaking task approved qilindi." });
+  } catch (err) {
+    console.error("POST /admin/speaking-tasks/:id/approve error:", err);
+    res.status(500).json({ message: "Speaking approve error." });
+  }
+});
+
+// reject speaking task
+app.post("/admin/speaking-tasks/:id/reject", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const taskId = Number(req.params.id);
+    if (!taskId) {
+      return res.status(400).json({ message: "Task id noto‘g‘ri." });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT id FROM speaking_tasks WHERE id = ? LIMIT 1`,
+      [taskId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Speaking task topilmadi." });
+    }
+
+    await pool.query(
+      `
+      UPDATE speaking_tasks
+      SET
+        review_status = 'rejected',
+        is_active = 0,
+        approved_by = NULL,
+        approved_at = NULL
+      WHERE id = ?
+      `,
+      [taskId]
+    );
+
+    res.json({ message: "Speaking task rejected qilindi." });
+  } catch (err) {
+    console.error("POST /admin/speaking-tasks/:id/reject error:", err);
+    res.status(500).json({ message: "Speaking reject error." });
+  }
+});
 /* ================= START SERVER ================= */
 
 const port = process.env.PORT || 3000;

@@ -18,22 +18,27 @@ function showAdminSection(name) {
   const usersSection = $("usersSection");
   const paymentsSection = $("paymentsSection");
   const materialsSection = $("materialsSection");
+  const speakingSection = $("speakingSection");
 
   const navUsers = $("navUsers");
   const navPayments = $("navPayments");
   const navMaterials = $("navMaterials");
+  const navSpeaking = $("navSpeaking");
 
   if (usersSection) usersSection.style.display = name === "users" ? "block" : "none";
   if (paymentsSection) paymentsSection.style.display = name === "payments" ? "block" : "none";
   if (materialsSection) materialsSection.style.display = name === "materials" ? "block" : "none";
+  if (speakingSection) speakingSection.style.display = name === "speaking" ? "block" : "none";
 
   if (navUsers) navUsers.classList.toggle("active", name === "users");
   if (navPayments) navPayments.classList.toggle("active", name === "payments");
   if (navMaterials) navMaterials.classList.toggle("active", name === "materials");
+  if (navSpeaking) navSpeaking.classList.toggle("active", name === "speaking");
 
   if (name === "users") loadUsers(STATE.page);
   if (name === "payments") loadPaymentRequests();
   if (name === "materials") loadMaterials();
+  if (name === "speaking") loadSpeakingTasks();
 }
 
 // ====================== INIT ======================
@@ -57,7 +62,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   $("matStatus")?.addEventListener("change", () => loadMaterials());
   $("matModule")?.addEventListener("change", () => loadMaterials());
-
+  $("navSpeaking")?.addEventListener("click", () => showAdminSection("speaking"));
+  
   // Logout
   $("logoutBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
@@ -109,6 +115,11 @@ document.addEventListener("DOMContentLoaded", () => {
     loadPaymentRequests();
   });
   $("payStatus")?.addEventListener("change", () => loadPaymentRequests());
+  $("speakingStatusFilter")?.addEventListener("change", () => loadSpeakingTasks());
+  $("speakingRefreshBtn")?.addEventListener("click", (e) => {
+  e.preventDefault();
+  loadSpeakingTasks();
+});
 
   // Default: Users
   showAdminSection("users");
@@ -763,6 +774,229 @@ async function unpublishMaterial(id) {
   } catch (e) {
     console.error(e);
     toast("Unpublish error ❌");
+  }
+}
+// ====================== SPEAKING TASKS ======================
+
+async function loadSpeakingTasks(status = "pending") {
+  const token = localStorage.getItem("token");
+  const tbody = $("speakingTableBody");
+  if (!tbody) return;
+
+  const selectedStatus = $("speakingStatusFilter")?.value || status;
+
+  tbody.innerHTML = `<tr><td colspan="8">Loading...</td></tr>`;
+
+  try {
+    const res = await fetch(
+      `${API}/admin/speaking-tasks?status=${encodeURIComponent(selectedStatus)}`,
+      {
+        headers: { Authorization: "Bearer " + token }
+      }
+    );
+
+    const data = await safeJson(res);
+    console.log("Speaking tasks API response:", data);
+
+    if (!res.ok) {
+      toast(data?.message || "Speaking tasks load error ❌");
+      tbody.innerHTML = `<tr><td colspan="8">${escapeHtml(data?.message || "Error")}</td></tr>`;
+      return;
+    }
+
+    // ✅ backend { items: [...] } yuborsa ham, oddiy [...] yuborsa ham ishlaydi
+    const items = Array.isArray(data)
+      ? data
+      : Array.isArray(data.items)
+      ? data.items
+      : [];
+
+    renderSpeakingTasks(items);
+  } catch (e) {
+    console.error(e);
+    toast("Connection error ❌");
+    tbody.innerHTML = `<tr><td colspan="8">Connection error</td></tr>`;
+  }
+}
+
+function renderSpeakingTasks(items) {
+  const tbody = $("speakingTableBody");
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+
+  if (!items.length) {
+    tbody.innerHTML = `<tr><td colspan="8">No speaking tasks</td></tr>`;
+    return;
+  }
+
+  items.forEach((task) => {
+    const tr = document.createElement("tr");
+
+    // ✅ review_status yoki status ikkalasidan birini oladi
+    const statusValue = task.review_status || task.status || "pending";
+
+    let actionHtml = `
+      <div class="admin-actions">
+        <button class="admin-btn admin-mini save" data-id="${task.id}" data-action="preview-speaking">Preview</button>
+    `;
+
+    if (statusValue === "pending") {
+      actionHtml += `
+        <button class="admin-btn admin-mini save" data-id="${task.id}" data-action="approve-speaking">Approve</button>
+        <button class="admin-btn admin-mini delete" data-id="${task.id}" data-action="reject-speaking">Reject</button>
+      `;
+    } else if (statusValue === "approved") {
+      actionHtml += `
+        <button class="admin-btn admin-mini block" data-id="${task.id}" data-action="reject-speaking">Reject</button>
+      `;
+    }
+
+    actionHtml += `</div>`;
+
+    tr.innerHTML = `
+      <td>${task.id}</td>
+      <td>${escapeHtml(task.title || "-")}</td>
+      <td>${escapeHtml(task.task_type || "-")}</td>
+      <td>${task.prep_time ?? 0}</td>
+      <td>${task.speak_time ?? 0}</td>
+      <td>${escapeHtml(statusValue)}</td>
+      <td>${formatDate(task.created_at)}</td>
+      <td>${actionHtml}</td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll("button[data-action='preview-speaking']").forEach((btn) => {
+    btn.onclick = () => previewSpeakingTask(btn.dataset.id);
+  });
+
+  tbody.querySelectorAll("button[data-action='approve-speaking']").forEach((btn) => {
+    btn.onclick = () => approveSpeakingTask(btn.dataset.id);
+  });
+
+  tbody.querySelectorAll("button[data-action='reject-speaking']").forEach((btn) => {
+    btn.onclick = () => rejectSpeakingTask(btn.dataset.id);
+  });
+}
+
+async function previewSpeakingTask(id) {
+  const token = localStorage.getItem("token");
+  const preview = $("speakingPreview");
+  if (!preview) return;
+
+  preview.innerHTML = `<p>Loading...</p>`;
+
+  try {
+    const res = await fetch(`${API}/admin/speaking-tasks/${id}`, {
+      headers: { Authorization: "Bearer " + token }
+    });
+
+    const data = await safeJson(res);
+    console.log("Speaking preview API response:", data);
+
+    if (!res.ok) {
+      preview.innerHTML = `<p>${escapeHtml(data?.message || "Error")}</p>`;
+      return;
+    }
+
+    // ✅ { task: {...} } yoki oddiy {...} bo‘lsa ham ishlaydi
+    const task = data.task || data || {};
+    const statusValue = task.review_status || task.status || "pending";
+
+    let cueHtml = `<p>No cue points</p>`;
+    if (task.cue_points) {
+      const cueLines = String(task.cue_points)
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => `<li>${escapeHtml(line)}</li>`)
+        .join("");
+
+      cueHtml = `<ul>${cueLines}</ul>`;
+    }
+
+    preview.innerHTML = `
+      <div style="display:grid;gap:14px;">
+        <div>
+          <h4 style="margin-bottom:8px;">${escapeHtml(task.title || "-")}</h4>
+          <p><b>Type:</b> ${escapeHtml(task.task_type || "-")}</p>
+          <p><b>Prep time:</b> ${task.prep_time ?? 0} min</p>
+          <p><b>Speak time:</b> ${task.speak_time ?? 0} min</p>
+          <p><b>Status:</b> ${escapeHtml(statusValue)}</p>
+        </div>
+
+        <div>
+          <h4 style="margin-bottom:8px;">Prompt</h4>
+          <div style="white-space:pre-wrap;line-height:1.6;">
+            ${escapeHtml(task.prompt || "")}
+          </div>
+        </div>
+
+        <div>
+          <h4 style="margin-bottom:8px;">Cue Points</h4>
+          ${cueHtml}
+        </div>
+
+        <div>
+          <h4 style="margin-bottom:8px;">Sample Answer</h4>
+          <div style="white-space:pre-wrap;line-height:1.6;">
+            ${escapeHtml(task.sample_answer || "")}
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    console.error(e);
+    preview.innerHTML = `<p>Connection error</p>`;
+  }
+}
+
+async function approveSpeakingTask(id) {
+  const token = localStorage.getItem("token");
+
+  try {
+    const res = await fetch(`${API}/admin/speaking-tasks/${id}/approve`, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token }
+    });
+
+    const data = await safeJson(res);
+
+    if (!res.ok) {
+      toast(data?.message || "Approve error ❌");
+      return;
+    }
+
+    toast("Speaking task approved ✅");
+    loadSpeakingTasks();
+  } catch (e) {
+    console.error(e);
+    toast("Approve error ❌");
+  }
+}
+
+async function rejectSpeakingTask(id) {
+  const token = localStorage.getItem("token");
+
+  try {
+    const res = await fetch(`${API}/admin/speaking-tasks/${id}/reject`, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token }
+    });
+
+    const data = await safeJson(res);
+
+    if (!res.ok) {
+      toast(data?.message || "Reject error ❌");
+      return;
+    }
+
+    toast("Speaking task rejected ✅");
+    loadSpeakingTasks();
+  } catch (e) {
+    console.error(e);
+    toast("Reject error ❌");
   }
 }
 // ====================== UTIL ======================

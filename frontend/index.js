@@ -598,9 +598,8 @@ function initFeatureClick() {
       }
 
       const skeletonMap = {
-        speaking: pages.speaking,
-        band9: pages.band9,
-        mock: pages.mock
+       band9: pages.band9,
+       mock: pages.mock
       };
 
       if (feature === "vocabulary") {
@@ -616,6 +615,10 @@ function initFeatureClick() {
       if (feature === "writing") {
        openWritingModule();
        return;
+      }
+      if (feature === "speaking") {
+        openSpeakingModule();
+        return;
       }
 
       if (skeletonMap[feature]) {
@@ -1715,6 +1718,413 @@ async function loadMyWritingSubmissions() {
   }
 }
 
+/* ================= SPEAKING MODULE ================= */
+
+let CURRENT_SPEAKING_TASK_ID = null;
+let speakingMediaRecorder = null;
+let speakingChunks = [];
+let speakingAudioBlob = null;
+let speakingAudioUrl = "";
+let speakingStream = null;
+let speakingTimerInterval = null;
+let speakingDurationSeconds = 0;
+
+async function openSpeakingModule() {
+  await showPage(pages.speaking, "block");
+  resetSpeakingRecorderUI();
+  await loadSpeakingTasks();
+  await loadMySpeakingSubmissions();
+}
+
+function resetSpeakingRecorderUI() {
+  speakingChunks = [];
+  speakingAudioBlob = null;
+  speakingAudioUrl = "";
+  speakingDurationSeconds = 0;
+
+  if (speakingTimerInterval) {
+    clearInterval(speakingTimerInterval);
+    speakingTimerInterval = null;
+  }
+
+  const statusEl = document.getElementById("speakingRecordingStatus");
+  const timerEl = document.getElementById("speakingTimer");
+  const previewEl = document.getElementById("speakingAudioPreviewWrap");
+  const startBtn = document.getElementById("startSpeakingBtn");
+  const stopBtn = document.getElementById("stopSpeakingBtn");
+  const submitBtn = document.getElementById("submitSpeakingBtn");
+
+  if (statusEl) statusEl.textContent = "Status: Ready";
+  if (timerEl) timerEl.textContent = "Duration: 0 sec";
+  if (previewEl) previewEl.innerHTML = "";
+  if (startBtn) startBtn.disabled = false;
+  if (stopBtn) stopBtn.disabled = true;
+  if (submitBtn) submitBtn.disabled = true;
+}
+
+async function loadSpeakingTasks() {
+  const listEl = document.getElementById("speakingTaskList");
+  const titleEl = document.getElementById("speakingTaskTitle");
+  const metaEl = document.getElementById("speakingTaskMeta");
+  const promptEl = document.getElementById("speakingTaskPrompt");
+  const cueEl = document.getElementById("speakingCuePoints");
+  const resultEl = document.getElementById("speakingSubmitResult");
+
+  if (!listEl || !titleEl || !metaEl || !promptEl || !cueEl || !resultEl) {
+    console.warn("speakingPage elementlari topilmadi.");
+    return;
+  }
+
+  listEl.innerHTML = `<li>Loading...</li>`;
+  titleEl.textContent = "Select a task";
+  metaEl.innerHTML = "";
+  promptEl.innerHTML = `<p>Chapdan speaking task tanlang.</p>`;
+  cueEl.innerHTML = "";
+  resultEl.innerHTML = "";
+  CURRENT_SPEAKING_TASK_ID = null;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/speaking/tasks`, {
+      headers: getAuthHeaders()
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      listEl.innerHTML = `<li>${data.message || "Failed"}</li>`;
+      return;
+    }
+
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (!items.length) {
+      listEl.innerHTML = `<li>Speaking tasklar hali yo‘q</li>`;
+      return;
+    }
+
+    listEl.innerHTML = "";
+
+    items.forEach((item) => {
+      const li = document.createElement("li");
+      li.textContent = `${item.id}. ${item.title}`;
+      li.style.cursor = "pointer";
+      li.style.padding = "10px 12px";
+      li.style.borderRadius = "10px";
+      li.style.background = "#ffffff10";
+      li.style.transition = "0.2s ease";
+
+      li.addEventListener("click", async () => {
+        listEl.querySelectorAll("li").forEach((x) => {
+          x.style.background = "#ffffff10";
+          x.style.fontWeight = "500";
+        });
+
+        li.style.background = "rgba(255,255,255,0.55)";
+        li.style.fontWeight = "800";
+
+        await openSpeakingTask(item.id);
+      });
+
+      li.addEventListener("mouseenter", () => {
+        if (li.style.fontWeight !== "800") {
+          li.style.background = "#ffffff22";
+        }
+      });
+
+      li.addEventListener("mouseleave", () => {
+        if (li.style.fontWeight !== "800") {
+          li.style.background = "#ffffff10";
+        }
+      });
+
+      listEl.appendChild(li);
+    });
+  } catch (e) {
+    console.error(e);
+    listEl.innerHTML = `<li>Server error</li>`;
+  }
+}
+
+async function openSpeakingTask(taskId) {
+  const titleEl = document.getElementById("speakingTaskTitle");
+  const metaEl = document.getElementById("speakingTaskMeta");
+  const promptEl = document.getElementById("speakingTaskPrompt");
+  const cueEl = document.getElementById("speakingCuePoints");
+  const resultEl = document.getElementById("speakingSubmitResult");
+
+  if (!titleEl || !metaEl || !promptEl || !cueEl || !resultEl) return;
+
+  titleEl.textContent = "Loading task...";
+  metaEl.innerHTML = "";
+  promptEl.innerHTML = `<p>Loading...</p>`;
+  cueEl.innerHTML = "";
+  resultEl.innerHTML = "";
+
+  resetSpeakingRecorderUI();
+
+  try {
+    const res = await fetch(`${API_BASE}/api/speaking/tasks/${taskId}`, {
+      headers: getAuthHeaders()
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      titleEl.textContent = "Error";
+      promptEl.innerHTML = `<p>${data.message || "Failed to load"}</p>`;
+      return;
+    }
+
+    const task = data.task || {};
+    CURRENT_SPEAKING_TASK_ID = task.id;
+
+    titleEl.textContent = task.title || "Speaking Task";
+
+    metaEl.innerHTML = `
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <span style="background:#ffffff22;padding:6px 10px;border-radius:999px;">Type: ${task.task_type || "-"}</span>
+        <span style="background:#ffffff22;padding:6px 10px;border-radius:999px;">Prep: ${task.prep_time || 0} min</span>
+        <span style="background:#ffffff22;padding:6px 10px;border-radius:999px;">Speak: ${task.speak_time || 0} min</span>
+      </div>
+    `;
+
+    promptEl.innerHTML = `
+      <div style="background:rgba(255,255,255,0.75);padding:12px 14px;border-radius:12px;color:#173d35;line-height:1.7;">
+        ${String(task.prompt || "").replace(/\n/g, "<br>")}
+      </div>
+    `;
+
+    if (task.cue_points) {
+      const cueLines = String(task.cue_points)
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => `<li>${line}</li>`)
+        .join("");
+
+      cueEl.innerHTML = `
+        <div style="background:rgba(255,255,255,0.65);padding:12px 14px;border-radius:12px;color:#173d35;">
+          <b>Cue points:</b>
+          <ul style="margin:8px 0 0 18px;">
+            ${cueLines}
+          </ul>
+        </div>
+      `;
+    }
+  } catch (e) {
+    console.error(e);
+    titleEl.textContent = "Server error";
+    promptEl.innerHTML = `<p>Server error</p>`;
+  }
+}
+
+async function startSpeakingRecording() {
+  if (!CURRENT_SPEAKING_TASK_ID) {
+    alert("Avval speaking task tanlang.");
+    return;
+  }
+
+  const statusEl = document.getElementById("speakingRecordingStatus");
+  const timerEl = document.getElementById("speakingTimer");
+  const startBtn = document.getElementById("startSpeakingBtn");
+  const stopBtn = document.getElementById("stopSpeakingBtn");
+  const submitBtn = document.getElementById("submitSpeakingBtn");
+
+  try {
+    speakingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    speakingChunks = [];
+    speakingAudioBlob = null;
+    speakingDurationSeconds = 0;
+
+    speakingMediaRecorder = new MediaRecorder(speakingStream);
+
+    speakingMediaRecorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        speakingChunks.push(event.data);
+      }
+    };
+
+    speakingMediaRecorder.onstop = () => {
+      speakingAudioBlob = new Blob(speakingChunks, {
+        type: speakingChunks[0]?.type || "audio/webm"
+      });
+
+      if (speakingAudioUrl) {
+        URL.revokeObjectURL(speakingAudioUrl);
+      }
+
+      speakingAudioUrl = URL.createObjectURL(speakingAudioBlob);
+
+      const previewEl = document.getElementById("speakingAudioPreviewWrap");
+      if (previewEl) {
+        previewEl.innerHTML = `
+          <div style="background:#ffffffcc;padding:14px;border-radius:14px;color:#173d35;border:1px solid rgba(15,23,42,.08);">
+            <p style="margin:0 0 10px 0;font-weight:800;">Audio Preview</p>
+            <audio controls style="width:100%;">
+              <source src="${speakingAudioUrl}">
+            </audio>
+          </div>
+        `;
+      }
+
+      if (statusEl) statusEl.textContent = "Status: Recorded";
+      if (startBtn) startBtn.disabled = false;
+      if (stopBtn) stopBtn.disabled = true;
+      if (submitBtn) submitBtn.disabled = false;
+    };
+
+    speakingMediaRecorder.start();
+
+    if (statusEl) statusEl.textContent = "Status: Recording...";
+    if (startBtn) startBtn.disabled = true;
+    if (stopBtn) stopBtn.disabled = false;
+    if (submitBtn) submitBtn.disabled = true;
+
+    if (speakingTimerInterval) clearInterval(speakingTimerInterval);
+    speakingTimerInterval = setInterval(() => {
+      speakingDurationSeconds += 1;
+      if (timerEl) timerEl.textContent = `Duration: ${speakingDurationSeconds} sec`;
+    }, 1000);
+  } catch (e) {
+    console.error(e);
+    alert("Mikrofonga ruxsat berilmadi yoki recording ishlamadi.");
+  }
+}
+
+function stopSpeakingRecording() {
+  if (speakingMediaRecorder && speakingMediaRecorder.state !== "inactive") {
+    speakingMediaRecorder.stop();
+  }
+
+  if (speakingStream) {
+    speakingStream.getTracks().forEach((track) => track.stop());
+  }
+
+  if (speakingTimerInterval) {
+    clearInterval(speakingTimerInterval);
+    speakingTimerInterval = null;
+  }
+}
+
+async function submitSpeakingRecording() {
+  const resultEl = document.getElementById("speakingSubmitResult");
+  if (!resultEl) return;
+
+  if (!CURRENT_SPEAKING_TASK_ID) {
+    alert("Avval speaking task tanlang.");
+    return;
+  }
+
+  if (!speakingAudioBlob) {
+    alert("Avval audio yozib oling.");
+    return;
+  }
+
+  resultEl.innerHTML = "Uploading...";
+
+  try {
+    const formData = new FormData();
+
+    const ext = speakingAudioBlob.type.includes("mp4") ? "m4a" : "webm";
+    const file = new File([speakingAudioBlob], `speaking_record.${ext}`, {
+      type: speakingAudioBlob.type || "audio/webm"
+    });
+
+    formData.append("audio", file);
+    formData.append("task_id", String(CURRENT_SPEAKING_TASK_ID));
+    formData.append("duration_seconds", String(speakingDurationSeconds));
+
+    const res = await fetch(`${API_BASE}/api/speaking/submit-audio`, {
+      method: "POST",
+      headers: {
+        ...getAuthHeaders()
+      },
+      body: formData
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      resultEl.innerHTML = `<p style="color:crimson;">${data.message || "Upload error"}</p>`;
+      return;
+    }
+
+    resultEl.innerHTML = `
+      <div style="background:#ffffffcc;padding:14px;border-radius:14px;color:#173d35;border:1px solid rgba(15,23,42,.08);">
+        <p style="margin:0 0 8px 0;font-weight:800;">✅ Speaking audio yuborildi</p>
+        <p style="margin:0;">Status: <b>${data.status || "submitted"}</b></p>
+      </div>
+    `;
+
+    resetSpeakingRecorderUI();
+    await loadMySpeakingSubmissions();
+  } catch (e) {
+    console.error(e);
+    resultEl.innerHTML = `<p style="color:crimson;">Server error</p>`;
+  }
+}
+
+async function loadMySpeakingSubmissions() {
+  const box = document.getElementById("mySpeakingSubmissions");
+  if (!box) return;
+
+  box.innerHTML = "<p>Loading...</p>";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/speaking/my-submissions`, {
+      headers: getAuthHeaders()
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      box.innerHTML = `<p style="color:crimson;">${data.message || "Failed"}</p>`;
+      return;
+    }
+
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (!items.length) {
+      box.innerHTML = `<p>Hozircha speaking submission yo‘q.</p>`;
+      return;
+    }
+
+    let html = `
+      <div style="overflow:auto;">
+        <table style="width:100%;border-collapse:collapse;background:#ffffff10;border-radius:12px;">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">Task</th>
+              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">Type</th>
+              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">Audio</th>
+              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">Duration</th>
+              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">Status</th>
+              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">Date</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    items.forEach((it) => {
+      html += `
+        <tr>
+          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${it.title || "-"}</td>
+          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${it.task_type || "-"}</td>
+          <td style="padding:10px;border-bottom:1px solid #ffffff22;">
+            ${it.audio_url ? `<audio controls style="max-width:220px;"><source src="${it.audio_url}"></audio>` : "-"}
+          </td>
+          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${it.duration_seconds || 0} sec</td>
+          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${it.status || "-"}</td>
+          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${it.submitted_at ? new Date(it.submitted_at).toLocaleString() : "-"}</td>
+        </tr>
+      `;
+    });
+
+    html += `
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    box.innerHTML = html;
+  } catch (e) {
+    console.error(e);
+    box.innerHTML = `<p style="color:crimson;">Server error</p>`;
+  }
+}
 /* ================= READING MODULE ================= */
 async function openReadingModule() {
   await showPage(pages.reading, "block");
@@ -2271,3 +2681,7 @@ window.openVocabularyModule = openVocabularyModule;
 window.startVocabularyQuiz = startVocabularyQuiz;
 window.openWritingModule = openWritingModule;
 window.submitWritingEssay = submitWritingEssay;
+window.openSpeakingModule = openSpeakingModule;
+window.startSpeakingRecording = startSpeakingRecording;
+window.stopSpeakingRecording = stopSpeakingRecording;
+window.submitSpeakingRecording = submitSpeakingRecording;

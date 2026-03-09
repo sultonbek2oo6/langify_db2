@@ -19,6 +19,7 @@
       <a class="active" id="navUsers">Users</a>
       <a id="navPayments">Payments</a>
       <a id="navMaterials">Materials</a>
+      <a id="navSpeaking">Speaking Tasks</a>
       <a id="navSettings">Settings</a>
 
       <div class="admin-sidebar-hint">
@@ -219,6 +220,56 @@
          </div>
        </div>
       </section>
+      <!-- ================= SPEAKING SECTION ================= -->
+<section id="speakingSection" style="display:none;">
+  <div class="admin-card admin-controls">
+    <div class="admin-controls-left">
+      <div class="admin-search" style="min-width:240px;">
+        <select id="speakingStatusFilter" style="width:100%; padding:10px; border-radius:10px;">
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+
+      <button class="admin-btn admin-btn-primary" id="speakingRefreshBtn">Refresh</button>
+    </div>
+
+    <div class="admin-controls-right">
+      <small style="color:#6b7280;">speaking_tasks jadvalidan o‘qiydi</small>
+    </div>
+  </div>
+
+  <div class="admin-card admin-table-wrap">
+    <div class="admin-table-scroll">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th style="width:70px;">ID</th>
+            <th>Title</th>
+            <th style="width:110px;">Type</th>
+            <th style="width:90px;">Prep</th>
+            <th style="width:90px;">Speak</th>
+            <th style="width:120px;">Status</th>
+            <th style="width:190px;">Created</th>
+            <th style="width:260px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="speakingTableBody">
+          <tr><td colspan="8">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="admin-card" style="margin-top:16px;">
+    <h3 style="margin-bottom:12px;">Speaking Task Preview</h3>
+    <div id="speakingPreview">
+      <p>Select / Preview hali yuklanmagan.</p>
+    </div>
+  </div>
+  </section>
+
       <!-- Toast -->
       <div class="admin-toast" id="toast" aria-live="polite"></div>
 

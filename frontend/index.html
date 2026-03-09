@@ -656,21 +656,76 @@
   </div>
 </div>
 
-<!-- ================= SPEAKING PAGE (SKELETON) ================= -->
+<!-- ================= SPEAKING PAGE ================= -->
 <div id="speakingPage" class="page" style="display:none;">
   <div class="page-header">
     <button onclick="showPage(pages.dashboard)">⬅ Back</button>
     <h1>🗣 Speaking Practice</h1>
-    <p>Speaking topics + cue cards yuklashga tayyor</p>
+    <p>Taskni tanlang, audio yozing va yuboring</p>
   </div>
 
-  <div class="skeleton-wrap">
-    <div class="skeleton-card">
-      <h3>Speaking cards (bo‘sh)</h3>
-      <div class="skeleton-line"></div>
-      <div class="skeleton-line"></div>
-      <div class="skeleton-line short"></div>
-      <p class="muted">Keyin: topic, sample answers, recording qo‘shiladi.</p>
+  <div class="reading-shell" style="display:grid;grid-template-columns:280px 1fr;gap:16px;margin-top:16px;">
+    <!-- Left list -->
+    <div class="reading-left" style="background:#ffffff14;border-radius:14px;padding:12px;">
+      <h4 style="margin:6px 0 12px 0;">Speaking Tasks</h4>
+      <ul id="speakingTaskList" style="list-style:none;padding:0;margin:0;display:grid;gap:8px;">
+        <li>Loading...</li>
+      </ul>
+    </div>
+
+    <!-- Right content -->
+    <div class="reading-right" style="background:#ffffff14;border-radius:14px;padding:14px;min-height:260px;">
+      <h3 id="speakingTaskTitle" style="margin:0 0 10px 0;">Select a task</h3>
+
+      <div id="speakingTaskMeta" style="margin-bottom:10px;opacity:.9;"></div>
+
+      <div id="speakingTaskPrompt" style="margin-bottom:14px;">
+        <p>Chapdan speaking task tanlang.</p>
+      </div>
+
+      <div id="speakingCuePoints" style="margin-bottom:14px;"></div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+        <button
+          id="startSpeakingBtn"
+          onclick="startSpeakingRecording()"
+          style="padding:12px 18px;border:none;border-radius:12px;background:#198754;color:#fff;font-weight:700;cursor:pointer;"
+        >
+          🎙 Start Recording
+        </button>
+
+        <button
+          id="stopSpeakingBtn"
+          onclick="stopSpeakingRecording()"
+          disabled
+          style="padding:12px 18px;border:none;border-radius:12px;background:#dc3545;color:#fff;font-weight:700;cursor:pointer;"
+        >
+          ⏹ Stop Recording
+        </button>
+
+        <button
+          id="submitSpeakingBtn"
+          onclick="submitSpeakingRecording()"
+          disabled
+          style="padding:12px 18px;border:none;border-radius:12px;background:blueviolet;color:#fff;font-weight:700;cursor:pointer;"
+        >
+          ⬆ Submit Audio
+        </button>
+      </div>
+
+      <div id="speakingRecordingStatus" style="margin-bottom:10px;font-weight:700;">Status: Ready</div>
+      <div id="speakingTimer" style="margin-bottom:12px;font-weight:700;">Duration: 0 sec</div>
+
+      <div id="speakingAudioPreviewWrap" style="margin-top:10px;"></div>
+
+      <div id="speakingSubmitResult" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <div style="margin-top:18px;background:#ffffff14;border-radius:14px;padding:14px;">
+    <h3 style="margin:0 0 12px 0;">My Speaking Submissions</h3>
+    <div id="mySpeakingSubmissions">
+      <p>Loading...</p>
     </div>
   </div>
 </div>
