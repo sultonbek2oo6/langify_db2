@@ -994,7 +994,9 @@ async function loadListeningList() {
       `;
 
       if (unlocked) {
-        card.addEventListener("click", () => openListeningTest(it.id));
+        card.addEventListener("click", () => {
+        window.location.href = `/listeningtest.html?id=${it.id}`;
+        });
       }
 
       grid.appendChild(card);
@@ -1002,96 +1004,6 @@ async function loadListeningList() {
   } catch (e) {
     console.error(e);
     grid.innerHTML = `<div style="color:crimson;">Server error</div>`;
-  }
-}
-
-async function openListeningTest(materialId) {
-  const right = document.getElementById("listeningRight");
-  if (!right) return;
-
-  right.innerHTML = `<div style="padding:14px;background:#ffffff14;border-radius:12px;">Loading...</div>`;
-
-  try {
-    const res = await fetch(`${API_BASE}/api/materials/${materialId}`, {
-      headers: getAuthHeaders()
-    });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      right.innerHTML = `<div style="color:crimson;">${data.message || "Failed to load"}</div>`;
-      return;
-    }
-
-    const material = data.material || {};
-    const questions = Array.isArray(data.questions) ? data.questions : [];
-
-    let audioUrl = "";
-    try {
-      const obj = typeof material.content === "string" ? JSON.parse(material.content) : null;
-      if (obj && obj.audio) audioUrl = obj.audio;
-    } catch (_) {}
-
-    let html = `
-      <div style="background:#ffffff14;padding:14px;border-radius:12px;margin-bottom:12px;">
-        <h3 style="margin:0 0 10px 0;">${material.title || "Listening Test"}</h3>
-
-        ${audioUrl ? `
-          <audio controls style="width:100%;">
-            <source src="${audioUrl}">
-          </audio>
-          <p style="opacity:.8;margin:8px 0 0 0;">Audio topilmasa, audio fayl yo‘lini tekshiring: <b>${audioUrl}</b></p>
-        ` : `<p style="color:orange;">⚠️ Audio URL topilmadi (materials.content ichiga {"audio":"..."} qo‘ying)</p>`}
-      </div>
-
-      <form id="listeningForm">
-    `;
-
-    questions.forEach((q, idx) => {
-      html += `
-        <div style="background:#ffffff14;padding:14px;border-radius:12px;margin:10px 0;">
-          <b>${idx + 1}) ${q.question_text || ""}</b>
-          <div style="margin-top:10px;display:grid;gap:8px;">
-            ${["A", "B", "C", "D"].map((k) => {
-              const opt = q["option_" + k.toLowerCase()];
-              if (!opt) return "";
-              return `
-                <label style="display:flex;gap:8px;align-items:center;">
-                  <input type="radio" name="q_${q.id}" value="${k}" />
-                  <span>${k}) ${opt}</span>
-                </label>
-              `;
-            }).join("")}
-          </div>
-        </div>
-      `;
-    });
-
-    html += `
-        <button type="submit" style="padding:12px 16px;border-radius:10px;border:none;background:blueviolet;color:#fff;">
-          Submit
-        </button>
-        <div id="listeningResult" style="margin-top:12px;"></div>
-      </form>
-    `;
-
-    right.innerHTML = html;
-
-    const form = document.getElementById("listeningForm");
-    if (!form) return;
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const answers = questions.map((q) => {
-        const v = form.querySelector(`input[name="q_${q.id}"]:checked`)?.value || "";
-        return { question_id: q.id, answer: v };
-      });
-
-      await submitListening(materialId, answers);
-    });
-  } catch (e) {
-    console.error(e);
-    right.innerHTML = `<div style="color:crimson;">Server error</div>`;
   }
 }
 

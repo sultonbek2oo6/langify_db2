@@ -1996,3 +1996,27 @@ audio{
 .student-table tbody tr:hover {
   transform: translateY(-4px);
 }
+
+.player-box {
+  background: #2f4a63;
+  padding: 20px;
+  border-radius: 12px;
+  color: white;
+  margin-bottom: 20px;
+}
+
+.question-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 20px;
+}
+
+.question-nav button {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  border: none;
+  background: #ddd;
+  cursor: pointer;
+}

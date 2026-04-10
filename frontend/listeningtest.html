@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <title>Listening Test</title>
+
+  <link rel="stylesheet" href="style.css">
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #f5f7fb;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .player-box {
+      background: #2f4a63;
+      padding: 20px;
+      border-radius: 12px;
+      color: white;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .questions-box {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+    }
+
+    .question {
+      margin-bottom: 20px;
+    }
+
+    .question-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 20px;
+    }
+
+    .question-nav button {
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      border: none;
+      background: #ddd;
+      cursor: pointer;
+    }
+
+    .question-nav button.active {
+      background: blueviolet;
+      color: white;
+    }
+
+    input[type="text"] {
+      padding: 6px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    .submit-btn {
+      margin-top: 20px;
+      padding: 12px 20px;
+      background: blueviolet;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- AUDIO -->
+  <div class="player-box">
+    <h2>🎧 Audio Player</h2>
+    <audio id="audioPlayer" controls style="width:100%"></audio>
+    <p>Playing: Part 1</p>
+  </div>
+
+  <!-- QUESTIONS -->
+  <div class="questions-box">
+    <form id="testForm">
+      <div id="questionsContainer"></div>
+
+      <button type="submit" class="submit-btn">Submit</button>
+    </form>
+
+    <div id="result"></div>
+
+    <!-- NAV -->
+    <div id="questionNav" class="question-nav"></div>
+  </div>
+
+  <script src="js/listeningtest.js"></script>
+</body>
+</html>
