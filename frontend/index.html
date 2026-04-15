@@ -553,50 +553,29 @@
   </div>
 </div>
 
-<!-- ================= READING PAGE (SKELETON) ================= -->
+<!-- ================= READING PAGE ================= -->
 <div id="readingPage" class="page" style="display:none;">
   <div class="page-header">
     <button onclick="showPage(pages.dashboard)">⬅ Back</button>
     <h1>📖 IELTS Reading Practice</h1>
-    <p>Reading passage + savollar yuklashga tayyor</p>
+    <p>Reading passage + questions</p>
   </div>
 
-  <!-- ✅ NEW: DB UI (index.js shuni qidiradi) -->
   <div class="reading-shell" style="display:grid;grid-template-columns:260px 1fr;gap:16px;margin-top:16px;">
-    <!-- Left list -->
-    <div class="reading-left" style="background:#ffffff14;border-radius:14px;padding:12px;">
-      <h4 style="margin:6px 0 12px 0;">Tests</h4>
-      <ul id="readingTestList" style="list-style:none;padding:0;margin:0;display:grid;gap:8px;">
-        <li>Loading...</li>
-      </ul>
+    
+    <!-- LEFT -->
+    <div style="background:#ffffff14;border-radius:14px;padding:12px;">
+      <h4>Tests</h4>
+      <ul id="readingTestList" style="list-style:none;padding:0;margin:0;display:grid;gap:8px;"></ul>
     </div>
 
-    <!-- Right content -->
-    <div class="reading-right" style="background:#ffffff14;border-radius:14px;padding:14px;min-height:260px;">
-      <h3 id="readingTitle" style="margin:0 0 10px 0;">Select a test</h3>
-      <div id="readingBody">
-        <p>Chapdan test tanlang.</p>
-      </div>
+    <!-- RIGHT -->
+    <div id="readingContent" style="background:#ffffff14;border-radius:14px;padding:14px;">
+      <h3>Select a test</h3>
     </div>
-  </div>
 
-  <!-- ✅ Skeleton qoladi (xohlasang keyin olib tashlaysan) -->
-  <div class="skeleton-wrap" style="margin-top:16px;">
-    <div class="skeleton-card">
-      <h3>Reading content skeleton</h3>
-      <div class="skeleton-line"></div>
-      <div class="skeleton-line"></div>
-      <div class="skeleton-line short"></div>
-
-      <h4 style="margin-top:16px;">Questions (bo‘sh)</h4>
-      <div class="skeleton-q"></div>
-      <div class="skeleton-q"></div>
-
-      <p class="muted">Keyin: passage, timer, savollar DB orqali chiqadi.</p>
-    </div>
   </div>
 </div>
-
 <!-- ================= WRITING PAGE ================= -->
 <div id="writingPage" class="page" style="display:none;">
   <div class="page-header">

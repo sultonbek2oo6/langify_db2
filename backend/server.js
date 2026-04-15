@@ -886,12 +886,12 @@ app.get("/api/materials/:id", authenticateToken, async (req, res) => {
     }
 
     const [qs] = await pool.query(
-      `SELECT id, question_text, option_a, option_b, option_c, option_d
-       FROM material_questions
-       WHERE material_id=?
-       ORDER BY id ASC`,
+      `SELECT id, question_text, option_a, option_b, option_c, option_d, type
+      FROM material_questions
+      WHERE material_id=?
+      ORDER BY id ASC`,
       [materialId]
-    );
+);
 
     res.json({ material, questions: qs, progress: st });
   } catch (err) {
@@ -1149,15 +1149,11 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
       `SELECT id, module, order_no, is_published FROM materials WHERE id=? LIMIT 1`,
       [materialId]
     );
-    if (!mRows.length) {
+    if (!mRows.length || !mRows[0].is_published) {
       await conn.rollback();
       return res.status(404).json({ message: "Material topilmadi." });
     }
     const material = mRows[0];
-    if (!material.is_published) {
-      await conn.rollback();
-      return res.status(404).json({ message: "Material topilmadi." });
-    }
 
     const [firstRows] = await conn.query(
       `SELECT id FROM materials WHERE module=? AND is_published=1 ORDER BY order_no ASC, id ASC LIMIT 1`,
@@ -1187,8 +1183,10 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
       });
     }
 
+    // ✅ Savollarni to‘liq olish
     const [qRows] = await conn.query(
-      `SELECT id, correct_option FROM material_questions WHERE material_id=?`,
+      `SELECT id, correct_option, option_a, option_b, option_c, option_d
+       FROM material_questions WHERE material_id=?`,
       [materialId]
     );
 
@@ -1198,18 +1196,39 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
       return res.status(400).json({ message: "Bu materialda savollar yo‘q." });
     }
 
+    // ✅ Javoblarni map qilish
     const ansMap = new Map();
     answers.forEach((a) => {
       const qid = Number(a.question_id);
-      const val = String(a.answer || "").toUpperCase().trim();
-      if (qid && ["A", "B", "C", "D"].includes(val)) ansMap.set(qid, val);
+      const val = String(a.answer || "").trim();
+      if (qid) ansMap.set(qid, val);
     });
 
     let correct = 0;
+    const results = [];
+
     qRows.forEach((q) => {
-      const given = ansMap.get(Number(q.id));
-      const right = String(q.correct_option || "").toUpperCase().trim();
-      if (given && right && given === right) correct++;
+      const given = ansMap.get(Number(q.id)) || "";
+      const right = String(q.correct_option || "").trim();
+
+      let isCorrect = false;
+
+      // Agar correct_option faqat A/B/C/D bo‘lsa → variant test
+      if (["A", "B", "C", "D"].includes(right.toUpperCase())) {
+        isCorrect = given.toUpperCase() === right.toUpperCase();
+      } else {
+        // Input test → matn solishtirish (case-insensitive)
+        isCorrect = given.toLowerCase() === right.toLowerCase();
+      }
+
+      if (isCorrect) correct++;
+
+      results.push({
+        question_id: q.id,
+        given_answer: given,
+        correct_option: right,
+        is_correct: isCorrect
+      });
     });
 
     const score = Math.round((correct / total) * 10000) / 100;
@@ -1221,32 +1240,24 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
       [userId, materialId, correct, total, score]
     );
 
-    // ================= LEADERBOARD UPSERT (REAL) =================
+    // Leaderboard upsert
     await conn.query(
-    `
-    INSERT INTO leaderboard
-    (user_id, module, attempts_count, best_score, score_sum, avg_score, correct_sum, total_sum, last_attempt_at, updated_at)
-    VALUES
-    (?, ?, 1, ?, ?, ?, ?, ?, NOW(), NOW())
-    ON DUPLICATE KEY UPDATE
-    attempts_count = attempts_count + 1,
-    best_score     = GREATEST(best_score, VALUES(best_score)),
-    score_sum      = score_sum + VALUES(score_sum),
-    avg_score      = ROUND((score_sum + VALUES(score_sum)) / (attempts_count + 1), 2),
-    correct_sum    = correct_sum + VALUES(correct_sum),
-    total_sum      = total_sum + VALUES(total_sum),
-    last_attempt_at= NOW(),
-    updated_at     = NOW()
-    `,
-    [
-    userId,
-    material.module,   // 👈 materials jadvalidan olingan module (reading/listening)
-    score,
-    score,
-    score,
-    correct,
-    total
-   ]
+      `
+      INSERT INTO leaderboard
+      (user_id, module, attempts_count, best_score, score_sum, avg_score, correct_sum, total_sum, last_attempt_at, updated_at)
+      VALUES
+      (?, ?, 1, ?, ?, ?, ?, ?, NOW(), NOW())
+      ON DUPLICATE KEY UPDATE
+      attempts_count = attempts_count + 1,
+      best_score     = GREATEST(best_score, VALUES(best_score)),
+      score_sum      = score_sum + VALUES(score_sum),
+      avg_score      = ROUND((score_sum + VALUES(score_sum)) / (attempts_count + 1), 2),
+      correct_sum    = correct_sum + VALUES(correct_sum),
+      total_sum      = total_sum + VALUES(total_sum),
+      last_attempt_at= NOW(),
+      updated_at     = NOW()
+      `,
+      [userId, material.module, score, score, score, correct, total]
     );
 
     const prevBest = pRows.length ? Number(pRows[0].best_score || 0) : 0;
@@ -1293,6 +1304,7 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
 
     await conn.commit();
 
+    // ✅ Endi results massivini ham qaytaramiz
     res.json({
       material_id: materialId,
       correct_count: correct,
@@ -1302,6 +1314,7 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
       required: PASS_SCORE,
       next_unlocked: nextUnlocked,
       next_material_id: nextMaterialId,
+      results
     });
   } catch (err) {
     await conn.rollback();
@@ -1311,6 +1324,7 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
     conn.release();
   }
 });
+
 
 // ================= LEADERBOARD GET =================
 // GET /api/leaderboard?module=reading|listening

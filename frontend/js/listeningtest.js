@@ -38,7 +38,6 @@ async function loadTest() {
       qDiv.className = "question";
       qDiv.id = "q" + index;
 
-      // 🔥 HAMMASI INPUT (IELTS STYLE)
       let questionText = q.question_text || "";
 
       // agar ___ bo‘lsa inputni ichiga qo‘yadi
@@ -65,6 +64,8 @@ async function loadTest() {
       // 🔢 NAV BUTTON
       const btn = document.createElement("button");
       btn.innerText = index + 1;
+      btn.className = "nav-btn";              // 👈 class qo‘shildi
+      btn.setAttribute("data-qid", q.id);     // 👈 savol ID qo‘shildi
 
       btn.onclick = () => {
         document.getElementById("q" + index).scrollIntoView({
@@ -84,16 +85,24 @@ async function loadTest() {
 loadTest();
 
 
-// ✅ SUBMIT (INPUT UCHUN)
+// ✅ SUBMIT (INPUT + VARIANT + NAV BUTTON)
 document.getElementById("testForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const answers = questions.map((q) => {
     const input = document.querySelector(`[name="q_${q.id}"]`);
+    let answer = "";
+
+    if (input) {
+      answer = input.value || "";
+    } else {
+      const selected = document.querySelector(`input[name="q_${q.id}"]:checked`);
+      answer = selected ? selected.value : "";
+    }
 
     return {
       question_id: q.id,
-      answer: input?.value || ""
+      answer
     };
   });
 
@@ -115,6 +124,38 @@ document.getElementById("testForm").addEventListener("submit", async (e) => {
     document.getElementById("result").innerHTML = `
       <h3>Natija: ${data.score}%</h3>
     `;
+
+    // ✅ Ranglash
+    if (Array.isArray(data.results)) {
+      data.results.forEach(r => {
+        // input test
+        const input = document.querySelector(`[name="q_${r.question_id}"]`);
+        if (input) {
+          if (r.is_correct) {
+            input.classList.add("correct");
+          } else {
+            input.classList.add("wrong");
+          }
+        }
+
+        // multiple-choice test
+        const options = document.querySelectorAll(`input[name="q_${r.question_id}"]`);
+        options.forEach(opt => {
+          if (opt.value === r.correct_option) {
+            opt.parentElement.classList.add("correct");
+          } else if (opt.checked) {
+            opt.parentElement.classList.add("wrong");
+          }
+        });
+
+        // ✅ Navigatsiya tugmasi ranglash
+        const navBtn = document.querySelector(`button[data-qid="${r.question_id}"]`);
+        if (navBtn) {
+          navBtn.classList.remove("correct", "wrong");
+          navBtn.classList.add(r.is_correct ? "correct" : "wrong");
+        }
+      });
+    }
 
   } catch (err) {
     console.error(err);

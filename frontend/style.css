@@ -2020,3 +2020,43 @@ audio{
   background: #ddd;
   cursor: pointer;
 }
+/* ✅ Input testlar uchun */
+input.correct {
+  border: 2px solid green;
+  background: #e6ffe6;
+}
+input.wrong {
+  border: 2px solid red;
+  background: #ffe6e6;
+}
+
+/* ✅ Multiple-choice variantlar uchun */
+.option.correct {
+  color: green;
+  font-weight: bold;
+}
+.option.wrong {
+  color: red;
+}
+
+/* ✅ Inputlar uchun */
+input.correct {
+  border: 2px solid green;
+  background: #e6ffe6;
+}
+input.wrong {
+  border: 2px solid red;
+  background: #ffe6e6;
+}
+
+/* ✅ Navigatsiya tugmalari uchun */
+button.nav-btn.correct {
+  background: green;
+  color: #fff;
+  border-radius: 50%;
+}
+button.nav-btn.wrong {
+  background: red;
+  color: #fff;
+  border-radius: 50%;
+}

@@ -1047,6 +1047,33 @@ async function submitListening(materialId, answers) {
         </div>
       `;
     }
+// Har bir savolni ranglash
+if (Array.isArray(data.results)) {
+  data.results.forEach(r => {
+    // input testlar uchun
+    const input = document.querySelector(`[name="q_${r.question_id}"]`);
+    if (input) {
+      if (r.is_correct) {
+        input.style.border = "2px solid green";
+        input.style.background = "#e6ffe6";
+      } else {
+        input.style.border = "2px solid red";
+        input.style.background = "#ffe6e6";
+      }
+    }
+
+    // multiple-choice testlar uchun
+    const options = document.querySelectorAll(`input[name="q_${r.question_id}"]`);
+    options.forEach(opt => {
+      if (opt.value === r.correct_option) {
+        opt.parentElement.style.color = "green";
+        opt.parentElement.style.fontWeight = "bold";
+      } else if (opt.checked) {
+        opt.parentElement.style.color = "red";
+      }
+    });
+  });
+}
 
     await loadListeningList();
   } catch (e) {
@@ -2040,170 +2067,40 @@ async function loadMySpeakingSubmissions() {
 /* ================= READING MODULE ================= */
 async function openReadingModule() {
   await showPage(pages.reading, "block");
-  await loadReadingList();
+  loadReadingList();
 }
 
 async function loadReadingList() {
   const listEl = document.getElementById("readingTestList");
-  const titleEl = document.getElementById("readingTitle");
-  const bodyEl = document.getElementById("readingBody");
+  const content = document.getElementById("readingContent");
 
-  if (!listEl || !titleEl || !bodyEl) {
-    console.warn("readingPage elementlari topilmadi (readingTestList/readingTitle/readingBody).");
-    console.warn("index.html -> readingPage ichiga shu idlarni qo‘shish kerak bo‘ladi.");
-    return;
-  }
-
-  const token = localStorage.getItem("token");
-  if (!token) {
-    listEl.innerHTML = `<li class="reveal">Avval login qiling 🔑</li>`;
-    titleEl.textContent = "Login required";
-    bodyEl.innerHTML = `<p class="reveal">Reading testlarni ko‘rish uchun login qiling.</p>`;
-    initRevealObserver();
-    return;
-  }
-
-  listEl.innerHTML = `<li class="reveal">Loading...</li>`;
-
-  const hasOpenTest = !!document.getElementById("readingForm");
-  if (!hasOpenTest) {
-    titleEl.textContent = "Select a test";
-    bodyEl.innerHTML = `<p class="reveal">Chapdan test tanlang.</p>`;
-  }
+  listEl.innerHTML = "Loading...";
 
   try {
     const res = await fetch(`${API_BASE}/api/modules/reading/list`, {
       headers: getAuthHeaders()
     });
 
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      listEl.innerHTML = `<li class="reveal">Error: ${data.message || "Failed"}</li>`;
-      initRevealObserver();
-      return;
-    }
-
-    const items = Array.isArray(data.items) ? data.items : [];
-    if (!items.length) {
-      listEl.innerHTML = `<li class="reveal">No tests yet</li>`;
-      initRevealObserver();
-      return;
-    }
+    const data = await res.json();
+    const items = data.items || [];
 
     listEl.innerHTML = "";
 
     items.forEach((it) => {
       const li = document.createElement("li");
-      li.classList.add("reveal");
       li.textContent = `${it.order_no}. ${it.title}`;
+      li.style.cursor = "pointer";
 
-      const unlocked = Number(it.is_unlocked) === 1;
-
-      if (!unlocked) {
-        li.style.opacity = "0.55";
-        li.style.pointerEvents = "none";
-        li.textContent += " 🔒 (75% kerak)";
-      } else {
-        li.style.cursor = "pointer";
-        li.addEventListener("click", () => openReadingTest(it.id));
-      }
+      li.addEventListener("click", () => {
+        window.location.href = `readingtest.html?id=${it.id}`;
+      });
 
       listEl.appendChild(li);
     });
 
-    initRevealObserver();
-  } catch (e) {
-    console.error(e);
-    listEl.innerHTML = `<li class="reveal">Server error</li>`;
-    initRevealObserver();
-  }
-}
-
-async function openReadingTest(materialId) {
-  const titleEl = document.getElementById("readingTitle");
-  const bodyEl = document.getElementById("readingBody");
-  if (!titleEl || !bodyEl) return;
-
-  titleEl.textContent = "Loading test...";
-  bodyEl.innerHTML = `<p>Loading...</p>`;
-
-  try {
-    const res = await fetch(`${API_BASE}/api/materials/${materialId}`, {
-      headers: getAuthHeaders()
-    });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      bodyEl.innerHTML = `<p>${data.message || "Failed to load"}</p>`;
-      return;
-    }
-
-    const material = data.material || {};
-    const questions = Array.isArray(data.questions) ? data.questions : [];
-
-    titleEl.textContent = material.title || "Reading Test";
-
-    let passageText = material.content || "Passage hali yo‘q";
-    try {
-      const obj = typeof passageText === "string" ? JSON.parse(passageText) : null;
-      if (obj && obj.passage) passageText = obj.passage;
-    } catch (_) {}
-
-    let html = `
-      <div style="background:#ffffff14;padding:14px;border-radius:12px;margin-bottom:12px;">
-        <h4>Passage</h4>
-        <p style="line-height:1.6;">${String(passageText).replace(/\n/g, "<br>")}</p>
-      </div>
-      <form id="readingForm">
-    `;
-
-    questions.forEach((q, idx) => {
-      html += `
-        <div style="background:#ffffff14;padding:14px;border-radius:12px;margin:10px 0;">
-          <b>${idx + 1}) ${q.question_text || ""}</b>
-          <div style="margin-top:10px;display:grid;gap:8px;">
-            ${["A", "B", "C", "D"].map((k) => {
-              const opt = q["option_" + k.toLowerCase()];
-              if (!opt) return "";
-              return `
-                <label style="display:flex;gap:8px;align-items:center;">
-                  <input type="radio" name="q_${q.id}" value="${k}" />
-                  <span>${k}) ${opt}</span>
-                </label>
-              `;
-            }).join("")}
-          </div>
-        </div>
-      `;
-    });
-
-    html += `
-      <button type="submit" style="padding:12px 16px;border-radius:10px;border:none;background:blueviolet;color:#fff;">
-        Submit
-      </button>
-      <div id="readingResult" style="margin-top:12px;"></div>
-      </form>
-    `;
-
-    bodyEl.innerHTML = html;
-
-    const form = document.getElementById("readingForm");
-    if (!form) return;
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const answers = [];
-      questions.forEach((q) => {
-        const v = form.querySelector(`input[name="q_${q.id}"]:checked`)?.value || "";
-        answers.push({ question_id: q.id, answer: v });
-      });
-
-      await submitReading(materialId, answers);
-    });
-  } catch (e) {
-    console.error(e);
-    bodyEl.innerHTML = `<p>Server error</p>`;
+  } catch (err) {
+    listEl.innerHTML = "Error loading tests";
+    console.error(err);
   }
 }
 
