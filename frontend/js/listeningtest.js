@@ -1,3 +1,5 @@
+let timeLeft = 10 * 60; // 20 minut (soniyalarda)
+let timerInterval;
 const params = new URLSearchParams(window.location.search);
 const testId = params.get("id");
 
@@ -75,7 +77,7 @@ async function loadTest() {
 
       nav.appendChild(btn);
     });
-
+    startTimer();
   } catch (err) {
     container.innerHTML = "Error loading test";
     console.error(err);
@@ -88,7 +90,7 @@ loadTest();
 // ✅ SUBMIT (INPUT + VARIANT + NAV BUTTON)
 document.getElementById("testForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-
+  clearInterval(timerInterval);
   const answers = questions.map((q) => {
     const input = document.querySelector(`[name="q_${q.id}"]`);
     let answer = "";
@@ -161,3 +163,39 @@ document.getElementById("testForm").addEventListener("submit", async (e) => {
     console.error(err);
   }
 });
+
+// 1. Taymerni ishlatish funksiyasi
+function startTimer() {
+  const display = document.getElementById("time-display");
+  if (!display) return;
+
+  timerInterval = setInterval(() => {
+    let minutes = Math.floor(timeLeft / 60);
+    let seconds = timeLeft % 60;
+    
+    display.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      alert("Vaqt tugadi! Test avtomatik topshiriladi.");
+      // Formani avtomatik submit qilish
+      const form = document.getElementById("testForm");
+      form.dispatchEvent(new Event('submit')); 
+    }
+    timeLeft--;
+  }, 1000);
+}
+
+// 2. Dashboardga qaytish
+function goToDashboard() {
+  if (confirm("Dashboardga qaytasizmi? Natijalar saqlanmasligi mumkin.")) {
+    window.location.href = "index.html"; // Dashboardingiz nomi nima bo'lsa shuni yozing
+  }
+}
+
+// 3. Keyingi testga o'tish
+function nextTest() {
+  alert("Keyingi test yuklanmoqda...");
+  // Bu yerga keyingi sahifa linkini qo'ying
+  // window.location.href = "readingtest.html"; 
+}

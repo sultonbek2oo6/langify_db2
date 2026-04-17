@@ -6,71 +6,87 @@
   <style>
     /* ================= READING TEST PRO DESIGN ================= */
 
-   /* Umumiy fon va konteyner */
-     body {
-     background-color: #f0f2f5; /* Yumshoq kulrang fon */
+    body {
+      background-color: #f0f2f5;
       margin: 0;
+      padding: 0;
+      /* Flex olib tashlandi, chunki u elementlarni yonma-yon surib yuboradi */
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+    }
+
+    /* TAYMER: Sahifa tepasida qotib turishi uchun */
+    #timer-box {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 60px;
+      background: white;
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 100vh;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      z-index: 1000;
+      border-bottom: 2px solid #3498db;
     }
 
     .container {
-     display: grid;
-     grid-template-columns: 1fr 1fr;
-     gap: 25px;
-     padding: 25px;
-     width: 98%;
-     max-width: 1500px;
-     height: 95vh;
-     box-sizing: border-box;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 25px;
+      padding: 25px;
+      width: 98%;
+      max-width: 1500px;
+      height: calc(100vh - 85px); /* Taymer balandligini hisobga olgan holda */
+      margin: 75px auto 0 auto; /* Taymerdan keyin joy tashlash va o'rtaga keltirish */
+      box-sizing: border-box;
     }
 
     /* Bloklar: Passage va Questions */
     .passage, .questions {
-     background: #ffffff;
-     padding: 35px;
-     border-radius: 15px;
-     height: 100%; /* Konteyner bo'yicha */
-     overflow-y: auto;
-     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-     border: 1px solid #e1e4e8;
-     scrollbar-width: thin; /* Firefox uchun */
-     scrollbar-color: #3498db #f1f1f1;
+      background: #ffffff;
+      padding: 35px;
+      border-radius: 15px;
+      height: 100%;
+      overflow-y: auto;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+      border: 1px solid #e1e4e8;
+      scrollbar-width: thin;
+      scrollbar-color: #3498db #f1f1f1;
     }
 
     /* Chrome, Safari va Edge uchun chiroyli scrollbar */
     .passage::-webkit-scrollbar, .questions::-webkit-scrollbar {
-     width: 7px;
+      width: 7px;
     }
     .passage::-webkit-scrollbar-track, .questions::-webkit-scrollbar-track {
-     background: #f1f1f1;
-     border-radius: 10px;
+      background: #f1f1f1;
+      border-radius: 10px;
     }
     .passage::-webkit-scrollbar-thumb, .questions::-webkit-scrollbar-thumb {
-     background: #3498db;
-     border-radius: 10px;
+      background: #3498db;
+      border-radius: 10px;
     } 
 
-    /* Matn qismi (IELTS formatiga mos) */
-   #passage {
-     line-height: 1.8;
-     font-size: 17px;
-     color: #2c3e50;
-     font-family: 'Georgia', serif; /* Akademik o'qish uchun eng yaxshi shrift */
-     text-align: justify;
+    /* Matn qismi */
+    #passage {
+      line-height: 1.8;
+      font-size: 17px;
+      color: #2c3e50;
+      font-family: 'Georgia', serif;
+      text-align: justify;
     }
 
     #passage h2 {
-     color: #1a2a6c;
-     border-bottom: 2px solid #3498db;
-     padding-bottom: 10px;
-     margin-bottom: 20px;
+      color: #1a2a6c;
+      border-bottom: 2px solid #3498db;
+      padding-bottom: 10px;
+      margin-bottom: 20px;
     }
 
     /* Savollar qismi */
-     .question {
+    .question {
       background: #f8fafc;
       padding: 20px;
       margin-bottom: 20px;
@@ -80,86 +96,98 @@
     }
 
     .question:hover {
-     transform: translateX(5px);
-     background: #f1f5f9;
+      transform: translateX(5px);
+      background: #f1f5f9;
     }
 
-    /* Input (Javob yozish joyi) */
     input[type="text"] {
-     width: 100%;
-     padding: 12px 15px;
-     margin-top: 10px;
-     border: 2px solid #cbd5e0;
-     border-radius: 8px;
-     font-size: 15px;
-     transition: all 0.3s ease;
-     outline: none;
+      width: 100%;
+      padding: 12px 15px;
+      margin-top: 10px;
+      border: 2px solid #cbd5e0;
+      border-radius: 8px;
+      font-size: 15px;
+      transition: all 0.3s ease;
+      outline: none;
+      box-sizing: border-box;
     } 
 
     input[type="text"]:focus {
-     border-color: #3498db;
-     box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
-     background: #fff;
+      border-color: #3498db;
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+      background: #fff;
     }
 
     /* Submit tugmasi */
     button[type="submit"] {
-     width: 100%;
-     padding: 15px;
-     background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-     color: white;
-     border: none;
-     border-radius: 10px;
-     font-size: 17px;
-     font-weight: 600;
-     cursor: pointer;
-     transition: all 0.3s ease;
-     box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
-     margin-top: 10px;
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 17px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+      margin-top: 10px;
     }
 
     button[type="submit"]:hover {
-     filter: brightness(1.1);
-     transform: translateY(-2px);
-     box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+      filter: brightness(1.1);
+      transform: translateY(-2px);
     }
 
-    /* Natija qismi */ 
     #result {
-     margin-top: 20px;
-     padding: 15px;
-     border-radius: 8px;
-     text-align: center;
-     font-weight: bold;
-     font-size: 18px; 
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 18px; 
     }
 
-    /* Mobil qurilmalar uchun moslashuvchanlik (Responsive) */
     @media (max-width: 1024px) {
-     .container {
-      grid-template-columns: 1fr;
-      height: auto;
-    }
-    .passage, .questions {
-     height: 60vh;
-    }
+      .container {
+        grid-template-columns: 1fr;
+        height: auto;
+        margin-top: 70px;
+      }
+      .passage, .questions {
+        height: 60vh;
+      }
     }
   </style>
 </head>
 <body>
   
-<div class="container">
-  <div class="passage" id="passage"></div>
-
-  <div class="questions">
-    <form id="readingForm">
-      <div id="questionsContainer"></div>
-      <button type="submit">Submit</button>
-    </form>
-    <div id="result"></div>
+  <div id="timer-box">
+    <span style="font-size: 22px; font-weight: bold; color: #1a2a6c;">
+      🕒 Qolgan vaqt: <span id="time-display" style="color: #e74c3c;">20:00</span>
+    </span>
   </div>
-</div>
 
-<script src="readingtest.js"></script>
+  <div class="container">
+    <div class="passage" id="passage"></div>
+
+    <div class="questions">
+      <form id="readingForm">
+        <div id="questionsContainer"></div>
+        
+        <div class="footer-nav" style="display: flex; flex-direction: column; gap: 10px; margin-top: 25px; border-top: 1px solid #eee; padding-top: 20px;">
+          <button type="submit" id="submitBtn">Submit Test</button>
+          
+          <div style="display: flex; justify-content: space-between; gap: 10px;">
+            <button type="button" onclick="goToDashboard()" style="background: #6c757d; padding: 12px; color: white; border: none; border-radius: 8px; cursor: pointer; flex: 1;">Dashboard</button>
+            <button type="button" onclick="nextTest()" style="background: #2ecc71; padding: 12px; color: white; border: none; border-radius: 8px; cursor: pointer; flex: 1;">Next Test</button>
+          </div>
+        </div>
+      </form>
+      <div id="result"></div>
+    </div>
+  </div>
+
+  <script src="readingtest.js"></script>
 </body>
 </html>

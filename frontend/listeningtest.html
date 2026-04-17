@@ -73,7 +73,9 @@
 </head>
 
 <body>
-
+  <div id="timer-box" style="text-align: center; font-size: 24px; font-weight: bold; padding: 15px; background: #fff; border-radius: 12px; margin-bottom: 20px; color: #2f4a63; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+   🕒 Vaqt: <span id="time-display">20:00</span>
+  </div>
   <!-- AUDIO -->
   <div class="player-box">
     <h2>🎧 Audio Player</h2>
@@ -86,7 +88,19 @@
     <form id="testForm">
       <div id="questionsContainer"></div>
 
-      <button type="submit" class="submit-btn">Submit</button>
+      <div class="footer-nav" style="display: flex; justify-content: space-between; align-items: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+        <button type="button" onclick="goToDashboard()" style="padding: 12px 20px; background: #6c757d; color: white; border: none; border-radius: 10px; cursor: pointer;">
+          Dashboardga qaytish
+        </button>
+
+        <div>
+         <button type="submit" id="submitBtn" class="submit-btn" style="margin-top: 0;">Submit</button>
+          <button type="button" onclick="nextTest()" style="margin-left: 10px; padding: 12px 20px; background: #007bff; color: white; border: none; border-radius: 10px; cursor: pointer;">
+           Keyingi test
+          </button>
+        </div>
+      </div>
+      
     </form>
 
     <div id="result"></div>
