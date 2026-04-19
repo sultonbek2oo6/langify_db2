@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Writing Test - Practice</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+
+        /* Tepada vaqt turadigan ixcham panel */
+        .top-timer-bar {
+            background: white;
+            padding: 10px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .timer-display {
+            font-size: 20px;
+            font-weight: bold;
+            color: #d9534f; /* Qizilroq rang vaqt uchun */
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            padding: 25px;
+            max-width: 1400px;
+            margin: 0 auto;
+            height: calc(100vh - 120px);
+        }
+
+        /* Chap tomondagi savol qismi */
+        .question-card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            overflow-y: auto;
+            border-left: 5px solid #1a4d3a;
+        }
+
+        /* O'ng tomondagi yozish qismi */
+        .writing-card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #essay {
+            flex-grow: 1;
+            width: 100%;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            font-size: 16px;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+            background-color: #fafafa;
+            transition: border 0.3s;
+        }
+
+        #essay:focus {
+            border-color: #1a4d3a;
+            background-color: #fff;
+        }
+
+        .meta-info {
+            background: #fdfcf5;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        /* Pastki tugmalar paneli */
+        .bottom-actions {
+            grid-column: span 2;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 15px;
+            transition: 0.3s;
+        }
+
+        .btn-dashboard {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-submit {
+            background: #2a75bb; /* Reading sahifasidagi kabi ko'k */
+            color: white;
+            padding: 12px 60px;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        #wordCount {
+            font-weight: bold;
+            color: #1a4d3a;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-timer-bar">
+        <span>🕒 Qolgan vaqt: </span>
+        <span id="timer" class="timer-display">40:00</span>
+    </div>
+
+    <div class="main-container">
+        <div class="question-card">
+            <h2 id="title" style="margin-top: 0; color: #1a4d3a;">Loading...</h2>
+            <div id="meta" class="meta-info"></div>
+            <div id="prompt" style="white-space: pre-wrap; font-size: 17px; color: #444;"></div>
+        </div>
+
+        <div class="writing-card">
+            <textarea id="essay" placeholder="Write your essay here..."></textarea>
+            <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+                <span id="wordCount">Words: 0</span>
+            </div>
+        </div>
+
+        <div class="bottom-actions">
+            <button class="btn btn-dashboard" onclick="window.location.href='index.html'">🏠 Dashboard</button>
+            <button class="btn btn-submit" onclick="submitEssay()">Submit Test</button>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="writingtest.js"></script>
+</body>
+</html>

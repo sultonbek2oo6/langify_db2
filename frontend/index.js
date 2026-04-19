@@ -1403,137 +1403,91 @@ function bindWritingWordCounter() {
 
 async function loadWritingTasks() {
   const listEl = document.getElementById("writingTaskList");
-  const titleEl = document.getElementById("writingTaskTitle");
-  const metaEl = document.getElementById("writingTaskMeta");
-  const promptEl = document.getElementById("writingTaskPrompt");
-  const essayEl = document.getElementById("writingEssay");
-  const resultEl = document.getElementById("writingSubmitResult");
-  const counterEl = document.getElementById("writingWordCount");
+  if (!listEl) return;
 
-  if (!listEl || !titleEl || !metaEl || !promptEl || !essayEl || !resultEl || !counterEl) {
-    console.warn("writingPage elementlari topilmadi.");
-    return;
-  }
-
-  listEl.innerHTML = `<li>Loading...</li>`;
-  titleEl.textContent = "Select a task";
-  metaEl.innerHTML = "";
-  promptEl.innerHTML = `<p>Chapdan writing task tanlang.</p>`;
-  essayEl.value = "";
-  resultEl.innerHTML = "";
-  counterEl.textContent = "Words: 0";
-  CURRENT_WRITING_TASK_ID = null;
+  listEl.innerHTML = "<p style='color: white;'>Loading tasks...</p>";
 
   try {
     const res = await fetch(`${API_BASE}/api/writing/tasks`, {
-      headers: getAuthHeaders()
+      headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
     });
 
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      listEl.innerHTML = `<li>${data.message || "Failed"}</li>`;
+    const data = await res.json();
+    const items = data.items || data; 
+
+    if (!items || items.length === 0) {
+      listEl.innerHTML = "<p style='color: white;'>No tasks found.</p>";
       return;
     }
 
-    const items = Array.isArray(data.items) ? data.items : [];
-    if (!items.length) {
-      listEl.innerHTML = `<li>Writing tasklar hali yo‘q</li>`;
-      return;
-    }
+    listEl.innerHTML = ""; 
 
-    listEl.innerHTML = "";
+    items.forEach((item, index) => {
+      const card = document.createElement("div");
+      
+      // Ixchamroq kartochka stili
+      card.style.cssText = `
+        background: #FDFCF5;
+        border-radius: 12px;
+        padding: 15px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid rgba(0,0,0,0.03);
+      `;
 
-    items.forEach((item) => {
-      const li = document.createElement("li");
-      li.textContent = `${item.id}. ${item.title}`;
-      li.style.cursor = "pointer";
-      li.style.padding = "10px 12px";
-      li.style.borderRadius = "10px";
-      li.style.background = "#ffffff10";
-      li.style.transition = "0.2s ease";
+      card.onmouseover = () => {
+        card.style.transform = "translateY(-3px)";
+        card.style.boxShadow = "0 5px 12px rgba(0,0,0,0.1)";
+      };
+      card.onmouseout = () => {
+        card.style.transform = "translateY(0)";
+        card.style.boxShadow = "0 2px 8px rgba(0,0,0,0.05)";
+      };
 
-      li.addEventListener("click", async () => {
-        listEl.querySelectorAll("li").forEach((x) => {
-          x.style.background = "#ffffff10";
-          x.style.fontWeight = "500";
-        });
+      card.innerHTML = `
+        <div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+             <span style="background: #E8F5E9; color: #2E7D32; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold;">
+                ${(item.task_type || 'task').toUpperCase()}
+             </span>
+             <small style="color: #bbb; font-size: 10px;">#${index + 1}</small>
+          </div>
+          <h4 style="margin: 0 0 8px 0; color: #1a4d3a; font-size: 15px; line-height: 1.2;">
+            ${item.title}
+          </h4>
+          <p style="color: #777; font-size: 12px; margin-bottom: 12px;">
+             ⏱ ${item.time_limit}m • 📝 ${item.min_words}w
+          </p>
+        </div>
+        <button style="
+          background: #D7A97A; 
+          color: white; 
+          border: none; 
+          padding: 8px; 
+          border-radius: 8px; 
+          width: 100%; 
+          cursor: pointer; 
+          font-weight: bold; 
+          font-size: 13px;
+        ">
+          Start
+        </button>
+      `;
 
-        li.style.background = "rgba(255,255,255,0.55)";
-        li.style.fontWeight = "800";
+      card.onclick = () => {
+        window.location.href = `writingtest.html?id=${item.id}`;
+      };
 
-        await openWritingTask(item.id);
-      });
-
-      li.addEventListener("mouseenter", () => {
-        if (li.style.fontWeight !== "800") {
-          li.style.background = "#ffffff22";
-        }
-      });
-
-      li.addEventListener("mouseleave", () => {
-        if (li.style.fontWeight !== "800") {
-          li.style.background = "#ffffff10";
-        }
-      });
-
-      listEl.appendChild(li);
-    });
-  } catch (e) {
-    console.error(e);
-    listEl.innerHTML = `<li>Server error</li>`;
-  }
-}
-
-async function openWritingTask(taskId) {
-  const titleEl = document.getElementById("writingTaskTitle");
-  const metaEl = document.getElementById("writingTaskMeta");
-  const promptEl = document.getElementById("writingTaskPrompt");
-  const essayEl = document.getElementById("writingEssay");
-  const resultEl = document.getElementById("writingSubmitResult");
-  const counterEl = document.getElementById("writingWordCount");
-
-  if (!titleEl || !metaEl || !promptEl || !essayEl || !resultEl || !counterEl) return;
-
-  titleEl.textContent = "Loading task...";
-  metaEl.innerHTML = "";
-  promptEl.innerHTML = `<p>Loading...</p>`;
-  resultEl.innerHTML = "";
-  essayEl.value = "";
-  counterEl.textContent = "Words: 0";
-
-  try {
-    const res = await fetch(`${API_BASE}/api/writing/tasks/${taskId}`, {
-      headers: getAuthHeaders()
+      listEl.appendChild(card);
     });
 
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      titleEl.textContent = "Error";
-      promptEl.innerHTML = `<p>${data.message || "Failed to load"}</p>`;
-      return;
-    }
-
-    const task = data.task || {};
-    CURRENT_WRITING_TASK_ID = task.id;
-
-    titleEl.textContent = task.title || "Writing Task";
-    metaEl.innerHTML = `
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <span style="background:#ffffff22;padding:6px 10px;border-radius:999px;">Type: ${task.task_type || "-"}</span>
-        <span style="background:#ffffff22;padding:6px 10px;border-radius:999px;">Min words: ${task.min_words || 0}</span>
-        <span style="background:#ffffff22;padding:6px 10px;border-radius:999px;">Time: ${task.time_limit || 0} min</span>
-      </div>
-    `;
-
-    promptEl.innerHTML = `
-      <div style="background:rgba(255,255,255,0.75);padding:12px 14px;border-radius:12px;color:#173d35;line-height:1.7;">
-        ${String(task.prompt || "").replace(/\n/g, "<br>")}
-      </div>
-    `;
-  } catch (e) {
-    console.error(e);
-    titleEl.textContent = "Server error";
-    promptEl.innerHTML = `<p>Server error</p>`;
+  } catch (err) {
+    console.error("Error:", err);
+    listEl.innerHTML = "<p style='color: #ff6b6b;'>Server error.</p>";
   }
 }
 
@@ -1656,6 +1610,7 @@ async function loadMyWritingSubmissions() {
     box.innerHTML = `<p style="color:crimson;">Server error</p>`;
   }
 }
+
 
 /* ================= SPEAKING MODULE ================= */
 

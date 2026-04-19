@@ -575,61 +575,25 @@
 
   </div>
 </div>
+
 <!-- ================= WRITING PAGE ================= -->
 <div id="writingPage" class="page" style="display:none;">
-  <div class="page-header">
-    <button onclick="showPage(pages.dashboard)">⬅ Back</button>
-    <h1>✍️ Writing Practice</h1>
-    <p>IELTS writing tasklarni ishlang va essay yuboring</p>
+  <div class="page-header" style="background: rgba(255, 252, 240, 0.8); padding: 15px; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 20px;">
+    <button onclick="showPage(pages.dashboard)" class="back-btn">⬅ Back</button>
+    <h2 style="color: #1a4d3a; margin: 0;">✍️ Writing Practice</h2>
   </div>
 
-  <div class="reading-shell" style="display:grid;grid-template-columns:280px 1fr;gap:16px;margin-top:16px;">
-    <!-- Left list -->
-    <div class="reading-left" style="background:#ffffff14;border-radius:14px;padding:12px;">
-      <h4 style="margin:6px 0 12px 0;">Writing Tasks</h4>
-      <ul id="writingTaskList" style="list-style:none;padding:0;margin:0;display:grid;gap:8px;">
-        <li>Loading...</li>
-      </ul>
+  <div id="writingTaskList" style="
+    display: grid; 
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); 
+    gap: 15px; 
+    padding: 5px;
+  ">
     </div>
 
-    <!-- Right content -->
-    <div class="reading-right" style="background:#ffffff14;border-radius:14px;padding:14px;min-height:260px;">
-      <h3 id="writingTaskTitle" style="margin:0 0 10px 0;">Select a task</h3>
-
-      <div id="writingTaskMeta" style="margin-bottom:10px;opacity:.9;"></div>
-
-      <div id="writingTaskPrompt" style="margin-bottom:14px;">
-        <p>Chapdan writing task tanlang.</p>
-      </div>
-
-      <div style="margin-bottom:10px;">
-        <textarea
-          id="writingEssay"
-          placeholder="Write your essay here..."
-          style="width:100%;min-height:260px;padding:14px;border-radius:12px;border:none;outline:none;resize:vertical;"
-        ></textarea>
-      </div>
-
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-        <div id="writingWordCount" style="font-weight:700;">Words: 0</div>
-        <button
-          id="writingSubmitBtn"
-          onclick="submitWritingEssay()"
-          style="padding:12px 18px;border:none;border-radius:12px;background:blueviolet;color:#fff;font-weight:700;cursor:pointer;"
-        >
-          Submit Essay
-        </button>
-      </div>
-
-      <div id="writingSubmitResult" style="margin-top:12px;"></div>
-    </div>
-  </div>
-
-  <div style="margin-top:18px;background:#ffffff14;border-radius:14px;padding:14px;">
-    <h3 style="margin:0 0 12px 0;">My Writing Submissions</h3>
-    <div id="myWritingSubmissions">
-      <p>Loading...</p>
-    </div>
+  <div style="margin-top: 30px; background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 15px;">
+    <h4 style="margin-top: 0; color: #1a4d3a;">My Submissions</h4>
+    <div id="myWritingSubmissions"></div>
   </div>
 </div>
 
