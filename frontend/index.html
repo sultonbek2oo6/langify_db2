@@ -554,28 +554,38 @@
 
 <!-- ================= READING PAGE ================= -->
 <div id="readingPage" class="page" style="display:none;">
-  <div class="page-header">
-    <button onclick="showPage(pages.dashboard)">⬅ Back</button>
-    <h1>📖 IELTS Reading Practice</h1>
-    <p>Reading passage + questions</p>
+  <div class="reading-header-blue">
+    <button class="header-back-btn" onclick="showPage(pages.dashboard)">
+      <span class="icon">⬅</span> Back
+    </button>
+    
+    <h1>📖 IELTS Reading Tests</h1>
+    <p>Comprehensive reading practice with authentic materials</p>
   </div>
 
-  <div class="reading-shell" style="display:grid;grid-template-columns:260px 1fr;gap:16px;margin-top:16px;">
-    
-    <!-- LEFT -->
-    <div style="background:#ffffff14;border-radius:14px;padding:12px;">
-      <h4>Tests</h4>
-      <ul id="readingTestList" style="list-style:none;padding:0;margin:0;display:grid;gap:8px;"></ul>
+  <div class="reading-container">
+    <div class="reading-sidebar">
+      <div class="filter-box">
+        <h4>FILTER TESTS</h4>
+        <button class="filter-item active" onclick="changeFilter('all')">
+          All Tests <span id="count-all">0</span>
+        </button>
+        <button class="filter-item" onclick="changeFilter('free')">
+          Free Passages <span id="count-free">0</span>
+        </button>
+        <button class="filter-item" onclick="changeFilter('premium')">
+          Premium Passages <span id="count-premium">0</span>
+        </button>
+      </div>
     </div>
 
-    <!-- RIGHT -->
-    <div id="readingContent" style="background:#ffffff14;border-radius:14px;padding:14px;">
-      <h3>Select a test</h3>
+    <div class="reading-main">
+      <h3 id="currentFilterTitle">🟦 All Reading Tests</h3>
+      <div id="readingTestList" class="test-grid">
+        </div>
     </div>
-
   </div>
 </div>
-
 <!-- ================= WRITING PAGE ================= -->
 <div id="writingPage" class="page" style="display:none;">
   <div class="page-header" style="background: rgba(255, 252, 240, 0.8); padding: 15px; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 20px;">

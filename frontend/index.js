@@ -2025,38 +2025,106 @@ async function openReadingModule() {
   loadReadingList();
 }
 
+let allReadingMaterials = []; // Testlarni saqlab turish uchun
+
 async function loadReadingList() {
-  const listEl = document.getElementById("readingTestList");
-  const content = document.getElementById("readingContent");
+    const listEl = document.getElementById("readingTestList");
+    listEl.innerHTML = "Loading...";
 
-  listEl.innerHTML = "Loading...";
+    try {
+        const res = await fetch(`${API_BASE}/api/modules/reading/list`, {
+            headers: getAuthHeaders()
+        });
 
-  try {
-    const res = await fetch(`${API_BASE}/api/modules/reading/list`, {
-      headers: getAuthHeaders()
-    });
+        const data = await res.json();
+        allReadingMaterials = data.items || [];
+        
+        // Filtr raqamlarini yangilash
+        updateFilterCounts();
+        // Testlarni ekranga chiqarish
+        renderTests(allReadingMaterials);
 
-    const data = await res.json();
-    const items = data.items || [];
+    } catch (err) {
+        listEl.innerHTML = "Error loading tests";
+    }
+}
 
+function updateFilterCounts() {
+    document.getElementById('count-all').textContent = allReadingMaterials.length;
+    // Premium/Free maydoni API-da qanday nomlanishiga qarab o'zgartiring (masalan: it.is_premium)
+    const freeCount = allReadingMaterials.filter(it => !it.is_premium).length;
+    const premiumCount = allReadingMaterials.filter(it => it.is_premium).length;
+    
+    document.getElementById('count-free').textContent = freeCount;
+    document.getElementById('count-premium').textContent = premiumCount;
+}
+
+function renderTests(items) {
+    const listEl = document.getElementById("readingTestList");
     listEl.innerHTML = "";
 
-    items.forEach((it) => {
-      const li = document.createElement("li");
-      li.textContent = `${it.order_no}. ${it.title}`;
-      li.style.cursor = "pointer";
-
-      li.addEventListener("click", () => {
-        window.location.href = `readingtest.html?id=${it.id}`;
-      });
-
-      listEl.appendChild(li);
+    items.forEach(it => {
+        const card = document.createElement("div");
+        card.className = "reading-card";
+        
+        card.innerHTML = `
+            <div>
+                <div class="badge-free">✓ ${it.is_premium ? 'Premium' : 'Free'}</div>
+                <h3 class="card-title">${it.title}</h3>
+            </div>
+            <button class="start-btn-blue" onclick="window.location.href='readingtest.html?id=${it.id}'">
+                <span>▶</span> Start
+            </button>
+        `;
+        listEl.appendChild(card);
     });
+}
 
-  } catch (err) {
-    listEl.innerHTML = "Error loading tests";
-    console.error(err);
-  }
+function changeFilter(type) {
+    // Tugmalarni aktiv qilish
+    document.querySelectorAll('.filter-item').forEach(btn => btn.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+
+    // Filtrlash
+    let filtered = [];
+    if (type === 'all') {
+        filtered = allReadingMaterials;
+        document.getElementById('currentFilterTitle').textContent = "🟦 All Reading Tests";
+    } else if (type === 'free') {
+        filtered = allReadingMaterials.filter(it => !it.is_premium);
+        document.getElementById('currentFilterTitle').textContent = "🟩 Free Reading Tests";
+    } else if (type === 'premium') {
+        filtered = allReadingMaterials.filter(it => it.is_premium);
+        document.getElementById('currentFilterTitle').textContent = "🟨 Premium Reading Tests";
+    }
+    
+    renderTests(filtered);
+}
+function renderTests(items) {
+    const listEl = document.getElementById("readingTestList");
+    listEl.innerHTML = "";
+
+    items.forEach(it => {
+        const card = document.createElement("div");
+        card.className = "reading-card"; // Yuqoridagi CSS klassi
+        
+        card.innerHTML = `
+            <div>
+                <div class="badge-free">✓ ${it.is_premium ? 'Premium' : 'Free'}</div>
+                <h3 class="card-title">${it.title}</h3>
+            </div>
+            <button class="start-btn-blue">
+                <span>▶</span> Start
+            </button>
+        `;
+        
+        // Kartochkani butunlay bosiladigan qilish
+        card.onclick = () => {
+            window.location.href = `readingtest.html?id=${it.id}`;
+        };
+        
+        listEl.appendChild(card);
+    });
 }
 
 async function submitReading(materialId, answers) {
