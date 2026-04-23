@@ -1,4 +1,4 @@
-let timeLeft = 10 * 60; // 20 minut (soniyalarda)
+let timeLeft = 30 * 60; // 20 minut (soniyalarda)
 let timerInterval;
 const params = new URLSearchParams(window.location.search);
 const testId = params.get("id");
