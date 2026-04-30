@@ -1,0 +1,145 @@
+/* ===================================================
+   LANGIFY THEME (60-30-10) - OPTIMIZED & FIXED
+   =================================================== */
+:root {
+  /* Ranglar palitrasi */
+  --bg: #F8F9FA; 
+  --text: #1A3A32;
+  --accent: #E0A96D; 
+  --secondary: #94A684;
+  --surface: rgba(163, 177, 138, 0.18);
+  --surface-2: rgba(255, 255, 255, 0.78);
+  --border: rgba(45, 106, 79, 0.14);
+  
+  /* Vizual effektlar */
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  --shadow-hover: 0 20px 40px rgba(45, 106, 79, 0.12);
+  --radius-xl: 20px;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --transition: 220ms ease;
+
+  /* Default Background holati (Xatolik to'g'irlandi) */
+  --bg-image: url("../assets/bg-main.jpg"); 
+  --bg-blur: 0px;
+  --bg-dim: 0.42;
+}
+
+/* ---------- RESET ---------- */
+*{ 
+  margin: 0; 
+  padding: 0; 
+  box-sizing: border-box; 
+}
+
+html, body { 
+  height: 100%; 
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* ---------- BACKGROUND LAYERS ---------- */
+
+/* Background image layer */
+body::before {
+  content: ""; 
+  position: fixed; 
+  inset: 0; 
+  pointer-events: none; 
+  z-index: -2;
+  background-image: var(--bg-image); 
+  background-size: cover; 
+  background-position: center;
+  filter: blur(var(--bg-blur)); 
+  transition: filter 260ms ease, background-image 600ms ease;
+}
+
+/* Overlay gradient layer */
+body::after {
+  content: ""; 
+  position: fixed; 
+  inset: 0; 
+  pointer-events: none; 
+  z-index: -1;
+  background: radial-gradient(900px 500px at 10% 10%, rgba(212,163,115,0.18), transparent 60%),
+              linear-gradient(180deg, rgba(254,249,239,var(--bg-dim)), rgba(254,249,239,0.22));
+}
+
+/* ---------- PAGE STATES (Fix: Relative Paths) ---------- */
+
+body.is-auth { 
+  --bg-image: url("../assets/bg-auth.jpg"); 
+  --bg-blur: 0px; 
+  --bg-dim: 0.48; 
+}
+
+body.is-main { 
+  --bg-image: url("../assets/bg-main.jpg"); 
+  --bg-blur: 0px; 
+  --bg-dim: 0.38; 
+}
+
+body.is-dashboard { 
+  --bg-image: url("../assets/bg-dashboard.jpg"); 
+  --bg-blur: 2px; 
+  --bg-dim: 0.58; 
+}
+
+/* ---------- ANIMATIONS ---------- */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes zoomInSoft { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+
+.page.show { 
+  animation: fadeIn 280ms ease both; 
+}
+
+/* ---------- GLOBAL ELEMENTS ---------- */
+img { max-width: 100%; height: auto; }
+audio { width: 100%; }
+
+/* Scrollbar (UI/UX Improvement) */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--secondary);
+  border-radius: 10px;
+}
+body::before {
+  content: ""; 
+  position: fixed; 
+  inset: 0; 
+  pointer-events: none; 
+  z-index: -2;
+  
+  /* Rasm sozlamalari */
+  background-image: var(--bg-image); 
+  background-size: cover;          /* Rasmni ekranga to'liq yoyadi */
+  background-position: center center; /* Rasmni doim markazda tutadi */
+  background-repeat: no-repeat;
+  
+  filter: blur(var(--bg-blur)); 
+  transition: filter 260ms ease, background-image 600ms ease;
+}
+
+/* Mobil qurilmalar uchun maxsus tuzatish */
+@media (max-width: 768px) {
+  body::before {
+    /* Mobilda rasm qotib turishi (fixed) ba'zi brauzerlarda xato berishi mumkin, 
+       shuning uchun scroll bilan birga yuradigan qilamiz */
+    background-attachment: scroll; 
+    
+    /* Agar rasm mobilda juda xira bo'lsa, blur-ni kamaytiramiz */
+    --bg-blur: 2px !important; 
+  }
+}

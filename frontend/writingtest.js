@@ -16,32 +16,35 @@ async function loadTask() {
     const params = new URLSearchParams(window.location.search);
     TASK_ID = params.get("id");
 
+    // 1. Tokenni tekshirish
+    const token = localStorage.getItem("token"); 
+    if (!token) {
+        alert("Sessiya muddati tugagan. Iltimos, qayta kiring.");
+        window.location.href = "index.html"; 
+        return;
+    }
+
     if (!TASK_ID) {
         alert("ID topilmadi");
+        window.location.href = "index.html";
         return;
     }
 
     try {
         const url = `${API_BASE}/api/writing/tasks/${TASK_ID}`;
         
-        // TOKENNI LOCALSTORAGE'DAN OLAMIZ
-        const token = localStorage.getItem("token"); 
-
         const res = await fetch(url, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
-                // MANA SHU QISM MUHIM: Tokenni sarlavhada yuboramiz
-                "Authorization": `Bearer ${token}` 
+                "Authorization": `Bearer ${token}` // Tokenni yuborish 403 xatosini yo'qotadi
             }
         });
 
-        console.log("Server javob statusi:", res.status);
-
         if (!res.ok) {
-            if (res.status === 401) {
-                alert("Sessiya muddati tugagan yoki tizimga kirmagansiz. Iltimos, qayta login qiling.");
-                // window.location.href = "login.html"; // Agar login sahifangiz bo'lsa
+            if (res.status === 401 || res.status === 403) {
+                alert("Ruxsat berilmadi yoki sessiya tugadi.");
+                window.location.href = "index.html";
                 return;
             }
             throw new Error(`Server xatosi: ${res.status}`);
@@ -50,7 +53,6 @@ async function loadTask() {
         const data = await res.json();
         const task = data.task || data;
 
-        // Ma'lumotlarni ekranga chiqarish
         document.getElementById("title").innerText = task.title || "No title";
         document.getElementById("meta").innerHTML = `
             <p>Type: ${task.task_type || task.type || "-"}</p>
@@ -96,22 +98,34 @@ function bindWord() {
 
 async function submitEssay() {
   const text = document.getElementById("essay").value;
+  const token = localStorage.getItem("token");
 
   if (!text.trim()) return alert("Write something!");
 
   clearInterval(TIMER);
 
-  await fetch(`${API_BASE}/api/writing/submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      task_id: TASK_ID,
-      essay_text: text
-    })
-  });
+  try {
+    const res = await fetch(`${API_BASE}/api/writing/submit`, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}` 
+      },
+      body: JSON.stringify({
+        task_id: TASK_ID,
+        essay_text: text
+      })
+    });
 
-  alert("Submitted!");
-  window.location.href = "index.html";
+    if (res.ok) {
+      alert("Submitted!");
+      window.location.href = "index.html";
+    } else {
+      alert("Xatolik yuz berdi!");
+    }
+  } catch (e) {
+    console.error(e);
+  }
 }
 
 function goBack() {

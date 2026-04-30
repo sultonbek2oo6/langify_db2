@@ -4,9 +4,15 @@
     <meta charset="UTF-8">
     <title>English Learning Platform</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
+    
+    <link rel="stylesheet" href="css/global.css">
+    
+    <link rel="stylesheet" href="css/auth.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/payment.css">
+    
+    <link rel="stylesheet" href="css/dashboard.css">
 
-    <!-- ✅ Google Identity Services (GSI) for email verification -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -231,85 +237,96 @@
 </div>
 
 <!-- ================= DASHBOARD ================= -->
-<div class="dashboard" id="dashboard" style="display:none;">
+<div class="dashboard" id="dashboard">
+    <button class="menu-toggle" id="menuToggle">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
 
     <aside class="sidebar">
-        <h3>langify.db</h3>
-
-        <a class="active" data-feature="leaderboard">Leaderboard</a>
-        <a class="feature" data-level="premium" data-feature="writing-check">Writing Check</a>
-        <a class="feature" data-level="basic" data-feature="translation">Translation Practice</a>
-        <a class="feature" data-level="basic" data-feature="lessons">Join My Lessons</a>
-        <a class="feature" data-level="basic" data-feature="students">Student Results</a>
+        <div class="sidebar-logo">
+            <h3>langify.db</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a class="active" data-feature="leaderboard">🏆 Leaderboard</a>
+            <a class="feature" data-level="premium" data-feature="writing-check">✍️ Writing Check</a>
+            <a class="feature" data-level="basic" data-feature="translation">🔄 Translation Practice</a>
+            <a class="feature" data-level="basic" data-feature="lessons">👨‍🏫 Join My Lessons</a>
+            <a class="feature" data-level="basic" data-feature="students">📈 Student Results</a>
+        </nav>
     </aside>
 
     <main class="main">
+        <div class="top-bar reveal">
+            <div class="welcome-text">
+                <h3>Hello, <span id="headerUserEmail" style="color: #D4A373;">User</span>!</h3>
+                <p>Welcome to English Learning Platform</p>
+            </div>
 
-        <div class="top-bar">
-            <h3>Welcome to English Learning Platform!</h3>
-
-            <!-- ✅ UPDATED: Upgrade avatar yonida, dropdown click bilan -->
-            <div class="user-menu" id="userMenu">
-                <button id="upgradeBtnTop" class="upgrade-top-btn" onclick="goUpgrade()">
-                    Upgrade
-                </button>
-
-                <button class="avatar-btn" id="avatarBtn" type="button">
-                    <span class="avatar">U</span>
-                </button>
-
-                <div class="dropdown" id="userDropdown">
-                    <p id="userEmail">user@example.com</p>
-
-                    <button class="logout-btn" onclick="logout()">Logout</button>
-
-                    <!-- ✅ ADMIN uchun Admin Panel (JS yashiradi/ko‘rsatadi) -->
-                    <button id="adminToggleBtn" onclick="toggleAdminPanel()" style="display:none;">Admin Panel</button>
-                </div>
+            <div class="user-menu">
+                <button class="upgrade-top-btn" onclick="goUpgrade()">⭐ Upgrade</button>
+                <button class="admin-btn" id="adminToggleBtn" onclick="toggleAdminPanel()" style="display:none;">⚙️ Admin</button>
+                <button class="logout-btn" onclick="logout()">Logout ➜</button>
+                <div class="avatar" id="userAvatarLetter">U</div>
             </div>
         </div>
 
-        <h3 class="section-title">The most popular features</h3>
+        <h3 class="section-title reveal">The most popular features</h3>
 
-        <div class="feature-buttons">
-            <button class="feature" data-feature="vocabulary" data-level="basic">Learn Vocabulary</button>
-            <button class="feature" data-feature="listening" data-level="basic">Listening Practice</button>
-            <button class="feature" data-feature="reading" data-level="basic">Reading Practice</button>
-            <button class="feature" data-feature="writing" data-level="premium">Writing Practice</button>
-            <button class="feature" data-feature="speaking" data-level="premium">Speaking Practice</button>
-            <button class="feature" data-feature="band9" data-level="pro">Band 9.0 Sample</button>
-            <button class="feature" data-feature="mock" data-level="pro">Full Mock Test</button>
-        </div>
-
-        <div class="feature-content" id="featureContent">
-            <h3 id="featureTitle">Select a feature</h3>
-            <div id="featureBody">
-                <p>Please choose a feature to start learning 🚀</p>
+        <div class="features-grid">
+            <div class="feature-box reveal" onclick="showPage('vocabulary')">
+                <span class="f-icon">🧠</span>
+                <p>Vocabulary</p>
+            </div>
+            <div class="feature-box reveal" onclick="showPage('listening')">
+                <span class="f-icon">🎧</span>
+                <p>Listening</p>
+            </div>
+            <div class="feature-box reveal" onclick="showPage('reading')">
+                <span class="f-icon">📖</span>
+                <p>Reading</p>
+            </div>
+            <div class="feature-box reveal" onclick="showPage('writing')">
+                <span class="f-icon">✍️</span>
+                <p>Writing</p>
+            </div>
+            <div class="feature-box reveal red-box" onclick="showPage('mock')">
+                <span class="f-icon">📋</span>
+                <p>Full Mock</p>
+            </div>
+            <div class="feature-box reveal" onclick="showPage('band9')">
+                <span class="f-icon">⭐</span>
+                <p>Band 9.0</p>
             </div>
         </div>
 
-        <h3 class="section-title">Student Success Stories</h3>
+        <div class="wide-action-card reveal" onclick="showPage('speaking')">
+            <span class="f-icon">🎙️</span>
+            <span>Speaking Practice</span>
+        </div>
+
+        <h3 class="section-title reveal">Student Success Stories</h3>
         <div class="results">
-            <div class="result-card">
+            <div class="result-card reveal">
                 <div class="result-avatar">A</div>
                 <h4>Ali Khan</h4>
                 <p>IELTS 7.5</p>
                 <span>Premium user</span>
             </div>
-            <div class="result-card">
+            <div class="result-card reveal">
                 <div class="result-avatar">S</div>
                 <h4>Sara Lee</h4>
                 <p>IELTS 8.0</p>
                 <span>Pro user</span>
             </div>
-            <div class="result-card">
+            <div class="result-card reveal">
                 <div class="result-avatar">J</div>
                 <h4>John Smith</h4>
                 <p>IELTS 7.0</p>
                 <span>Basic user</span>
             </div>
         </div>
-
     </main>
 </div>
 
@@ -478,29 +495,47 @@
 <div id="listeningPage" class="page" style="display:none;">
 
   <div class="page-header">
-    <button onclick="showPage(pages.dashboard)">⬅ Back</button>
+    <button class="back-btn" onclick="showPage(pages.dashboard)">⬅ Back</button>
     <h1>🎧 IELTS Listening Tests</h1>
     <p>Authentic audio materials with native speakers</p>
-        <a ><button  onclick="checking('checking')" id ="listeningtest2">boshlash</button></a>
   </div>
 
   <div class="listening-layout">
 
     <aside class="filter-sidebar">
-      <h3>Filter Tests</h3>
+      <h3>FILTER TESTS</h3>
       <ul>
-        <li class="active">All Tests</li>
-        <li>IELTS Trainer 1</li>
-        <li>IELTS Trainer 2</li>
-        <li>Premium Tests</li>
+        <li class="active"><span>⊞ All Tests</span> <span class="count">33</span></li>
+        <li><span>📔 IELTS Trainer 1</span> <span class="count">6</span></li>
+        <li><span>📔 IELTS Trainer 2</span> <span class="count">6</span></li>
+        <li><span>🎁 Free Authentic</span> <span class="count">3</span></li>
+        <li class="premium-item"><span>👑 Premium Tests</span> <span class="count">11</span></li>
       </ul>
     </aside>
 
-    <!-- ✅ DB LIST CHIQADIGAN JOY -->
-    <div class="tests-grid" id="listeningTestGrid">
-      <div>Loading...</div>
+    <div class="tests-content">
+      <h2 class="section-title">📗 IELTS Trainer 1 (6)</h2>
+
+      <div class="tests-grid" id="listeningTestGrid">
+        
+        <div class="test-card">
+           <span class="status-badge-free">✓ Free</span>
+           <h3>IELTS Trainer 1, Test 1</h3>
+           <button class="btn-start-test" onclick="window.location.href='listeningtest.html?id=1'">
+             <span>▶</span> Start
+           </button>
+        </div>
+
+        <div class="test-card">
+           <span class="status-badge-free">✓ Free</span>
+           <h3>IELTS Trainer 1, Test 2</h3>
+           <button class="btn-start-test" onclick="window.location.href='listeningtest.html?id=2'">
+             <span>▶</span> Start
+           </button>
+        </div>
+
+      </div>
     </div>
-  
 
   </div>
 </div>

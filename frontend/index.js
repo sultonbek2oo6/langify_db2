@@ -157,56 +157,83 @@ function hideAllPages() {
 async function showPage(page, display = "flex") {
   if (!page) return;
 
-  hideAllPages();
-  page.style.display = display;
+  // 1. Agar 'page' matn (string) bo'lsa, uni 'pages' obyektidan qidirib topamiz
+  let targetPage = typeof page === "string" ? pages[page] : page;
 
+  // Agar sahifa topilmasa, konsolda xato chiqarib, to'xtaydi
+  if (!targetPage) {
+    console.error("Xatolik: Sahifa topilmadi ->", page);
+    return;
+  }
+
+  // Barcha sahifalarni yashirish
+  hideAllPages();
+  
+  // Maqsadli sahifani ko'rsatish
+  targetPage.style.display = display;
+
+  // Animatsiya uchun klasslarni boshqarish
   requestAnimationFrame(() => {
-    page.classList.add("show");
+    targetPage.classList.add("show", "active");
   });
 
+  // Body klasslarini tozalash va yangilash
   document.body.classList.remove("is-auth", "is-main", "is-dashboard");
 
+  // Auth sahifalari (Login, Register, etc.)
   if (
-    page === pages.login ||
-    page === pages.register ||
-    page === pages.forgot ||
-    page === pages.verify
+    targetPage === pages.login ||
+    targetPage === pages.register ||
+    targetPage === pages.forgot ||
+    targetPage === pages.verify
   ) {
     document.body.classList.add("is-auth");
   }
 
+  // Asosiy kontent sahifalari
   if (
-    page === pages.main ||
-    page === pages.payment ||
-    page === pages.listening ||
-    page === pages.studentResults ||
-    page === pages.vocabulary ||
-    page === pages.reading ||
-    page === pages.writing ||
-    page === pages.speaking ||
-    page === pages.band9 ||
-    page === pages.mock ||
-    page === pages.leaderboard
+    targetPage === pages.main ||
+    targetPage === pages.payment ||
+    targetPage === pages.listening ||
+    targetPage === pages.studentResults ||
+    targetPage === pages.vocabulary ||
+    targetPage === pages.reading ||
+    targetPage === pages.writing ||
+    targetPage === pages.speaking ||
+    targetPage === pages.band9 ||
+    targetPage === pages.mock ||
+    targetPage === pages.leaderboard
   ) {
     document.body.classList.add("is-main");
   }
 
-  if (page === pages.dashboard) {
+  // Dashboard sahifasi
+  if (targetPage === pages.dashboard) {
     document.body.classList.add("is-dashboard");
   }
 
-  page.classList.add("show", "active");
+  // --- MAXSUS MODULLARNI ISHGA TUSHIRISH ---
+  // Har bir modul o'z ID-si bilan chaqirilganda avtomatik yuklanadi
+  if (page === 'listening') await openListeningModule();
+  if (page === 'reading') await openReadingModule();
+  if (page === 'vocabulary') await openVocabularyModule();
+  if (page === 'writing') await openWritingModule();
+  if (page === 'speaking') await openSpeakingModule();
+  if (page === 'students') await openStudentResults();
+  if (page === 'leaderboard') await openLeaderboard();
 
+  // Reveal animatsiyalarini qayta tekshirish (Skrol bo'lmasa ham chiqishi uchun)
   setTimeout(() => {
     initRevealObserver();
-  }, 80);
+  }, 100);
 
-  if (page === pages.dashboard) {
+  // --- DASHBOARD SOZLAMALARI ---
+  if (targetPage === pages.dashboard) {
     await initDashboard();
 
     const adminBtn = document.getElementById("adminToggleBtn");
     if (adminBtn) {
-      adminBtn.style.display = isAdminRole() ? "block" : "none";
+      adminBtn.style.display = isAdminRole() ? "flex" : "none";
     }
 
     const upgradeTop = document.getElementById("upgradeBtnTop");
@@ -214,19 +241,29 @@ async function showPage(page, display = "flex") {
       upgradeTop.style.display = isAdminRole() ? "none" : "inline-flex";
     }
 
+    // Foydalanuvchi ma'lumotlarini yuklash (Email va Avatar uchun)
+    loadUser();
     cleanupAdminArtifacts();
   }
 
-  if (page === pages.main) {
-    if (isAdminRole()) {
-      await showPage(pages.dashboard);
-      return;
-    }
+  // Admin bo'lsa, main sahifadan dashboardga otib yuborish
+  if (targetPage === pages.main && isAdminRole()) {
+    await showPage('dashboard');
+    return;
   }
 
-  if (page === pages.register) {
+  // Register sahifasi yuklanganda Google Verify'ni yoqish
+  if (targetPage === pages.register) {
     resetGoogleVerify();
     initGoogleVerifyButton();
+  }
+
+  // Sidebar menyusini yopish (Mobilda sahifa bosilganda yopilishi uchun)
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.querySelector('.sidebar-overlay');
+  if (sidebar && sidebar.classList.contains('active')) {
+    sidebar.classList.remove('active');
+    if(overlay) overlay.classList.remove('active');
   }
 
   initFeatureClick();
@@ -517,9 +554,14 @@ async function initDashboard() {
 
 /* ================= LOAD USER ================= */
 function loadUser() {
-  const email = localStorage.getItem("userEmail") || "user@email.com";
-  const emailEl = document.getElementById("userEmail");
+  const email = localStorage.getItem("userEmail") || "User";
+  const emailEl = document.getElementById("headerUserEmail");
+  const avatarEl = document.getElementById("userAvatarLetter");
+
   if (emailEl) emailEl.textContent = email;
+  if (avatarEl) {
+    avatarEl.textContent = email.charAt(0).toUpperCase();
+  }
 }
 
 /* ================= ACCESS CONTROL ================= */
@@ -1085,6 +1127,13 @@ if (Array.isArray(data.results)) {
 /* ================= VOCABULARY MODULE ================= */
 async function openVocabularyModule() {
   await showPage(pages.vocabulary, "block");
+  
+  // Mobil uchun: har gal kirganda o'ng tomonni yashirib qo'yish (tozalash)
+  const rightSide = document.querySelector('#vocabularyPage .reading-right');
+  if (rightSide) {
+    rightSide.classList.remove('active');
+  }
+
   await loadVocabularyList();
 }
 
@@ -1094,7 +1143,7 @@ async function loadVocabularyList() {
   const bodyEl = document.getElementById("vocabularyBody");
 
   if (!listEl || !titleEl || !bodyEl) {
-    console.warn("vocabularyPage elementlari topilmadi (vocabularyList/vocabularyTitle/vocabularyBody).");
+    console.warn("vocabularyPage elementlari topilmadi.");
     return;
   }
 
@@ -1130,41 +1179,42 @@ async function loadVocabularyList() {
     listEl.innerHTML = "";
 
     items.forEach((item) => {
-     const li = document.createElement("li");
-     li.textContent = `${item.order_no || item.id}. ${item.title}`;
-     li.style.cursor = "pointer";
-     li.style.padding = "10px 12px";
-     li.style.borderRadius = "10px";
-     li.style.background = "#ffffff10";
-     li.style.transition = "0.2s ease";
-
-     li.addEventListener("click", async () => {
-     listEl.querySelectorAll("li").forEach((x) => {
-      x.style.background = "#ffffff10";
-      x.style.fontWeight = "500";
-     });
-
-     li.style.background = "rgba(255,255,255,0.55)";
-     li.style.fontWeight = "800";
-
-     await openVocabularyLesson(item.id);
-     });
-
-     li.addEventListener("mouseenter", () => {
-     if (li.style.fontWeight !== "800") {
-      li.style.background = "#ffffff22";
-     }
-     });
-
-     li.addEventListener("mouseleave", () => {
-     if (li.style.fontWeight !== "800") {
+      const li = document.createElement("li");
+      li.textContent = `${item.order_no || item.id}. ${item.title}`;
+      li.style.cursor = "pointer";
+      li.style.padding = "10px 12px";
+      li.style.borderRadius = "10px";
       li.style.background = "#ffffff10";
-     }
-     });
+      li.style.transition = "0.2s ease";
 
-     listEl.appendChild(li);
+      li.addEventListener("click", async () => {
+        listEl.querySelectorAll("li").forEach((x) => {
+          x.style.background = "#ffffff10";
+          x.style.fontWeight = "500";
+        });
+
+        li.style.background = "rgba(255,255,255,0.55)";
+        li.style.fontWeight = "800";
+
+        // Darsni ochish
+        await openVocabularyLesson(item.id);
+      });
+
+      li.addEventListener("mouseenter", () => {
+        if (li.style.fontWeight !== "800") {
+          li.style.background = "#ffffff22";
+        }
+      });
+
+      li.addEventListener("mouseleave", () => {
+        if (li.style.fontWeight !== "800") {
+          li.style.background = "#ffffff10";
+        }
+      });
+
+      listEl.appendChild(li);
     });
-    } catch (e) {
+  } catch (e) {
     console.error(e);
     listEl.innerHTML = `<li>Server error</li>`;
   }
@@ -1173,6 +1223,12 @@ async function loadVocabularyList() {
 async function openVocabularyLesson(materialId) {
   const titleEl = document.getElementById("vocabularyTitle");
   const bodyEl = document.getElementById("vocabularyBody");
+  const rightSide = document.querySelector('#vocabularyPage .reading-right');
+
+  // --- MOBIL UCHUN: O'ng tomonni ko'rsatish ---
+  if (rightSide) {
+    rightSide.classList.add('active');
+  }
 
   if (!titleEl || !bodyEl) return;
 
@@ -1196,7 +1252,7 @@ async function openVocabularyLesson(materialId) {
     let lessonContent = material.content || "Content yo‘q";
 
     try {
-      const obj = typeof lessonContent === "string" ? JSON.parse(lessonContent) : null;
+      const obj = typeof lessonContent === "string" ? JSON.parse(lessonContent) : lessonContent;
       if (obj && obj.words) {
         lessonContent = `
           <div style="display:grid;gap:14px;">
@@ -1212,11 +1268,9 @@ async function openVocabularyLesson(materialId) {
                 <h4 style="margin:0 0 10px 0;font-size:24px;font-weight:800;">
                  ${i + 1}. ${w.word || "-"}
                 </h4>
-
                 <p style="margin:6px 0;font-size:18px;line-height:1.6;">
                  <b>Meaning:</b> ${w.meaning || "-"}
                 </p>
-
                 <p style="margin:6px 0;font-size:17px;line-height:1.6;">
                  <b>Example:</b> ${w.example || "-"}
                 </p>
@@ -1224,8 +1278,6 @@ async function openVocabularyLesson(materialId) {
             `).join("")}
           </div>
         `;
-      } else if (obj && obj.text) {
-        lessonContent = `<p style="line-height:1.7;">${String(obj.text).replace(/\n/g, "<br>")}</p>`;
       } else {
         lessonContent = `<p style="line-height:1.7;">${String(material.content || "").replace(/\n/g, "<br>")}</p>`;
       }
@@ -1241,20 +1293,23 @@ async function openVocabularyLesson(materialId) {
            Avval so‘zlarni o‘qing, meaning va examplelarni tushunib chiqing. So‘ng quizni ishlang.
           </p>
         </div>
-
         ${lessonContent}
-
         <div style="margin-top:16px;">
           <button
             onclick="startVocabularyQuiz(${materialId})"
-            style="padding:12px 18px;border:none;border-radius:12px;background:blueviolet;color:#fff;font-weight:700;cursor:pointer;">
+            style="padding:12px 18px;border:none;border-radius:12px;background:blueviolet;color:#fff;font-weight:700;cursor:pointer;width:100%;">
             Start Quiz
           </button>
         </div>
-
         <div id="vocabularyQuizBox" style="margin-top:16px;"></div>
       </div>
     `;
+
+    // --- MOBIL UCHUN: Ekranni test qismiga surish ---
+    if (window.innerWidth <= 768 && rightSide) {
+      rightSide.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
   } catch (e) {
     console.error(e);
     bodyEl.innerHTML = `<p>Server error</p>`;
@@ -1306,7 +1361,7 @@ async function startVocabularyQuiz(materialId) {
     });
 
     html += `
-        <button type="submit" style="padding:12px 18px;border:none;border-radius:12px;background:#198754;color:#fff;font-weight:700;cursor:pointer;">
+        <button type="submit" style="padding:12px 18px;border:none;border-radius:12px;background:#198754;color:#fff;font-weight:700;cursor:pointer;width:100%;">
           Submit Quiz
         </button>
         <div id="vocabularyQuizResult" style="margin-top:14px;"></div>
@@ -1318,12 +1373,10 @@ async function startVocabularyQuiz(materialId) {
     const form = document.getElementById("vocabularyQuizForm");
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-
       const answers = items.map((q) => {
         const value = form.querySelector(`input[name="vq_${q.id}"]:checked`)?.value || "";
         return { question_id: q.id, answer: value };
       });
-
       await submitVocabularyQuiz(materialId, answers);
     });
   } catch (e) {
@@ -1348,9 +1401,7 @@ async function submitVocabularyQuiz(materialId, answers) {
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      if (resultEl) {
-        resultEl.innerHTML = `<p style="color:crimson;">${data.message || "Submit error"}</p>`;
-      }
+      if (resultEl) resultEl.innerHTML = `<p style="color:crimson;">${data.message || "Submit error"}</p>`;
       return;
     }
 
@@ -1364,8 +1415,6 @@ async function submitVocabularyQuiz(materialId, answers) {
         </div>
       `;
     }
-    
-
   } catch (e) {
     console.error(e);
     if (resultEl) resultEl.innerHTML = `<p style="color:crimson;">Server error</p>`;
@@ -2474,6 +2523,32 @@ function initRevealObserver() {
 
   items.forEach((item) => observer.observe(item));
 }
+// Sidebar menyusini boshqarish
+const menuToggle = document.getElementById('menuToggle');
+const sidebar = document.querySelector('.sidebar');
+
+// Orqa fon uchun overlay yaratish (ixtiyoriy, lekin UX uchun zo'r)
+const overlay = document.createElement('div');
+overlay.className = 'sidebar-overlay';
+document.body.appendChild(overlay);
+
+menuToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('active');
+    overlay.classList.toggle('active');
+});
+
+overlay.addEventListener('click', () => {
+    sidebar.classList.remove('active');
+    overlay.classList.remove('active');
+});
+
+// Menyu ichidagi link bosilganda menyu yopilishi uchun
+document.querySelectorAll('.sidebar a').forEach(link => {
+    link.addEventListener('click', () => {
+        sidebar.classList.remove('active');
+        overlay.classList.remove('active');
+    });
+});
 
 window.addEventListener("load", initRevealObserver);
 

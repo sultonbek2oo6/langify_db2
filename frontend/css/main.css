@@ -1,0 +1,570 @@
+/* ===========================
+   PRICING (Main page)
+   =========================== */
+.main-page {
+  min-height: 100vh;
+  padding: 74px 18px;
+  display: flex;
+  justify-content: center;
+  background: transparent;
+}
+
+.pricing-wrapper {
+  width: 100%;
+  max-width: 980px;
+  text-align: center;
+  animation: fadeUp 420ms ease both;
+}
+
+.plans {
+  display: flex;
+  gap: 18px;
+  margin-top: 28px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.plan {
+  width: 290px;
+  background: rgba(254, 249, 239, 0.78);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow);
+  padding: 26px 22px;
+  text-align: left;
+  transition: transform var(--transition), box-shadow var(--transition);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.plan.premium {
+  border: 2px solid rgba(212, 163, 115, 0.60);
+  background: linear-gradient(180deg, rgba(212, 163, 115, 0.16), rgba(255, 255, 255, 0.72));
+}
+
+.plan button {
+  margin-top: 14px;
+  padding: 11px 12px;
+  width: 100%;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #2b241b;
+  font-weight: 900;
+}
+
+@media (max-width: 520px) {
+  .plan { width: 100%; max-width: 520px; }
+}
+/* LISTENING PAGE ASOSIY USLUBI */
+.listening-layout {
+    display: flex;
+    flex-direction: column; /* Mobilda ustun shaklida */
+    gap: 20px;
+    padding: 15px;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+@media (min-width: 992px) {
+    .listening-layout {
+        flex-direction: row; /* Kompyuterda yonma-yon */
+    }
+}
+
+/* SIDEBAR FILTRLAR (2-rasmdagi uslub) */
+.filter-sidebar {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    min-width: 280px;
+}
+
+.filter-sidebar h3 {
+    font-size: 0.8rem;
+    color: #888;
+    letter-spacing: 1px;
+    margin-bottom: 15px;
+}
+
+.filter-sidebar ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.filter-sidebar li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    font-weight: 600;
+    color: #444;
+    cursor: pointer;
+    transition: 0.3s;
+    border: 1px solid #eee;
+}
+
+.filter-sidebar li.active {
+    background: #1b4332; /* To'q yashil/hakey */
+    color: white;
+    border-color: #1b4332;
+}
+
+.filter-sidebar li .count {
+    background: rgba(0,0,0,0.05);
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+}
+
+.filter-sidebar li.active .count {
+    background: rgba(255,255,255,0.2);
+}
+
+/* PREMIUM FILTER MAXSUS RANG */
+.premium-item {
+    color: #8a5cf5 !important;
+    border: 1px solid #e8e0ff !important;
+}
+
+/* TEST KARTALARI */
+.section-title {
+    font-size: 1.2rem;
+    color: #2d3436;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tests-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100%, 1fr)); /* Mobilda 1 ta ustun */
+    gap: 15px;
+}
+
+@media (min-width: 650px) {
+    .tests-grid {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* Katta ekranda 2-3 ta */
+    }
+}
+
+.test-card {
+    background: #ffffff;
+    border-radius: 15px;
+    padding: 20px;
+    border: 1px solid #f0f0f0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+}
+
+.status-badge-free {
+    background: #d1fae5;
+    color: #065f46;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+    display: inline-block;
+}
+
+.test-card h3 {
+    font-size: 1rem;
+    margin-bottom: 15px;
+    color: #1e293b;
+}
+
+.btn-start-test {
+    width: 100%;
+    background: #1b4332; /* Hakey/Yashil tugma */
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.btn-start-test:hover {
+    background: #2d6a4f;
+    transform: translateY(-2px);
+}
+/* Asosiy Layoutni kengaytirish */
+.listening-layout {
+    display: flex;
+    flex-direction: row; /* Katta ekranda doim yonma-yon */
+    align-items: flex-start;
+    gap: 30px;
+    padding: 20px;
+    max-width: 100%; /* Ekran bo'yicha to'liq yoyilishi uchun */
+}
+
+/* Chap tomondagi Sidebar (Filtr) */
+.filter-sidebar {
+    width: 280px;
+    min-width: 280px;
+    position: sticky; /* Pastga tushganda ham ko'rinib turishi uchun */
+    top: 20px;
+    background: #ffffff;
+    border-radius: 15px;
+    padding: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+/* O'ng tomondagi kontent maydoni */
+.tests-content {
+    flex-grow: 1; /* Qolgan barcha bo'sh joyni egallaydi */
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+
+/* Kategoriya sarlavhasi */
+.section-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #2b4532;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Kartalar setkasi - rasmdagidek 4 ta ustun */
+.tests-grid {
+    display: grid;
+    /* Notebooklarda 4 ta, kichikroq ekranlarda 2-3 ta ustun */
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); 
+    gap: 20px;
+}
+
+/* Karta dizayni (Rasmdagidek) */
+.test-card {
+    background: #fff;
+    border: 1px solid #edf2f0;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+
+.btn-start-test {
+    background: #088158; /* Rasmdagi yashil rang */
+    color: white;
+    border: none;
+    padding: 10px;
+    width: 100%;
+    border-radius: 8px;
+    font-weight: 600;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+/* MOBIL UCHUN MOSLASHUV (Media Query) */
+@media (max-width: 992px) {
+    .listening-layout {
+        flex-direction: column; /* Mobilda ustun shakliga qaytadi */
+    }
+    
+    .filter-sidebar {
+        width: 100%;
+        position: static;
+    }
+}
+/* ===================================================
+   HEADER OPTIMIZATION (Ixcham va Shaffof)
+   =================================================== */
+.page-header {
+    background: rgba(254, 249, 239, 0.65); /* Shaffof fon */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 20px;
+    padding: 15px 25px; /* Ixchamroq padding */
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    animation: slideInDown 0.6s ease-out; /* Sahifaga kirish animatsiyasi */
+}
+
+/* Mobilda Header yanada kichikroq */
+@media (max-width: 600px) {
+    .page-header h1 { font-size: 1.4rem; }
+    .page-header p { font-size: 0.85rem; }
+    .page-header { padding: 12px 18px; }
+}
+
+/* ===================================================
+   KARTALAR UCHUN "BREATHING" EFFEKTI
+   =================================================== */
+.test-card {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 20px;
+    border: 1px solid #edf2f0;
+    transition: all 0.4s ease;
+    animation: breathing 4s ease-in-out infinite; /* To'xtovsiz nafas olish */
+}
+
+@keyframes breathing {
+    0% { transform: scale(1); box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+    50% { transform: scale(1.02); box-shadow: 0 8px 20px rgba(8, 129, 88, 0.1); }
+    100% { transform: scale(1); box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+}
+
+/* Karta ustiga borganda animatsiya to'xtaydi va kuchayadi */
+.test-card:hover {
+    animation-play-state: paused;
+    transform: translateY(-5px) scale(1.03);
+    border-color: #088158;
+}
+
+/* ===================================================
+   SAHIFAGA O'TISH ANIMATSIYALARI
+   =================================================== */
+@keyframes slideInDown {
+    from { opacity: 0; transform: translateY(-30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Kartalar ketma-ket chiqishi uchun */
+.tests-grid .test-card {
+    animation: fadeInUp 0.5s ease backwards;
+}
+
+/* Har bir karta kechikib chiqishi (nth-child) */
+.tests-grid .test-card:nth-child(1) { animation-delay: 0.1s; }
+.tests-grid .test-card:nth-child(2) { animation-delay: 0.2s; }
+.tests-grid .test-card:nth-child(3) { animation-delay: 0.3s; }
+.tests-grid .test-card:nth-child(4) { animation-delay: 0.4s; }
+.back-btn {
+    background: #e9ede0;
+    color: #4b4e40;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    align-self: flex-start;
+    transition: 0.3s;
+}
+
+.back-btn:hover {
+    background: #6b705c;
+    color: white;
+}
+/* Listening Headerini chiroyli qilish */
+.page-header {
+  margin-top: 20px;
+  background: rgba(255, 255, 255, 0.4) !important;
+  backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  padding: 30px !important;
+  border-radius: 24px !important;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.05);
+}
+
+/* Kartadagi tugma bosilishini kafolatlash */
+.test-card {
+  position: relative;
+  z-index: 10;
+  pointer-events: auto !important;
+}
+
+.btn-start-test {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  transition: transform 0.2s ease;
+}
+
+.btn-start-test:active {
+  transform: scale(0.95); /* Bosilganda kichrayish effekti */
+}
+/* vocabulary qismi uchun */
+/* Asosiy sahifa konteyneri */
+#vocabularyPage {
+    padding: 30px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #1a4d2e; /* To'q yashil matn */
+}
+
+/* Yuqori qism (Header) */
+#vocabularyPage .page-header {
+    /* Fon shaffofligi 0.6 dan 0.4 ga tushirildi */
+    background: rgba(255, 253, 240, 0.4); 
+    /* Xiralik (blur) 10px dan 6px ga tushirildi */
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-radius: 24px;
+    padding: 25px 35px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+}
+
+#vocabularyPage .page-header button {
+    background: rgba(232, 237, 231, 0.7); /* Tugma ham biroz shaffof */
+    border: none;
+    padding: 8px 18px;
+    border-radius: 10px;
+    color: #3a6351;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 12px;
+    transition: 0.3s;
+    width: fit-content; 
+    display: inline-flex;
+    align-items: center;
+}
+
+#vocabularyPage .page-header button:hover {
+    background: rgba(212, 221, 210, 0.9);
+    transform: translateY(-1px);
+}
+
+#vocabularyPage .page-header h1 {
+    margin: 5px 0;
+    font-size: 2.2rem;
+    color: #1a4d2e;
+}
+
+#vocabularyPage .page-header p {
+    margin: 0;
+    color: #4f6f52;
+    font-size: 1.1rem;
+}
+
+/* O'rta qism (Grid Layout) */
+#vocabularyPage .reading-shell {
+    display: grid;
+    grid-template-columns: 280px 1fr !important;
+    gap: 25px !important;
+}
+
+/* Chap tomondagi ro'yxat */
+#vocabularyPage .reading-left {
+    background: transparent !important;
+    padding: 10px !important;
+}
+
+#vocabularyPage .reading-left h4 {
+    color: #1a4d2e;
+    font-size: 1.1rem;
+    border-bottom: 2px solid rgba(26, 77, 46, 0.1);
+    padding-bottom: 10px;
+}
+
+#vocabularyPage #vocabularyList li {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 12px 15px;
+    border-radius: 12px;
+    cursor: pointer;
+    color: #2d5a27;
+    font-weight: 500;
+    transition: 0.3s;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#vocabularyPage #vocabularyList li:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateX(5px);
+}
+
+/* O'ng tomondagi asosiy kontent bloki */
+#vocabularyPage .reading-right {
+    /* Fon shaffofligi 0.25 dan 0.15 ga tushirildi - orqa fon ko'proq ko'rinadi */
+    background: rgba(255, 255, 255, 0.15) !important; 
+    /* Xiralik 15px dan 8px ga tushirildi */
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    border-radius: 24px !important;
+    padding: 35px !important;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    min-height: 450px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+/* Lesson ichidagi so'z kartochkalari uchun shaffoflik (JS orqali keladigan divlar uchun) */
+#vocabularyBody > div > div {
+    background: rgba(255, 255, 255, 0.45) !important;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03) !important;
+}
+
+#vocabularyPage #vocabularyTitle {
+    color: #1a4d2e;
+    font-size: 1.6rem;
+    margin-bottom: 15px;
+}
+
+#vocabularyPage #vocabularyBody {
+    color: #173d35; /* Biroq to'qroq rang - shaffof fonda o'qish oson bo'lishi uchun */
+    line-height: 1.6;
+}
+
+/* --- Media Queries (Mobil moslashuv) --- */
+
+@media (max-width: 768px) {
+    /* Desktopda display:none bo'lishi mumkin, lekin dars tanlanganda JS orqali .active qo'shiladi */
+    #vocabularyPage .reading-right {
+        display: none !important;
+    }
+
+    #vocabularyPage .reading-right.active {
+        display: block !important;
+        margin-top: 20px;
+        padding: 20px !important;
+    }
+
+    #vocabularyPage .page-header {
+        padding: 20px;
+        border-radius: 18px;
+    }
+
+    #vocabularyPage .page-header h1 {
+        font-size: 1.6rem;
+    }
+
+    #vocabularyPage .reading-shell {
+        grid-template-columns: 1fr !important; 
+        gap: 15px !important;
+    }
+
+    #vocabularyPage .reading-left {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    #vocabularyPage #vocabularyList {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    #vocabularyPage #vocabularyList {
+        grid-template-columns: 1fr;
+    }
+    
+    #vocabularyPage .page-header h1 {
+        font-size: 1.4rem;
+    }
+}
