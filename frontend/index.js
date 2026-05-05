@@ -2112,19 +2112,28 @@ function renderTests(items) {
     const listEl = document.getElementById("readingTestList");
     listEl.innerHTML = "";
 
+    if (items.length === 0) {
+        listEl.innerHTML = "<p>No tests found.</p>";
+        return;
+    }
+
     items.forEach(it => {
         const card = document.createElement("div");
-        card.className = "reading-card";
+        card.className = "test-card"; // CSS klassiga moslandi
         
         card.innerHTML = `
-            <div>
-                <div class="badge-free">✓ ${it.is_premium ? 'Premium' : 'Free'}</div>
-                <h3 class="card-title">${it.title}</h3>
-            </div>
-            <button class="start-btn-blue" onclick="window.location.href='readingtest.html?id=${it.id}'">
+            <div class="badge">${it.is_premium ? 'Premium' : '✓ Free'}</div>
+            <h3 class="test-title">${it.title}</h3>
+            <button class="start-btn">
                 <span>▶</span> Start
             </button>
         `;
+        
+        // Kartochkani butunlay bosiladigan qilish
+        card.onclick = () => {
+            window.location.href = `readingtest.html?id=${it.id}`;
+        };
+        
         listEl.appendChild(card);
     });
 }
@@ -2232,13 +2241,34 @@ async function submitReading(materialId, answers) {
 
 /* ================= LEADERBOARD UI ================= */
 async function openLeaderboard(module = "") {
+  // Sahifadagi asosiy elementlarni olish
   const titleEl = document.querySelector("#leaderboardPage h1");
   const bodyEl = document.getElementById("leaderboardBody");
+  const tabs = document.querySelectorAll(".lb-tab");
 
   if (!titleEl || !bodyEl) return;
 
-  titleEl.textContent = "Leaderboard";
-  bodyEl.innerHTML = "Loading...";
+  // Sarlavhani tanlangan modulga qarab yangilash
+  titleEl.textContent = module ? `${module.charAt(0).toUpperCase() + module.slice(1)} Leaderboard` : "🏆 Global Leaderboard";
+  
+  // Yuklanish holatini ko'rsatish
+  bodyEl.innerHTML = `
+    <div style="text-align:center; padding: 40px;">
+      <div class="loader"></div> <!-- CSS-da loader bo'lsa ko'rinadi -->
+      <p style="margin-top:15px; color:rgba(255,255,255,0.6);">Loading rankings...</p>
+    </div>
+  `;
+
+  // Aktiv tabni belgilash
+  tabs.forEach(tab => {
+    const tabModule = tab.getAttribute("onclick").match(/'([^']+)'/);
+    const m = tabModule ? tabModule[1] : "";
+    if (m === module) {
+      tab.classList.add("active");
+    } else {
+      tab.classList.remove("active");
+    }
+  });
 
   try {
     const qs = module ? `?module=${encodeURIComponent(module)}` : "";
@@ -2247,46 +2277,64 @@ async function openLeaderboard(module = "") {
     });
 
     const data = await res.json().catch(() => ({}));
+    
     if (!res.ok) {
-      bodyEl.innerHTML = `<p style="color:crimson;">${data.message || "Failed"}</p>`;
+      bodyEl.innerHTML = `<div class="error-msg">${data.message || "Failed to load data"}</div>`;
       return;
     }
 
     const items = Array.isArray(data.items) ? data.items : [];
+    
     if (!items.length) {
-      bodyEl.innerHTML = "<p>Leaderboard hozircha bo‘sh.</p>";
+      bodyEl.innerHTML = `
+        <div style="text-align:center; padding: 50px; color:rgba(255,255,255,0.5);">
+          <p>📭 Hozircha bu yo'nalishda natijalar mavjud emas.</p>
+        </div>
+      `;
       return;
     }
 
+    // Jadval strukturasi
     let html = `
-      <div style="display:flex;gap:10px;margin-bottom:10px;">
-        <button onclick="openLeaderboard('reading')" style="padding:8px 12px;border-radius:10px;border:none;background:#ffffff22;color:#fff;">Reading</button>
-        <button onclick="openLeaderboard('listening')" style="padding:8px 12px;border-radius:10px;border:none;background:#ffffff22;color:#fff;">Listening</button>
-        <button onclick="openLeaderboard('')" style="padding:8px 12px;border-radius:10px;border:none;background:#ffffff22;color:#fff;">All</button>
-      </div>
-
-      <div style="overflow:auto;">
-        <table style="width:100%;border-collapse:collapse;background:#ffffff14;border-radius:12px;">
+      <div class="lb-table-container">
+        <table class="lb-table">
           <thead>
             <tr>
-              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">#</th>
-              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">User</th>
-              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">Best</th>
-              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">Avg</th>
-              <th style="text-align:left;padding:10px;border-bottom:1px solid #ffffff22;">Attempts</th>
+              <th>#</th>
+              <th>Student</th>
+              <th>Best</th>
+              <th>Avg</th>
+              <th class="hide-mobile">Attempts</th>
+              <th>Badge</th>
             </tr>
           </thead>
           <tbody>
     `;
 
     items.forEach((u, i) => {
+      // Top 3 uchun emojilar
+      let badge = "-";
+      if (i === 0) badge = "🥇";
+      else if (i === 1) badge = "🥈";
+      else if (i === 2) badge = "🥉";
+
+      // Foydalanuvchi ismini ajratib ko'rsatish (agar o'zi bo'lsa)
+      const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+      const isMe = u.username === currentUser.username;
+
       html += `
-        <tr>
-          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${i + 1}</td>
-          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${u.username || "-"}</td>
-          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${u.best_score}%</td>
-          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${u.avg_score}%</td>
-          <td style="padding:10px;border-bottom:1px solid #ffffff22;">${u.attempts_count}</td>
+        <tr class="${isMe ? 'me-highlight' : ''}">
+          <td><strong>${i + 1}</strong></td>
+          <td>
+            <div style="display:flex; align-items:center; gap:10px;">
+               <div class="user-avatar-mini">${u.username.charAt(0).toUpperCase()}</div>
+               <span>${u.username || "Noma'lum"} ${isMe ? '<small>(You)</small>' : ''}</span>
+            </div>
+          </td>
+          <td style="color: #4caf50; font-weight: bold;">${u.best_score ?? 0}%</td>
+          <td>${u.avg_score ?? 0}%</td>
+          <td class="hide-mobile">${u.attempts_count ?? 0}</td>
+          <td style="font-size: 1.2rem;">${badge}</td>
         </tr>
       `;
     });
@@ -2298,9 +2346,15 @@ async function openLeaderboard(module = "") {
     `;
 
     bodyEl.innerHTML = html;
+
   } catch (err) {
-    console.error(err);
-    bodyEl.innerHTML = "<p style='color:crimson;'>Error loading leaderboard</p>";
+    console.error("Leaderboard error:", err);
+    bodyEl.innerHTML = `
+      <div style="text-align:center; padding: 30px;">
+        <p style="color:crimson;">⚠️ Server bilan bog'lanishda xatolik yuz berdi.</p>
+        <button onclick="openLeaderboard('${module}')" class="lb-tab" style="margin-top:10px; flex:none; width:auto;">Qayta urinish</button>
+      </div>
+    `;
   }
 }
 

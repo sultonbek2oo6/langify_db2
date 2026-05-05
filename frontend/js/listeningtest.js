@@ -70,8 +70,16 @@ async function loadTest() {
       btn.setAttribute("data-qid", q.id);     // 👈 savol ID qo‘shildi
 
       btn.onclick = () => {
-        document.getElementById("q" + index).scrollIntoView({
-          behavior: "smooth"
+        const element = document.getElementById("q" + index);
+        const offset = 80; // Sticky taymer uchun bo'sh joy
+        const bodyRect = document.body.getBoundingClientRect().top;
+        const elementRect = element.getBoundingClientRect().top;
+        const elementPosition = elementRect - bodyRect;
+        const offsetPosition = elementPosition - offset;
+
+        window.scrollTo({
+         top: offsetPosition,
+         behavior: "smooth"
         });
       };
 

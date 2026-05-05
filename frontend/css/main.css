@@ -568,3 +568,345 @@
         font-size: 1.4rem;
     }
 }
+
+ /*reading*/
+ /* --- GLOBAL STYLES --- */
+#readingPage {
+    min-height: 100vh;
+    padding: 20px;
+    font-family: 'Poppins', sans-serif;
+}
+
+/* Header - Desktop & General */
+.reading-header-blue {
+    background: rgba(235, 237, 226, 0.9);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 40px 20px;
+    text-align: center;
+    margin-bottom: 30px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    position: relative;
+}
+
+.header-back-btn {
+    position: absolute;
+    left: 20px;
+    top: 20px;
+    background: rgba(0, 0, 0, 0.05);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+/* Layout */
+.reading-container {
+    display: flex;
+    gap: 30px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.reading-sidebar {
+    flex: 0 0 280px;
+}
+
+.filter-box {
+    background: white;
+    padding: 25px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+}
+
+.filter-box h4 {
+    margin-bottom: 20px;
+    font-size: 0.85rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: #333;
+}
+
+.filter-item {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    border: none;
+    background: transparent;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: 0.3s;
+}
+
+.filter-item.active {
+    background: #D4A373;
+    color: white;
+}
+
+/* Test Grid - Desktop (5 ta karta) */
+.reading-main {
+    flex: 1;
+}
+
+.test-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
+}
+
+/* Karta Dizayni */
+.reading-card {
+    background: #ffffff !important;
+    padding: 20px;
+    border-radius: 18px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 190px;
+    cursor: pointer;
+    transition: 0.3s;
+    border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.badge-free {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    width: fit-content;
+}
+
+.card-title {
+    font-size: 0.9rem;
+    color: #1a1a1a;
+    font-weight: 700;
+    margin: 10px 0;
+}
+
+.start-btn-blue {
+    width: 100%;
+    padding: 10px;
+    background-color: #D4A373;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+/* --- MOBIL VERSIYA (Faqat mobil uchun o'zgarishlar) --- */
+
+@media (max-width: 850px) {
+    /* Konteynerni ustun shakliga keltiramiz */
+    .reading-container {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    /* Sidebar/Filtr tortburchak va kichikroq tursin */
+    .reading-sidebar {
+        width: 100%;
+    }
+
+    .filter-box {
+        padding: 15px;
+        display: block; /* Yonga suriladigan emas, blok shaklida */
+    }
+
+    .filter-item {
+        padding: 10px 15px;
+        font-size: 0.8rem;
+        margin-bottom: 5px;
+    }
+
+    /* Testlar 2 tadan sig'ishi uchun */
+    .test-grid {
+        grid-template-columns: repeat(2, 1fr); /* 2 ta karta yonma-yon */
+        gap: 12px;
+    }
+
+    /* Kartalarni kichikroq qilish */
+    .reading-card {
+        padding: 12px;
+        min-height: 150px;
+        border-radius: 14px;
+    }
+
+    .card-title {
+        font-size: 0.75rem; /* Matn kichraydi */
+        margin: 5px 0;
+    }
+
+    .badge-free {
+        font-size: 0.6rem;
+        padding: 2px 8px;
+    }
+
+    .start-btn-blue {
+        padding: 8px;
+        font-size: 0.75rem;
+    }
+
+    /* Header mobil moslashuvi */
+    .reading-header-blue {
+        padding: 50px 15px 25px 15px;
+    }
+
+    .reading-header-blue h1 {
+        font-size: 1.4rem;
+    }
+}
+
+/* Juda kichik ekranlar uchun (masalan 360px) */
+@media (max-width: 400px) {
+    .test-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .reading-card {
+        padding: 10px;
+    }
+}
+/* --- SILIQ ANIMATSIYALAR --- */
+
+/* Tepa qism uchun: Yumshoq tushish */
+@keyframes smoothSlideDown {
+    0% {
+        opacity: 0;
+        transform: translateY(-40px) scale(0.98);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Sidebar uchun: Chapdan mayin suzish */
+@keyframes smoothSlideRight {
+    0% {
+        opacity: 0;
+        transform: translateX(-40px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Kartalar uchun: Pastdan inerstsiya bilan chiqish */
+@keyframes smoothPopUp {
+    0% {
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+    }
+    60% {
+        transform: translateY(-5px) scale(1.02);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* --- ELEMENTLARGA QO'LLASH --- */
+
+/* Header: Birinchi chiqadi */
+.reading-header-blue {
+    animation: smoothSlideDown 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    background: rgba(235, 237, 226, 0.9);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 35px 20px;
+    text-align: center;
+    margin-bottom: 30px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Sidebar: 0.2s dan keyin chiqadi */
+.reading-sidebar {
+    opacity: 0;
+    animation: smoothSlideRight 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
+}
+
+/* Test Grid konteyneri */
+.reading-main {
+    flex: 1;
+}
+
+/* KARTALAR: Ketma-ket (staggered) chiqish effekti */
+.reading-card {
+    opacity: 0;
+    animation: smoothPopUp 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    
+    /* Avvalgi dizayn xususiyatlari */
+    background: #ffffff !important;
+    padding: 22px;
+    border-radius: 18px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 190px;
+    transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1); /* Hover ham siliq */
+    border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+/* Hover effekti yanada siliq */
+.reading-card:hover {
+    transform: translateY(-10px) scale(1.03);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+}
+
+/* Kartalarning birin-ketin chiqishi uchun kechikishlar */
+.reading-card:nth-child(1) { animation-delay: 0.3s; }
+.reading-card:nth-child(2) { animation-delay: 0.4s; }
+.reading-card:nth-child(3) { animation-delay: 0.5s; }
+.reading-card:nth-child(4) { animation-delay: 0.6s; }
+.reading-card:nth-child(5) { animation-delay: 0.7s; }
+.reading-card:nth-child(n+6) { animation-delay: 0.8s; }
+
+/* --- QOLGAN USLUBLAR (O'zgarmasdan qoladi) --- */
+.test-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
+}
+
+.badge-free {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.start-btn-blue {
+    background-color: #D4A373;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 12px;
+    font-weight: 700;
+    transition: 0.3s;
+}
+
+/* MOBIL VERSIYA (Siz aytgan tortburchak filtrlar va 2 ta karta) */
+@media (max-width: 850px) {
+    .reading-container { flex-direction: column; }
+    .reading-sidebar { width: 100%; animation-delay: 0.1s; }
+    .filter-box { display: block; padding: 15px; }
+    .test-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .reading-card { padding: 15px; min-height: 160px; }
+}
