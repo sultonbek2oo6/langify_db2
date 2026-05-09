@@ -1,66 +1,226 @@
-.register-page, .login-page{
-  width:100%; min-height: 100vh; display:flex; justify-content:center; align-items:center; padding: 28px 16px;
+/* =========================
+   AUTH PAGE (REGISTER / LOGIN)
+========================= */
+
+.register-page, .login-page {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+
+  /* Background */
+  background-image: url('../images/bg.jpg'); /* o'zing rasm qo'y */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
-.login-card{
-  width: 420px; max-width: 95vw; background: rgba(254, 249, 239, 0.14);
-  border: 1px solid rgba(255,255,255,0.42); border-radius: var(--radius-xl);
-  box-shadow: 0 28px 90px rgba(45, 106, 79, 0.18); padding: 34px 30px;
-  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
-  animation: zoomInSoft 420ms ease both;
-}
+/* =========================
+   GLASS CARD
+========================= */
 
-.login-card input{
-  width:100%; padding: 12px 14px; margin-bottom: 12px; border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.35); background: rgba(254,249,239,0.18);
-  color: var(--text); outline: none; transition: var(--transition);
-}
-
-.login-card button{
-  width:100%; padding: 12px 14px; border-radius: 14px; background: rgba(254,249,239,0.90);
-  font-weight: 900; box-shadow: 0 16px 40px rgba(45, 106, 79, 0.14);
-}
-
-/* SOCIAL LOGIN */
-.google-btn, .apple-btn{
-  width:100%; margin-top: 10px; padding: 11px 12px; border-radius: 14px;
-  display:flex; align-items:center; justify-content:center; gap: 10px; font-weight: 800;
-  border: 1px solid rgba(255,255,255,0.35); background: rgba(254,249,239,0.18);
-}
-
-/* MOBILE AUTH FIXES (Original kodingdan olindi) */
-@media (max-width: 768px) {
-  .login-card{ padding: 18px 16px; }
-  .login-card h2{ font-size: 22px; }
-  .login-card input{ font-size: 16px; }
-  .login-card button{ font-size: 16px; }
-}
-/* auth.css dagi .login-card qismini yangilang */
 .login-card {
-  background: rgba(255, 255, 255, 0.8) !important;
-  backdrop-filter: blur(15px) saturate(180%);
-  -webkit-backdrop-filter: blur(15px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.1);
-  transform: translateY(0);
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  width: 420px;
+  max-width: 100%;
+  padding: 32px 26px;
+
+  border-radius: 24px;
+
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+
+  border: 1px solid rgba(255, 255, 255, 0.4);
+
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+
+  animation: fadeUp 0.5s ease;
+  transition: all 0.3s ease;
 }
 
 .login-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.15);
+  transform: translateY(-4px);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.18);
 }
 
-/* Inputlarni "pill" (oval) shakliga keltirish */
+/* =========================
+   TEXT
+========================= */
+
+.login-card h2 {
+  font-size: 26px;
+  font-weight: 700;
+  color: #1a4d2e;
+  margin-bottom: 6px;
+}
+
+.login-card p {
+  font-size: 14px;
+  color: #555;
+  margin-bottom: 18px;
+}
+
+/* =========================
+   INPUTS
+========================= */
+
 .login-card input {
-  background: rgba(255, 255, 255, 0.5) !important;
-  border: 1px solid rgba(45, 106, 79, 0.1) !important;
-  padding: 14px 20px !important;
-  border-radius: 30px !important; /* Dumaloqroq */
+  width: 100%;
+  padding: 14px 18px;
+  margin-bottom: 12px;
+
+  border-radius: 30px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+
+  background: rgba(255, 255, 255, 0.6);
+
+  outline: none;
+  font-size: 14px;
+
   transition: 0.3s ease;
 }
 
 .login-card input:focus {
-  background: white !important;
-  box-shadow: 0 0 0 4px rgba(224, 169, 109, 0.2) !important;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(224, 169, 109, 0.3);
+}
+
+/* =========================
+   GOOGLE VERIFY
+========================= */
+
+#googleVerifyBtn {
+  width: 100%;
+}
+
+.google-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 30px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+
+  font-weight: 600;
+
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+
+  cursor: pointer;
+}
+
+#googleVerifyStatus {
+  font-size: 12px;
+  color: red;
+  text-align: center;
+  margin-top: 5px;
+}
+
+/* =========================
+   BUTTON
+========================= */
+
+.login-card button {
+  width: 100%;
+  padding: 14px;
+
+  border-radius: 30px;
+  border: none;
+
+  background: #e9dcc9;
+  color: #1a4d2e;
+
+  font-weight: 700;
+  cursor: pointer;
+
+  margin-top: 10px;
+
+  transition: 0.3s;
+}
+
+.login-card button:hover {
+  background: #e0cfae;
+  transform: translateY(-2px);
+}
+
+/* =========================
+   SWITCH TEXT
+========================= */
+
+.switch {
+  text-align: center;
+  margin-top: 14px;
+  font-size: 14px;
+}
+
+.switch span {
+  color: #1a4d2e;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* =========================
+   ANIMATION
+========================= */
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+/* TABLET */
+@media (max-width: 768px) {
+  .login-card {
+    width: 100%;
+    padding: 24px 18px;
+  }
+
+  .login-card h2 {
+    font-size: 22px;
+  }
+}
+
+/* MOBILE */
+@media (max-width: 480px) {
+  .register-page,
+  .login-page {
+    padding: 10px;
+  }
+
+  .login-card {
+    padding: 20px 14px;
+    border-radius: 18px;
+  }
+
+  .login-card h2 {
+    font-size: 20px;
+  }
+
+  .login-card p {
+    font-size: 13px;
+  }
+
+  .login-card input {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .login-card button {
+    padding: 12px;
+    font-size: 14px;
+  }
 }

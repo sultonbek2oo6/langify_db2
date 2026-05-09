@@ -1,292 +1,379 @@
-/* Student Results Professional Styling */
-.student-results-shell {
-    padding: 20px;
-    background: rgba(255, 255, 255, 0.6); /* Shaffof oq fon */
-    backdrop-filter: blur(10px);
-    border-radius: 30px;
-    margin: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-}
-
-/* Header */
-.student-results-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 10px 10px 30px 10px;
-}
-
-.student-results-header h2 {
-    color: #1a535c; /* To'q yashil */
-    font-size: 32px;
-    margin: 0;
-    font-weight: 800;
-}
-
-.student-results-header p {
-    color: #666;
-    margin: 5px 0 0 0;
-    font-size: 14px;
-}
-
-.student-back-btn {
-    background: #1a535c;
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: 0.3s;
-}
-
-.student-back-btn:hover {
-    background: #14454d;
-    transform: translateY(-2px);
-}
-
-/* Stats Cards */
-.student-section {
-    background: white;
-    border-radius: 24px;
-    padding: 25px;
-    margin-bottom: 25px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.02);
-}
-
-.student-section h3 {
-    color: #1a535c;
-    font-size: 24px;
-    margin-top: 0;
-    margin-bottom: 25px;
-}
-
-.student-stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 20px;
-}
-
-.student-stat-card {
-    background: #fff;
-    padding: 20px;
-    border-radius: 16px;
-    border: 1px solid #f0f0f0;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.01);
-}
-
-.student-stat-card h4 {
-    color: #1a535c;
-    font-size: 13px;
-    margin: 0 0 10px 0;
-    text-transform: none;
-}
-
-.student-stat-card p {
-    font-size: 28px;
-    font-weight: 700;
-    margin: 0;
-    color: #222;
-}
-
-/* Tables */
-.student-table-wrap {
-    overflow-x: auto; /* Mobil uchun muhim */
-    border-radius: 16px;
-}
-
-.student-table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 600px; /* Jadval siqilib ketmasligi uchun */
-}
-
-.student-table thead tr {
-    background-color: #1a535c;
-}
-
-.student-table th {
-    color: white;
-    text-align: left;
-    padding: 15px;
-    font-weight: 500;
-    font-size: 14px;
-}
-
-.student-table td {
-    padding: 15px;
-    border-bottom: 1px solid #f5f5f5;
-    font-size: 14px;
-    color: #444;
-}
-
-.student-table tbody tr:nth-child(even) {
-    background-color: #fafafa;
-}
-
-.student-table tbody tr:hover {
-    background-color: #f0f7f8;
-}
-
-/* Responsive / Mobilga moslashtirish */
-@media (max-width: 768px) {
-    .student-results-shell {
-        margin: 10px;
-        padding: 15px;
-    }
-
-    .student-results-header {
-        flex-direction: column;
-        gap: 20px;
-    }
-
-    .student-results-header h2 {
-        font-size: 24px;
-    }
-
-    .student-stats-grid {
-        grid-template-columns: repeat(2, 1fr); /* Mobilda 2 tadan card */
-        gap: 12px;
-    }
-
-    .student-stat-card p {
-        font-size: 20px;
-    }
-}
-
-@media (max-width: 480px) {
-    .student-stats-grid {
-        grid-template-columns: 1fr; /* Juda kichik ekranlarda 1 tadan */
-    }
-}
-
-/* Reveal Animation */
-.reveal {
-    animation: slideUp 0.5s ease forwards;
-}
-
-@keyframes slideUp {
-    from { opacity: 0; transform: translateY(15px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-/*leaderboard/
-/* Leaderboard Sahifasi Asosiy Konteyner */
+/* ===== 1. PAGE BASE & LAYOUT ===== */
 #leaderboardPage {
-    background: url('../assets/your-bg.jpg') no-repeat center center fixed;
-    background-size: cover;
-    min-height: 100vh;
-    padding: 20px;
+  padding: 30px;
+  background: #f5f7fb !important;
+  min-height: 100vh;
+  font-family: 'Segoe UI', sans-serif;
+  color: #1a1a1a;
+  position: relative; /* Back button uchun */
 }
 
-/* 2-rasmdagi kabi Tepa Qism (Header) */
-.page-header {
-    background: #f1f0e8; /* IELTS sahifasidagi och krem rang */
-    border-radius: 25px;
-    padding: 25px 40px;
-    margin-bottom: 30px;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start; /* Chap tomonga tekislash */
-    position: relative;
+.lb-main {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 30px;
 }
 
-/* Back tugmasi - chap burchakda */
+/* ===== 2. HEADER & NAVIGATION ===== */
+.lb-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.lb-header h1 {
+  font-size: 42px;
+  font-weight: 700;
+  /* Avval rang/gradientni bering */
+  background: linear-gradient(90deg, #7b5cff, #4e73ff);
+  
+  /* Keyin qirqish xususiyatlarini bering */
+  background-clip: text; 
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  
+  /* Agar matn ko'rinmay qolsa, zaxira rang */
+  color: #4e73ff; 
+}
+
+.lb-header p {
+  color: #777;
+}
+
 .back-btn-abs {
-    background: #e4e3d8;
-    border: 1px solid #d1d0c5;
-    padding: 6px 15px;
-    border-radius: 8px;
-    color: #4a5d4a; /* To'q yashil rang matn uchun */
-    cursor: pointer;
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin-bottom: 15px;
-    transition: 0.3s;
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  border: none;
+  background: white;
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 500;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  transition: 0.2s;
+  z-index: 10;
 }
 
 .back-btn-abs:hover {
-    background: #d8d7cb;
+  transform: translateY(-2px);
+  background: #4e73ff;
+  color: white;
 }
 
-/* Tepa yozuvlar (Sarlavha) */
-.page-header h1 {
-    color: #1a4d36; /* IELTS sahifasidagi to'q yashil sarlavha */
-    font-size: 1.8rem;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.page-header p {
-    color: #5a7361; /* Pastki matn rangi */
-    margin: 5px 0 0 0;
-    font-size: 1rem;
-}
-
-/* Leaderboard Jadval Qismi (Dark Card) */
-.lb-wrap {
-    display: flex;
-    justify-content: center;
-}
-
-.lb-card {
-    width: 100%;
-    max-width: 1000px;
-    background: #2d343e; /* To'q kulrang fon */
-    border-radius: 30px;
-    padding: 30px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-}
-
-/* Tab tugmalari */
+/* Tabs */
 .lb-tabs {
-    display: flex;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 5px;
-    border-radius: 15px;
-    margin-bottom: 25px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 25px;
 }
 
 .lb-tab {
-    flex: 1;
-    padding: 12px;
-    border: none;
-    background: transparent;
-    color: #a0aab8;
-    border-radius: 12px;
-    cursor: pointer;
-    font-weight: 600;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 20px;
+  background: #eaeef7;
+  cursor: pointer;
+  transition: 0.3s;
 }
 
 .lb-tab.active {
-    background: #52b155; /* Yashil aktiv holat */
-    color: white;
+  background: #4e73ff;
+  color: white;
 }
 
-/* Jadval yozuvlari aniqligi */
-.lb-table {
-    width: 100%;
-    border-collapse: collapse;
+/* ===== 3. STATS CARDS ===== */
+.lb-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 40px;
 }
 
-.lb-table th {
-    color: #8391a1;
-    text-align: left;
-    padding: 15px;
-    font-size: 0.85rem;
-    text-transform: uppercase;
+.stat-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.05);
 }
 
-.lb-table td {
-    padding: 20px 15px;
-    color: white;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+.stat-card h2 {
+  margin: 0;
+  font-size: 22px;
 }
 
-/* O'zingizni highlight qilish */
-.me-highlight {
-    background: rgba(82, 177, 85, 0.1);
+.stat-card p {
+  margin: 0;
+  color: #777;
+  font-size: 14px;
 }
+
+.icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 20px;
+}
+
+.blue { background: #4e73ff; }
+.gold { background: #f6b100; }
+.green { background: #00c853; }
+.purple { background: #9c27b0; }
+
+/* ===== 4. TOP 3 PODIUM SECTION ===== */
+.top3-section {
+  text-align: center;
+}
+
+.section-title {
+  font-size: 22px;
+  margin-bottom: 20px;
+}
+
+.top3-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 30px;
+  margin: 30px 0 50px;
+}
+
+.top-card {
+  width: 150px;
+  padding: 20px;
+  border-radius: 20px;
+  text-align: center;
+  background: white;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.top-card:hover {
+  transform: translateY(-8px) scale(1.03);
+  box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+}
+
+.rank-1 {
+  order: 2;
+  background: linear-gradient(#ffd54f, #ffb300);
+  color: #222;
+  position: relative;
+  animation: pulse 2s infinite;
+  z-index: 2;
+}
+
+.rank-1::before {
+  content: "👑";
+  position: absolute;
+  top: -18px;
+  right: -10px;
+  font-size: 22px;
+}
+
+.rank-2 { order: 1; opacity: 0.85; }
+.rank-3 { order: 3; opacity: 0.85; }
+
+/* ===== 5. AVATARS & ELEMENTS ===== */
+.avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4e73ff, #7b5cff);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: auto;
+  font-weight: bold;
+  font-size: 20px;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.avatar.small {
+  width: 42px;
+  height: 42px;
+  font-size: 15px;
+}
+
+.score {
+  font-weight: 700;
+  font-size: 20px;
+  color: #2e7d32;
+}
+
+.you {
+  background: #4e73ff;
+  color: white;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  margin-left: 6px;
+}
+
+/* ===== 6. LIST & ROWS ===== */
+.lb-left {
+  background: white;
+  padding: 20px;
+  border-radius: 20px;
+}
+
+.lb-row {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #eef1f6;
+  transition: all 0.25s ease;
+}
+
+.lb-row:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+}
+
+.lb-row.first {
+  border: 2px solid #f6b100;
+  background: linear-gradient(90deg, #fff8e1, #fff);
+}
+
+.lb-row.me {
+  border: 2px solid #4e73ff;
+  background: #eef3ff;
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rank {
+  font-weight: bold;
+  width: 30px;
+}
+
+/* ===== 7. RIGHT PANEL ===== */
+.lb-right {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.side-card {
+  background: white;
+  padding: 20px;
+  border-radius: 20px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+}
+
+.side-card h3 {
+  margin-bottom: 15px;
+}
+
+/* ===== 8. ANIMATIONS & RESPONSIVE ===== */
+@keyframes pulse {
+  0% {
+    transform: scale(1.2);
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.6);
+  }
+  70% {
+    transform: scale(1.25);
+    box-shadow: 0 0 0 20px rgba(255, 193, 7, 0);
+  }
+  100% {
+    transform: scale(1.2);
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+  }
+}
+
+@media (max-width: 900px) {
+  .lb-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .lb-main {
+    grid-template-columns: 1fr;
+  }
+
+  .top3-wrapper {
+    gap: 15px;
+  }
+
+  .top-card {
+    width: 110px;
+  }
+  
+  .rank-1 {
+    transform: scale(1.1);
+  }
+}
+
+student result uchun css 
+
+:root {
+    --bg: #F8F9FD;
+    --white: #ffffff;
+    --accent: #6C5DD3;
+    --text: #11142D;
+    --muted: #808191;
+}
+
+.dashboard-shell { padding: 24px; background-color: var(--bg); min-height: 100vh; font-family: 'Inter', sans-serif; color: var(--text); }
+.dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.hero-banner { background: linear-gradient(135deg, #6C5DD3 0%, #A29BFE 100%); border-radius: 20px; padding: 30px; color: white; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 30px rgba(108, 93, 211, 0.2); margin-bottom: 24px;}
+.score-num { font-size: 56px; font-weight: 700; }
+.score-total { font-size: 24px; opacity: 0.8; }
+.target-tag { background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 8px; margin-top: 10px; display: inline-block; font-size: 14px; }
+
+/* Progress Circle */
+.hero-progress { width: 130px; position: relative; }
+.circle-bg { fill: none; stroke: rgba(255,255,255,0.15); stroke-width: 3.5; }
+.circle { fill: none; stroke: white; stroke-width: 3.5; stroke-linecap: round; transition: stroke-dasharray 0.5s ease; }
+.percentage-box { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+.pct-num { font-size: 20px; font-weight: 700; display: block; }
+.pct-txt { font-size: 9px; opacity: 0.8; line-height: 1.1; }
+
+/* Tabs */
+.dashboard-tabs { display: flex; gap: 8px; margin-bottom: 24px; overflow-x: auto; padding-bottom: 8px; }
+.tab-item { background: white; border: none; padding: 12px 20px; border-radius: 12px; font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer; transition: 0.3s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+.tab-item.active { background: var(--accent); color: white; }
+
+/* Grid Layouts */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stat-card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+.stat-card .label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 8px; }
+.stat-card .val { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.stat-card .sub { font-size: 11px; color: var(--muted); }
+
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+.chart-box { background: white; padding: 24px; border-radius: 20px; min-height: 380px; display: flex; flex-direction: column; }
+.chart-box h3 { margin-bottom: 20px; font-size: 16px; font-weight: 600; }
+.chart-wrapper { flex: 1; position: relative; width: 100%; height: 100%; }
+
+/* Colors for stats */
+.stat-card { border-bottom: 4px solid transparent; }
+.stat-card.reading { border-color: #4FACFE; }
+.stat-card.writing { border-color: #FF9F43; }
+.stat-card.listening { border-color: #2ED47A; }
+.stat-card.speaking { border-color: #F65D81; }
+
+/* Feedback */
+.feedback-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px; }
+.feedback-card { padding: 24px; border-radius: 20px; }
+.focus { background: #FFF7F0; border: 1px solid #FFEDD5; }
+.strength { background: #F0FFF4; border: 1px solid #DCFCE7; }
+.feedback-card h3 { font-size: 16px; margin-bottom: 15px; }
+.feedback-card li { margin-bottom: 10px; font-size: 14px; color: #444; }
+
+@media (max-width: 850px) { .charts-grid, .feedback-grid { grid-template-columns: 1fr; } }

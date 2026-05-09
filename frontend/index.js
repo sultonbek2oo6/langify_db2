@@ -2241,321 +2241,278 @@ async function submitReading(materialId, answers) {
 
 /* ================= LEADERBOARD UI ================= */
 async function openLeaderboard(module = "") {
-  // Sahifadagi asosiy elementlarni olish
-  const titleEl = document.querySelector("#leaderboardPage h1");
-  const bodyEl = document.getElementById("leaderboardBody");
+  const top3El = document.getElementById("top3");
+  const listEl = document.getElementById("leaderboardList");
   const tabs = document.querySelectorAll(".lb-tab");
 
-  if (!titleEl || !bodyEl) return;
-
-  // Sarlavhani tanlangan modulga qarab yangilash
-  titleEl.textContent = module ? `${module.charAt(0).toUpperCase() + module.slice(1)} Leaderboard` : "🏆 Global Leaderboard";
-  
-  // Yuklanish holatini ko'rsatish
-  bodyEl.innerHTML = `
-    <div style="text-align:center; padding: 40px;">
-      <div class="loader"></div> <!-- CSS-da loader bo'lsa ko'rinadi -->
-      <p style="margin-top:15px; color:rgba(255,255,255,0.6);">Loading rankings...</p>
-    </div>
-  `;
-
-  // Aktiv tabni belgilash
+  // ===== ACTIVE TAB =====
   tabs.forEach(tab => {
-    const tabModule = tab.getAttribute("onclick").match(/'([^']+)'/);
-    const m = tabModule ? tabModule[1] : "";
-    if (m === module) {
-      tab.classList.add("active");
-    } else {
-      tab.classList.remove("active");
-    }
+    const m = tab.getAttribute("onclick").match(/'([^']*)'/)[1];
+    tab.classList.toggle("active", m === module);
   });
 
+  // ===== LOADING =====
+  top3El.innerHTML = "<p style='text-align:center;'>Loading...</p>";
+  listEl.innerHTML = "";
+
   try {
-    const qs = module ? `?module=${encodeURIComponent(module)}` : "";
+    const qs = module ? `?module=${module}` : "";
     const res = await fetch(`${API_BASE}/api/leaderboard${qs}`, {
       headers: getAuthHeaders()
     });
 
-    const data = await res.json().catch(() => ({}));
-    
-    if (!res.ok) {
-      bodyEl.innerHTML = `<div class="error-msg">${data.message || "Failed to load data"}</div>`;
-      return;
-    }
+    const data = await res.json();
+    const items = data.items || [];
 
-    const items = Array.isArray(data.items) ? data.items : [];
-    
     if (!items.length) {
-      bodyEl.innerHTML = `
-        <div style="text-align:center; padding: 50px; color:rgba(255,255,255,0.5);">
-          <p>📭 Hozircha bu yo'nalishda natijalar mavjud emas.</p>
-        </div>
-      `;
+      top3El.innerHTML = "<p>No data available</p>";
       return;
     }
 
-    // Jadval strukturasi
-    let html = `
-      <div class="lb-table-container">
-        <table class="lb-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Student</th>
-              <th>Best</th>
-              <th>Avg</th>
-              <th class="hide-mobile">Attempts</th>
-              <th>Badge</th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
+    const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
 
-    items.forEach((u, i) => {
-      // Top 3 uchun emojilar
-      let badge = "-";
-      if (i === 0) badge = "🥇";
-      else if (i === 1) badge = "🥈";
-      else if (i === 2) badge = "🥉";
+    // ===== TOP 3 PODIUM =====
+    const top = items.slice(0, 3);
 
-      // Foydalanuvchi ismini ajratib ko'rsatish (agar o'zi bo'lsa)
-      const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-      const isMe = u.username === currentUser.username;
+    top3El.innerHTML = `
+      <div class="top3-wrapper">
+        
+        <!-- 2-o‘rin -->
+        ${top[1] ? `
+          <div class="top-card rank-2">
+            <div class="avatar">${top[1].username.charAt(0).toUpperCase()}</div>
+            <h3>${top[1].username}</h3>
+            <p>${top[1].best_score}%</p>
+          </div>
+        ` : ""}
 
-      html += `
-        <tr class="${isMe ? 'me-highlight' : ''}">
-          <td><strong>${i + 1}</strong></td>
-          <td>
-            <div style="display:flex; align-items:center; gap:10px;">
-               <div class="user-avatar-mini">${u.username.charAt(0).toUpperCase()}</div>
-               <span>${u.username || "Noma'lum"} ${isMe ? '<small>(You)</small>' : ''}</span>
-            </div>
-          </td>
-          <td style="color: #4caf50; font-weight: bold;">${u.best_score ?? 0}%</td>
-          <td>${u.avg_score ?? 0}%</td>
-          <td class="hide-mobile">${u.attempts_count ?? 0}</td>
-          <td style="font-size: 1.2rem;">${badge}</td>
-        </tr>
-      `;
-    });
+        <!-- 1-o‘rin -->
+        ${top[0] ? `
+          <div class="top-card rank-1">
+            <div class="avatar">${top[0].username.charAt(0).toUpperCase()}</div>
+            <h3>${top[0].username}</h3>
+            <p>${top[0].best_score}%</p>
+          </div>
+        ` : ""}
 
-    html += `
-          </tbody>
-        </table>
+        <!-- 3-o‘rin -->
+        ${top[2] ? `
+          <div class="top-card rank-3">
+            <div class="avatar">${top[2].username.charAt(0).toUpperCase()}</div>
+            <h3>${top[2].username}</h3>
+            <p>${top[2].best_score}%</p>
+          </div>
+        ` : ""}
+
       </div>
     `;
 
-    bodyEl.innerHTML = html;
+    // ===== STATS =====
+    document.getElementById("totalUsers").textContent = items.length;
+    document.getElementById("topScore").textContent = `${items[0].best_score}%`;
+    document.getElementById("growthStat").textContent = "+23%"; // keyin dynamic qilamiz
+    document.getElementById("bestStreak").textContent = "28";   // keyin dynamic qilamiz
+
+    // ===== FULL LIST =====
+    listEl.innerHTML = items.map((u, i) => {
+      const isMe = u.username === currentUser.username;
+
+      return `
+        <div class="lb-row ${i === 0 ? 'first' : ''} ${isMe ? 'me' : ''}">
+          
+          <div class="left">
+            <span class="rank">#${i + 1}</span>
+            <div class="avatar small">${u.username.charAt(0).toUpperCase()}</div>
+
+            <div>
+              <h4>
+                ${u.username}
+                ${isMe ? '<span class="you">(You)</span>' : ''}
+              </h4>
+              <p>Attempts: ${u.attempts_count ?? 0}</p>
+            </div>
+          </div>
+
+          <div class="right">
+            <span class="score">${u.best_score ?? 0}%</span>
+          </div>
+
+        </div>
+      `;
+    }).join("");
+
+    // ===== BAR CHART =====
+    setTimeout(() => {
+      const barCanvas = document.getElementById("barChart");
+      if (barCanvas && window.Chart) {
+        new Chart(barCanvas, {
+          type: 'bar',
+          data: {
+            labels: items.slice(0, 5).map(u => u.username),
+            datasets: [{
+              label: 'Top Scores',
+              data: items.slice(0, 5).map(u => u.best_score)
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false }
+            }
+          }
+        });
+      }
+    }, 300);
+
+    // ===== RADAR CHART =====
+    setTimeout(() => {
+      const radarCanvas = document.getElementById("radarChart");
+      if (radarCanvas && window.Chart) {
+        new Chart(radarCanvas, {
+          type: 'radar',
+          data: {
+            labels: ['Speed', 'Accuracy', 'Consistency', 'Streak', 'Practice'],
+            datasets: [{
+              data: [90, 85, 88, 80, 95]
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false }
+            }
+          }
+        });
+      }
+    }, 300);
 
   } catch (err) {
     console.error("Leaderboard error:", err);
-    bodyEl.innerHTML = `
-      <div style="text-align:center; padding: 30px;">
-        <p style="color:crimson;">⚠️ Server bilan bog'lanishda xatolik yuz berdi.</p>
-        <button onclick="openLeaderboard('${module}')" class="lb-tab" style="margin-top:10px; flex:none; width:auto;">Qayta urinish</button>
+
+    top3El.innerHTML = `
+      <div style="text-align:center;">
+        <p style="color:red;">⚠️ Error loading leaderboard</p>
+        <button onclick="openLeaderboard('${module}')">Retry</button>
       </div>
     `;
   }
 }
 
 /* ================= STUDENT RESULTS ================= */
+let dashboardCharts = {};
+
 async function openStudentResults() {
-  await showPage(pages.studentResults, "block");
+    await showPage(pages.studentResults, "block");
+    // Birinchi marta Overview yuklanadi
+    switchTab('overview', document.querySelector('.tab-item.active'));
+}
 
-  const totalAttemptsEl = document.getElementById("totalAttempts");
-  const bestScoreEl = document.getElementById("bestScore");
-  const averageScoreEl = document.getElementById("averageScore");
-  const totalCorrectEl = document.getElementById("totalCorrect");
-  const accuracyEl = document.getElementById("accuracy");
-  const currentRankEl = document.getElementById("currentRank");
+function switchTab(tab, btn) {
+    // Aktiv tabni belgilash
+    document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
+    if(btn) btn.classList.add('active');
 
-  const recentAttemptsList = document.getElementById("recentAttemptsList");
-  const studentRankingList = document.getElementById("studentRankingList");
+    // Eski grafiklarni o'chirish
+    Object.values(dashboardCharts).forEach(c => c.destroy());
+    dashboardCharts = {};
 
-  // ✅ Writing elements
-  const writingTotalSubmissionsEl = document.getElementById("writingTotalSubmissions");
-  const writingCheckedSubmissionsEl = document.getElementById("writingCheckedSubmissions");
-  const writingPendingSubmissionsEl = document.getElementById("writingPendingSubmissions");
-  const writingMaxWordsEl = document.getElementById("writingMaxWords");
-  const writingAverageWordsEl = document.getElementById("writingAverageWords");
-  const writingLastSubmittedEl = document.getElementById("writingLastSubmitted");
-  const recentWritingList = document.getElementById("recentWritingList");
-
-  if (recentAttemptsList) {
-    recentAttemptsList.innerHTML = `<tr><td colspan="4">Loading...</td></tr>`;
-  }
-
-  if (studentRankingList) {
-    studentRankingList.innerHTML = `<tr><td colspan="6">Loading...</td></tr>`;
-  }
-
-  if (recentWritingList) {
-    recentWritingList.innerHTML = `<tr><td colspan="5">Loading...</td></tr>`;
-  }
-
-  try {
-    const meRes = await fetch(`${API_BASE}/api/results/me`, {
-      headers: getAuthHeaders()
-    });
-
-    const meData = await meRes.json().catch(() => ({}));
-
-    if (!meRes.ok) {
-      alert(meData.message || "Student resultsni yuklashda xatolik");
-      return;
-    }
-
-    // ================= MAIN STATS =================
-    if (totalAttemptsEl) totalAttemptsEl.textContent = meData.totalAttempts ?? 0;
-    if (bestScoreEl) bestScoreEl.textContent = meData.bestScore ?? 0;
-    if (averageScoreEl) averageScoreEl.textContent = meData.averageScore ?? 0;
-    if (totalCorrectEl) totalCorrectEl.textContent = meData.totalCorrect ?? 0;
-    if (accuracyEl) accuracyEl.textContent = `${meData.accuracy ?? 0}%`;
-    if (currentRankEl) currentRankEl.textContent = meData.currentRank ? `#${meData.currentRank}` : "-";
-
-    // ================= RECENT ATTEMPTS =================
-    const attempts = Array.isArray(meData.recentAttempts) ? meData.recentAttempts : [];
-
-    if (!attempts.length) {
-      if (recentAttemptsList) {
-        recentAttemptsList.innerHTML = `<tr><td colspan="4">No attempts yet</td></tr>`;
-      }
-    } else {
-      let attemptsHtml = "";
-      attempts.forEach((item) => {
-        attemptsHtml += `
-          <tr>
-            <td>${item.material_id ?? "-"}</td>
-            <td>${item.correct_count ?? 0} / ${item.total_count ?? 0}</td>
-            <td>${item.score ?? 0}</td>
-            <td>${item.created_at ? new Date(item.created_at).toLocaleString() : "-"}</td>
-          </tr>
+    const container = document.getElementById('dynamicTabContent');
+    
+    if (tab === 'overview') {
+        container.innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-card reading"><span class="label">Reading</span><div class="val">7.5/9.0</div><span class="sub">Target: 8.0</span></div>
+                <div class="stat-card writing"><span class="label">Writing</span><div class="val">6.5/9.0</div><span class="sub">Target: 7.0</span></div>
+                <div class="stat-card listening"><span class="label">Listening</span><div class="val">8.0/9.0</div><span class="sub">Target: 8.5</span></div>
+                <div class="stat-card speaking"><span class="label">Speaking</span><div class="val">7.0/9.0</div><span class="sub">Target: 7.5</span></div>
+                <div class="stat-card"><span class="label">Vocabulary</span><div class="val">7.5/9.0</div><span class="sub">Target: 8.0</span></div>
+            </div>
+            <div class="charts-grid">
+                <div class="chart-box"><h3>Skills Overview</h3><div class="chart-wrapper"><canvas id="radarChart"></canvas></div></div>
+                <div class="chart-box"><h3>Progress Over Time</h3><div class="chart-wrapper"><canvas id="lineChart"></canvas></div></div>
+            </div>
         `;
-      });
-
-      if (recentAttemptsList) {
-        recentAttemptsList.innerHTML = attemptsHtml;
-      }
-    }
-
-    // ================= WRITING STATS =================
-    const writingStats = meData.writingStats || {};
-
-    if (writingTotalSubmissionsEl) {
-      writingTotalSubmissionsEl.textContent = writingStats.totalSubmissions ?? 0;
-    }
-
-    if (writingCheckedSubmissionsEl) {
-      writingCheckedSubmissionsEl.textContent = writingStats.checkedSubmissions ?? 0;
-    }
-
-    if (writingPendingSubmissionsEl) {
-      writingPendingSubmissionsEl.textContent = writingStats.pendingSubmissions ?? 0;
-    }
-
-    if (writingMaxWordsEl) {
-      writingMaxWordsEl.textContent = writingStats.maxWords ?? 0;
-    }
-
-    if (writingAverageWordsEl) {
-      writingAverageWordsEl.textContent = writingStats.averageWords ?? 0;
-    }
-
-    if (writingLastSubmittedEl) {
-      writingLastSubmittedEl.textContent = writingStats.lastSubmittedAt
-        ? new Date(writingStats.lastSubmittedAt).toLocaleString()
-        : "-";
-    }
-
-    // ================= RECENT WRITING =================
-    const recentWriting = Array.isArray(meData.recentWritingSubmissions)
-      ? meData.recentWritingSubmissions
-      : [];
-
-    if (!recentWriting.length) {
-      if (recentWritingList) {
-        recentWritingList.innerHTML = `<tr><td colspan="5">No writing submissions yet</td></tr>`;
-      }
-    } else {
-      let writingHtml = "";
-
-      recentWriting.forEach((item) => {
-        writingHtml += `
-          <tr>
-            <td>${item.title || "-"}</td>
-            <td>${item.task_type || "-"}</td>
-            <td>${item.word_count || 0}</td>
-            <td>${item.status || "-"}</td>
-            <td>${item.submitted_at ? new Date(item.submitted_at).toLocaleString() : "-"}</td>
-          </tr>
+        renderRadar('radarChart', ['Reading', 'Writing', 'Listening', 'Speaking', 'Vocabulary'], [7.5, 6.5, 8, 7, 7.5]);
+        renderLine('lineChart', ['T1', 'T2', 'T3', 'T4', 'T5'], [6, 6.5, 7.5, 7, 7.3]);
+    } 
+    else if (tab === 'writing') {
+        container.innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-card"><span class="label">Words Per Minute</span><div class="val">42</div><span class="sub">↑ 7 from last week</span></div>
+                <div class="stat-card"><span class="label">Avg Essay Length</span><div class="val">287</div><span class="sub">words</span></div>
+                <div class="stat-card"><span class="label">Time Spent</span><div class="val">38</div><span class="sub">minutes avg</span></div>
+                <div class="stat-card"><span class="label">Last Essay</span><div class="val">312</div><span class="sub">words in 35 min</span></div>
+            </div>
+            <div class="charts-grid">
+                <div class="chart-box"><h3>Writing Speed Progress</h3><div class="chart-wrapper"><canvas id="writingLine"></canvas></div></div>
+                <div class="chart-box"><h3>Quality Breakdown</h3><div class="chart-wrapper"><canvas id="qualityBar"></canvas></div></div>
+            </div>
         `;
-      });
-
-      if (recentWritingList) {
-        recentWritingList.innerHTML = writingHtml;
-      }
+        renderLine('writingLine', ['Week 1', 'Week 2', 'Week 3', 'Week 4'], [35, 42, 38, 45], '#FF9F43');
+        renderBar('qualityBar', ['Task Resp.', 'Coherence', 'Vocab', 'Grammar'], [6, 7, 6.5, 7], '#6C5DD3');
     }
+    else if (tab === 'reading') {
+        container.innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-card"><span class="label">Reading Speed</span><div class="val">245</div><span class="sub">words per minute</span></div>
+                <div class="stat-card"><span class="label">Accuracy</span><div class="val">82%</div><span class="sub">correct answers</span></div>
+                <div class="stat-card"><span class="label">Time Per Passage</span><div class="val">18</div><span class="sub">minutes avg</span></div>
+                <div class="stat-card"><span class="label">Comprehension</span><div class="val">85%</div><span class="sub">understanding level</span></div>
+            </div>
+            <div class="charts-grid">
+                <div class="chart-box"><h3>Speed vs Accuracy</h3><div class="chart-wrapper"><canvas id="readingScatter"></canvas></div></div>
+                <div class="chart-box"><h3>Time Distribution</h3><div class="chart-wrapper"><canvas id="readingPie"></canvas></div></div>
+            </div>
+        `;
+        renderLine('readingScatter', ['P1', 'P2', 'P3', 'P4'], [70, 85, 80, 90], '#4FACFE');
+        renderPie('readingPie', ['Part 1', 'Part 2', 'Part 3'], [25, 35, 40]);
+    }
+}
 
-    // ================= RANKING =================
-    const rankingRes = await fetch(`${API_BASE}/api/results/leaderboard`, {
-      headers: getAuthHeaders()
+// Grafik chizish yordamchi funksiyalari
+function renderRadar(id, labels, data) {
+    const ctx = document.getElementById(id).getContext('2d');
+    dashboardCharts[id] = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: labels,
+            datasets: [{ data: data, backgroundColor: 'rgba(108, 93, 211, 0.2)', borderColor: '#6C5DD3', borderWidth: 2 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 9, ticks: { display: false } } } }
     });
+}
 
-    const rankingData = await rankingRes.json().catch(() => ({}));
-
-    if (!rankingRes.ok) {
-      if (studentRankingList) {
-        studentRankingList.innerHTML = `<tr><td colspan="6">Failed to load ranking</td></tr>`;
-      }
-      return;
-    }
-
-    const items = Array.isArray(rankingData.items) ? rankingData.items : [];
-
-    if (!items.length) {
-      if (studentRankingList) {
-        studentRankingList.innerHTML = `<tr><td colspan="6">No ranking data yet</td></tr>`;
-      }
-      return;
-    }
-
-    let rankingHtml = "";
-    items.forEach((user) => {
-      let badge = "-";
-      if (Number(user.rankPosition) === 1) badge = "🥇 Top 1";
-      else if (Number(user.rankPosition) === 2) badge = "🥈 Top 2";
-      else if (Number(user.rankPosition) === 3) badge = "🥉 Top 3";
-
-      rankingHtml += `
-        <tr>
-          <td>#${user.rankPosition}</td>
-          <td>${user.username || "-"}</td>
-          <td>${user.bestScore ?? 0}</td>
-          <td>${user.averageScore ?? 0}</td>
-          <td>${user.attemptsCount ?? 0}</td>
-          <td>${badge}</td>
-        </tr>
-      `;
+function renderLine(id, labels, data, color = '#6C5DD3') {
+    const ctx = document.getElementById(id).getContext('2d');
+    dashboardCharts[id] = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{ data: data, borderColor: color, tension: 0.4, fill: true, backgroundColor: color + '10' }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0 } } }
     });
+}
 
-    if (studentRankingList) {
-      studentRankingList.innerHTML = rankingHtml;
-    }
-  } catch (error) {
-    console.error("openStudentResults error:", error);
+function renderBar(id, labels, data, color) {
+    const ctx = document.getElementById(id).getContext('2d');
+    dashboardCharts[id] = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: color, borderRadius: 8 }] },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+}
 
-    if (recentAttemptsList) {
-      recentAttemptsList.innerHTML = `<tr><td colspan="4">Server bilan bog‘lanib bo‘lmadi</td></tr>`;
-    }
-
-    if (studentRankingList) {
-      studentRankingList.innerHTML = `<tr><td colspan="6">Server bilan bog‘lanib bo‘lmadi</td></tr>`;
-    }
-
-    if (recentWritingList) {
-      recentWritingList.innerHTML = `<tr><td colspan="5">Server bilan bog‘lanib bo‘lmadi</td></tr>`;
-    }
-  }
+function renderPie(id, labels, data) {
+    const ctx = document.getElementById(id).getContext('2d');
+    dashboardCharts[id] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{ data: data, backgroundColor: ['#4FACFE', '#FF9F43', '#2ED47A'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
 }
 
 /* ================= REVEAL OBSERVER ================= */

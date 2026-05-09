@@ -332,165 +332,69 @@
 </div>
 
 <!-- ================= STUDENT RESULTS PAGE ================= -->
+
+
 <div id="studentResultsPage" class="page" style="display:none;">
-  <div class="student-results-shell">
+    <div class="dashboard-shell">
+        <header class="dashboard-header">
+            <div>
+                <h1>Student Results Dashboard</h1>
+                <p>Comprehensive IELTS Performance Analysis</p>
+            </div>
+            <button class="back-btn" onclick="goDashboard()">Back to Dashboard</button>
+        </header>
 
-    <div class="student-results-header">
-      <div>
-        <h2>Student Results Dashboard</h2>
-        <p>Your personal performance and student ranking</p>
-      </div>
-      <button class="student-back-btn" onclick="goDashboard()">Back to Dashboard</button>
+        <section class="hero-banner">
+            <div class="hero-content">
+                <span class="hero-label">Overall IELTS Band Score</span>
+                <div class="score-row">
+                    <span id="overallScore" class="score-num">7.3</span>
+                    <span class="score-total">/ 9.0</span>
+                </div>
+                <div class="target-tag">🎯 Target: 7.5</div>
+            </div>
+            <div class="hero-progress">
+                <div class="circle-container">
+                    <svg viewBox="0 0 36 36" class="circular-chart">
+                        <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        <path id="progressCircle" class="circle" stroke-dasharray="81, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    </svg>
+                    <div class="percentage-box">
+                        <span class="pct-num">81%</span>
+                        <span class="pct-txt">Progress to Target</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <nav class="dashboard-tabs">
+            <button class="tab-item active" onclick="switchTab('overview', this)">✨ Overview</button>
+            <button class="tab-item" onclick="switchTab('writing', this)">✍️ Writing</button>
+            <button class="tab-item" onclick="switchTab('reading', this)">📖 Reading</button>
+            <button class="tab-item" onclick="switchTab('listening', this)">🎧 Listening</button>
+            <button class="tab-item" onclick="switchTab('speaking', this)">🗣️ Speaking</button>
+            <button class="tab-item" onclick="switchTab('vocabulary', this)">📚 Vocabulary</button>
+        </nav>
+
+        <div id="dynamicTabContent"></div>
+
+        <section class="feedback-grid">
+            <div class="feedback-card focus">
+                <h3>💡 Recommendations for Improvement</h3>
+                <ul id="recommendationsList">
+                    <li>Writing: Improve grammar accuracy and sentence structures.</li>
+                    <li>Speaking: Practice fluency and natural pronunciation.</li>
+                </ul>
+            </div>
+            <div class="feedback-card strength">
+                <h3>⭐ Strengths</h3>
+                <ul id="strengthsList">
+                    <li>Listening: Excellent performance in main ideas.</li>
+                    <li>Reading: Strong vocabulary and inference skills.</li>
+                </ul>
+            </div>
+        </section>
     </div>
-
-    <!-- A. MY PERFORMANCE -->
-    <div class="student-section">
-      <div class="student-section-top">
-        <h3>My Performance</h3>
-      </div>
-
-      <div class="student-stats-grid">
-        <div class="student-stat-card reveal">
-          <h4>Total Attempts</h4>
-          <p id="totalAttempts">0</p>
-        </div>
-
-        <div class="student-stat-card reveal">
-          <h4>Best Score</h4>
-          <p id="bestScore">0</p>
-        </div>
-
-        <div class="student-stat-card reveal">
-          <h4>Average Score</h4>
-          <p id="averageScore">0</p>
-        </div>
-
-        <div class="student-stat-card reveal">
-          <h4>Total Correct</h4>
-          <p id="totalCorrect">0</p>
-        </div>
-
-        <div class="student-stat-card reveal">
-          <h4>Accuracy</h4>
-          <p id="accuracy">0%</p>
-        </div>
-
-        <div class="student-stat-card reveal">
-          <h4>Current Rank</h4>
-          <p id="currentRank">-</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- RECENT ATTEMPTS -->
-    <div class="student-section">
-      <div class="student-section-top">
-        <h3>Recent Attempts</h3>
-      </div>
-
-      <div class="student-table-wrap reveal">
-        <table class="student-table">
-          <thead>
-            <tr>
-              <th>Material</th>
-              <th>Correct</th>
-              <th>Score</th>
-              <th>Date</th>
-            </tr>
-          </thead>
-          <tbody id="recentAttemptsList">
-            <tr>
-              <td colspan="4">Loading...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <!-- WRITING RESULTS -->
-    <div class="student-section">
-      <div class="student-section-top">
-       <h3>Writing Results</h3>
-      </div>
-
-      <div class="student-stats-grid">
-       <div class="student-stat-card reveal">
-       <h4>Total Writings</h4>
-       <p id="writingTotalSubmissions">0</p>
-      </div>
-
-      <div class="student-stat-card reveal">
-       <h4>Checked</h4>
-       <p id="writingCheckedSubmissions">0</p>
-      </div>
-
-      <div class="student-stat-card reveal">
-       <h4>Pending</h4>
-       <p id="writingPendingSubmissions">0</p>
-      </div>
-
-      <div class="student-stat-card reveal">
-       <h4>Max Words</h4>
-       <p id="writingMaxWords">0</p>
-      </div>
-
-      <div class="student-stat-card reveal">
-        <h4>Average Words</h4>
-        <p id="writingAverageWords">0</p>
-      </div>
-
-      <div class="student-stat-card reveal">
-        <h4>Last Writing</h4>
-        <p id="writingLastSubmitted">-</p>
-       </div>
-      </div>
-
-      <div class="student-table-wrap reveal" style="margin-top:16px;">
-        <table class="student-table">
-          <thead>
-           <tr>
-           <th>Task</th>
-           <th>Type</th>
-           <th>Words</th>
-           <th>Status</th>
-           <th>Date</th>
-           </tr>
-          </thead>
-          <tbody id="recentWritingList">
-            <tr>
-             <td colspan="5">Loading...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <!-- B. STUDENT RANKING -->
-    <div class="student-section">
-      <div class="student-section-top">
-        <h3>Student Ranking</h3>
-      </div>
-
-      <div class="student-table-wrap">
-        <table class="student-table">
-          <thead>
-            <tr>
-              <th>Rank</th>
-              <th>Username</th>
-              <th>Best Score</th>
-              <th>Avg Score</th>
-              <th>Attempts</th>
-              <th>Badge</th>
-            </tr>
-          </thead>
-          <tbody id="studentRankingList">
-            <tr>
-              <td colspan="6">Loading...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-  </div>
 </div>
 <!-- ================= LISTENING PAGE ================= -->
 <div id="listeningPage" class="page" style="display:none;">
@@ -541,25 +445,97 @@
   </div>
 </div>
 
+<!-- ===== LEADERBOARD PAGE ===== -->
 <div id="leaderboardPage" class="page" style="display:none;">
-  <div class="page-header">
+
+  <!-- HEADER -->
+  <div class="lb-header">
     <button class="back-btn-abs" onclick="showPage(pages.dashboard)">⬅ Back</button>
     <h1>🏆 Leaderboard</h1>
-    <p>Top students and rankings</p>
+    <p>Top performers this month</p>
   </div>
 
-  <!-- ✅ NEW: card wrapper -->
-  <div class="lb-wrap">
-    <div class="lb-card">
-      <div class="lb-tabs">
-        <button class="lb-tab" onclick="openLeaderboard('reading')">Reading</button>
-        <button class="lb-tab" onclick="openLeaderboard('listening')">Listening</button>
-        <button class="lb-tab" onclick="openLeaderboard('')">All</button>
-      </div>
+  <!-- FILTER TABS -->
+  <div class="lb-tabs">
+    <button class="lb-tab active" onclick="openLeaderboard('')">All</button>
+    <button class="lb-tab" onclick="openLeaderboard('reading')">Reading</button>
+    <button class="lb-tab" onclick="openLeaderboard('listening')">Listening</button>
+  </div>
 
-      <div id="leaderboardBody">Loading...</div>
+  <!-- STATS CARDS -->
+  <div class="lb-stats">
+
+    <div class="stat-card">
+      <div class="icon blue">👥</div>
+      <div>
+        <h2 id="totalUsers">0</h2>
+        <p>Total Users</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="icon gold">🏆</div>
+      <div>
+        <h2 id="topScore">0</h2>
+        <p>Top Score</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="icon green">📈</div>
+      <div>
+        <h2 id="growthStat">+0%</h2>
+        <p>Growth</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="icon purple">🔥</div>
+      <div>
+        <h2 id="bestStreak">0</h2>
+        <p>Best Streak</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- TOP 3 PODIUM -->
+  <div class="top3-section">
+    <h2 class="section-title">Top Champions 👑</h2>
+
+    <div class="top3-wrapper" id="top3">
+      <!-- JS orqali chiqadi -->
     </div>
   </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="lb-main">
+
+    <!-- LEFT: FULL LIST -->
+    <div class="lb-left">
+      <h2 class="section-title">Complete Rankings</h2>
+
+      <div id="leaderboardList">
+        <!-- JS orqali chiqadi -->
+      </div>
+    </div>
+
+    <!-- RIGHT: STATS PANEL -->
+    <div class="lb-right">
+
+      <div class="side-card">
+        <h3>🎯 Top Player Stats</h3>
+        <canvas id="radarChart"></canvas>
+      </div>
+
+      <div class="side-card">
+        <h3>📊 Top Scores</h3>
+        <canvas id="barChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
 </div>
 
 <!-- ================= VOCABULARY PAGE ================= -->
@@ -778,5 +754,8 @@
 </div>
 
 <script src="index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </body>
 </html>
