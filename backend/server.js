@@ -2052,12 +2052,18 @@ app.post("/api/auth/google-verify", async (req, res) => {
 // GET /api/writing/tasks
 app.get("/api/writing/tasks", authenticateToken, async (req, res) => {
   try {
+    // DISTINCT set_id orqali faqat noyob setlarni olamiz
     const [rows] = await pool.query(
       `
-      SELECT id, title, task_type, prompt, min_words, time_limit, created_at
+      SELECT 
+        set_id, 
+        MIN(title) as display_title, 
+        COUNT(id) as total_tasks,
+        SUM(time_limit) as total_time
       FROM writing_tasks
       WHERE is_active = 1
-      ORDER BY id ASC
+      GROUP BY set_id
+      ORDER BY set_id ASC
       `
     );
 
@@ -2068,32 +2074,28 @@ app.get("/api/writing/tasks", authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/writing/tasks/:id
-app.get("/api/writing/tasks/:id", authenticateToken, async (req, res) => {
+// GET /api/writing/sets/:set_id
+app.get("/api/writing/sets/:set_id", authenticateToken, async (req, res) => {
   try {
-    const taskId = Number(req.params.id);
-    if (!taskId) {
-      return res.status(400).json({ message: "Task id noto‘g‘ri." });
-    }
-
+    const setId = Number(req.params.set_id);
     const [rows] = await pool.query(
       `
-      SELECT id, title, task_type, prompt, min_words, time_limit, created_at
+      SELECT id, title, task_type, prompt, min_words, time_limit, set_id
       FROM writing_tasks
-      WHERE id = ? AND is_active = 1
-      LIMIT 1
+      WHERE set_id = ? AND is_active = 1
+      ORDER BY task_type ASC
       `,
-      [taskId]
+      [setId]
     );
 
     if (!rows.length) {
-      return res.status(404).json({ message: "Writing task topilmadi." });
+      return res.status(404).json({ message: "Topshiriqlar topilmadi." });
     }
 
-    res.json({ task: rows[0] });
+    res.json({ tasks: rows }); // Endi bitta obyekt emas, massiv qaytaradi
   } catch (err) {
-    console.error("GET /api/writing/tasks/:id error:", err);
-    res.status(500).json({ message: "Writing taskni olishda xatolik." });
+    console.error("GET /api/writing/sets/:set_id error:", err);
+    res.status(500).json({ message: "Serverda xatolik." });
   }
 });
 

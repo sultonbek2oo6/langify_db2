@@ -1454,7 +1454,7 @@ async function loadWritingTasks() {
   const listEl = document.getElementById("writingTaskList");
   if (!listEl) return;
 
-  listEl.innerHTML = "<p style='color: white;'>Loading tasks...</p>";
+  listEl.innerHTML = "<p style='color: #1a4d3a;'>Loading tests...</p>";
 
   try {
     const res = await fetch(`${API_BASE}/api/writing/tasks`, {
@@ -1462,23 +1462,23 @@ async function loadWritingTasks() {
     });
 
     const data = await res.json();
-    const items = data.items || data; 
+    // Backenddan GROUP BY qilingan items keladi
+    const items = data.items || []; 
 
-    if (!items || items.length === 0) {
-      listEl.innerHTML = "<p style='color: white;'>No tasks found.</p>";
+    if (items.length === 0) {
+      listEl.innerHTML = "<p style='color: #1a4d3a;'>No tests found.</p>";
       return;
     }
 
     listEl.innerHTML = ""; 
 
-    items.forEach((item, index) => {
+    items.forEach((set) => {
       const card = document.createElement("div");
       
-      // Ixchamroq kartochka stili
       card.style.cssText = `
         background: #FDFCF5;
         border-radius: 12px;
-        padding: 15px;
+        padding: 20px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -1488,48 +1488,35 @@ async function loadWritingTasks() {
         border: 1px solid rgba(0,0,0,0.03);
       `;
 
-      card.onmouseover = () => {
-        card.style.transform = "translateY(-3px)";
-        card.style.boxShadow = "0 5px 12px rgba(0,0,0,0.1)";
-      };
-      card.onmouseout = () => {
-        card.style.transform = "translateY(0)";
-        card.style.boxShadow = "0 2px 8px rgba(0,0,0,0.05)";
-      };
-
       card.innerHTML = `
         <div>
           <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
              <span style="background: #E8F5E9; color: #2E7D32; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold;">
-                ${(item.task_type || 'task').toUpperCase()}
+                SET #${set.set_id}
              </span>
-             <small style="color: #bbb; font-size: 10px;">#${index + 1}</small>
+             <small style="color: #bbb; font-size: 10px;">Full Test</small>
           </div>
-          <h4 style="margin: 0 0 8px 0; color: #1a4d3a; font-size: 15px; line-height: 1.2;">
-            ${item.title}
+          <h4 style="margin: 0 0 8px 0; color: #1a4d3a; font-size: 16px; line-height: 1.2;">
+            Writing Practice Test ${set.set_id}
           </h4>
-          <p style="color: #777; font-size: 12px; margin-bottom: 12px;">
-             ⏱ ${item.time_limit}m • 📝 ${item.min_words}w
+          <p style="color: #777; font-size: 13px; margin-bottom: 12px;">
+             ⏱ ${set.total_time} min total • 📝 ${set.total_tasks} Tasks
           </p>
         </div>
-        <button style="
+        <button onclick="startWriting(${set.set_id})" style="
           background: #D7A97A; 
           color: white; 
           border: none; 
-          padding: 8px; 
+          padding: 10px; 
           border-radius: 8px; 
           width: 100%; 
           cursor: pointer; 
           font-weight: bold; 
-          font-size: 13px;
+          font-size: 14px;
         ">
-          Start
+          Start Test
         </button>
       `;
-
-      card.onclick = () => {
-        window.location.href = `writingtest.html?id=${item.id}`;
-      };
 
       listEl.appendChild(card);
     });
@@ -1538,6 +1525,11 @@ async function loadWritingTasks() {
     console.error("Error:", err);
     listEl.innerHTML = "<p style='color: #ff6b6b;'>Server error.</p>";
   }
+}
+
+// Bu yangi funksiyani ham loadWritingTasks dan keyin qo'shib qo'ying
+function startWriting(setId) {
+    window.location.href = `writingtest.html?id=${setId}`;
 }
 
 async function submitWritingEssay() {

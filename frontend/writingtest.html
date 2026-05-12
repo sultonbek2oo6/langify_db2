@@ -1,159 +1,335 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Writing Test - Practice</title>
-    <style>
-        body {
-            margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f7f6;
-            color: #333;
-        }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-        /* Tepada vaqt turadigan ixcham panel */
-        .top-timer-bar {
-            background: white;
-            padding: 10px;
-            text-align: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
+<title>Writing Practice</title>
 
-        .timer-display {
-            font-size: 20px;
-            font-weight: bold;
-            color: #d9534f; /* Qizilroq rang vaqt uchun */
-        }
+<link rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
 
-        .main-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 25px;
-            padding: 25px;
-            max-width: 1400px;
-            margin: 0 auto;
-            height: calc(100vh - 120px);
-        }
+<style>
+/* ================= GLOBAL SETTINGS ================= */
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
 
-        /* Chap tomondagi savol qismi */
-        .question-card {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            overflow-y: auto;
-            border-left: 5px solid #1a4d3a;
-        }
+body{
+    font-family: 'Inter', "Segoe UI", Roboto, sans-serif;
+    background: #f9f7f7; 
+    color: #1a1a1a;
+    overflow:hidden;
+}
 
-        /* O'ng tomondagi yozish qismi */
-        .writing-card {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            display: flex;
-            flex-direction: column;
-        }
+/* ================= TOP BAR ================= */
+.top-bar{
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:80px;
+    background: #a67272; 
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 40px;
+    z-index:999;
+    box-shadow: 0 4px 20px rgba(166, 114, 114, 0.2);
+}
 
-        #essay {
-            flex-grow: 1;
-            width: 100%;
-            border: 1px solid #e0e0e0;
-            border-radius: 10px;
-            padding: 20px;
-            font-size: 16px;
-            line-height: 1.6;
-            resize: none;
-            outline: none;
-            background-color: #fafafa;
-            transition: border 0.3s;
-        }
+.back-btn{
+    border: 1px solid rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.1);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 12px;
+    cursor:pointer;
+    font-size: 15px;
+    font-weight: 600;
+    transition: 0.3s ease;
+}
 
-        #essay:focus {
-            border-color: #1a4d3a;
-            background-color: #fff;
-        }
+.back-btn:hover{
+    background: white;
+    color: #a67272;
+}
 
-        .meta-info {
-            background: #fdfcf5;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
+.date-box{
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    padding: 10px 24px;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 500;
+}
 
-        /* Pastki tugmalar paneli */
-        .bottom-actions {
-            grid-column: span 2;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-        }
+.timer-box{
+    background: white;
+    color: #a67272; 
+    padding: 10px 30px;
+    border-radius: 15px;
+    font-size: 32px;
+    font-weight: 800;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
 
-        .btn {
-            padding: 12px 25px;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 15px;
-            transition: 0.3s;
-        }
+.ai-btn{
+    border: none;
+    background: #1a1a1a; 
+    color: white;
+    padding: 14px 28px;
+    border-radius: 12px;
+    cursor:pointer;
+    font-size: 15px;
+    font-weight: 700;
+    transition: 0.3s;
+}
 
-        .btn-dashboard {
-            background: #6c757d;
-            color: white;
-        }
+/* ================= MAIN LAYOUT ================= */
+.main-layout{
+    display:grid;
+    grid-template-columns: 1fr 1.1fr;
+    margin-top: 80px;
+    height: calc(100vh - 80px); /* Footer olib tashlangani uchun balandlik moslandi */
+}
 
-        .btn-submit {
-            background: #2a75bb; /* Reading sahifasidagi kabi ko'k */
-            color: white;
-            padding: 12px 60px;
-        }
+/* ================= LEFT (Question) ================= */
+.question-side{
+    padding: 30px;
+    overflow-y: auto;
+    background: #fdfaf8;
+}
 
-        .btn:hover {
-            opacity: 0.9;
-            transform: translateY(-2px);
-        }
+.question-card{
+    background: white;
+    border: 1px solid #eee1da;
+    border-radius: 24px;
+    padding: 35px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.02);
+}
 
-        #wordCount {
-            font-weight: bold;
-            color: #1a4d3a;
-        }
-    </style>
+.question-badge{
+    display: inline-block;
+    padding: 6px 16px;
+    background: #c4b19b; 
+    color: white;
+    border-radius: 30px;
+    font-size: 12px;
+    font-weight: 800;
+    margin-bottom: 20px;
+}
+
+.question-title{
+    font-size: 30px;
+    font-weight: 800;
+    color: #33272a;
+    line-height: 1.2;
+    margin-bottom: 25px;
+}
+
+.question-box{
+    background: #f9f7f7;
+    padding: 25px;
+    border-radius: 18px;
+    margin-bottom: 25px;
+    font-size: 19px;
+    line-height: 1.6;
+    color: #594a4e;
+    border-left: 6px solid #a67272;
+}
+
+.instructions{
+    font-size: 16px;
+    color: #8c7b7e;
+    line-height: 1.8;
+}
+
+/* ================= RIGHT (Editor) ================= */
+.editor-side{
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.editor-card{
+    flex: 1;
+    background: white;
+    border: 1px solid #eee1da;
+    border-radius: 24px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.04);
+}
+
+.editor-top{
+    height: 60px;
+    background: #fdfaf8;
+    border-bottom: 1px solid #eee1da;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 30px;
+}
+
+.editor-info div {
+    display: inline-block;
+    margin-right: 25px;
+    font-weight: 600;
+    font-size: 14px;
+    color: #594a4e;
+}
+
+.toolbar{
+    height: 55px;
+    background: white;
+    border-bottom: 1px solid #f9f7f7;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 20px;
+}
+
+.tool-btn{
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: transparent;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    color: #594a4e;
+}
+
+.tool-btn.active{
+    background: #a67272;
+    color: white;
+}
+
+#essay{
+    flex: 1;
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 35px;
+    font-size: 20px;
+    line-height: 1.8;
+    color: #33272a;
+}
+
+/* ================= BUTTONS ================= */
+.bottom-controls{
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 15px;
+    padding-bottom: 10px; /* Pastki qismda biroz joy */
+}
+
+.task-btn{
+    border: 1px solid #eee1da;
+    padding: 12px 25px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    background: white;
+    color: #594a4e;
+}
+
+.task-btn.active{
+    background: #c4b19b !important;
+    color: white !important;
+    border-color: #c4b19b;
+}
+
+.submit-btn{
+    border: none;
+    background: #1a1a1a;
+    color: white;
+    padding: 12px 35px;
+    border-radius: 12px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+@media(max-width:900px){
+    .main-layout { grid-template-columns: 1fr; overflow-y: auto; }
+    .top-bar { height: 120px; flex-wrap: wrap; }
+}
+</style>
 </head>
+
 <body>
 
-    <div class="top-timer-bar">
-        <span>🕒 Qolgan vaqt: </span>
-        <span id="timer" class="timer-display">40:00</span>
-    </div>
+<div class="top-bar">
+    <button class="back-btn" onclick="goBack()">
+        <i class="fa-solid fa-arrow-left"></i> Back to Sets
+    </button>
+    <div class="date-box" id="currentDate">May 12, 2026</div>
+    <div class="timer-box" id="timer">60:00</div>
+    <button class="ai-btn" onclick="showAiMessage()">
+        <i class="fa-solid fa-robot"></i> AI Check
+    </button>
+</div>
 
-    <div class="main-container">
+<div class="main-layout">
+    <div class="question-side">
         <div class="question-card">
-            <h2 id="title" style="margin-top: 0; color: #1a4d3a;">Loading...</h2>
-            <div id="meta" class="meta-info"></div>
-            <div id="prompt" style="white-space: pre-wrap; font-size: 17px; color: #444;"></div>
-        </div>
-
-        <div class="writing-card">
-            <textarea id="essay" placeholder="Write your essay here..."></textarea>
-            <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
-                <span id="wordCount">Words: 0</span>
+            <div class="question-badge" id="taskTypeBadge">TASK 1</div>
+            <div class="question-title" id="title">Loading Task...</div>
+            <div class="question-box" id="prompt">Preparing prompt...</div>
+            <div class="instructions">
+                <b>Instructions:</b>
+                Give reasons for your answer and include relevant examples.
+                Write at least <span id="minWords">250</span> words.
             </div>
         </div>
-
-        <div class="bottom-actions">
-            <button class="btn btn-dashboard" onclick="window.location.href='index.html'">🏠 Dashboard</button>
-            <button class="btn btn-submit" onclick="submitEssay()">Submit Test</button>
-        </div>
     </div>
 
-    <script src="config.js"></script>
-    <script src="writingtest.js"></script>
+    <div class="editor-side">
+        <div class="editor-card">
+            <div class="editor-top">
+                <div class="editor-info">
+                    <div class="word-info">
+                        <i class="fa-regular fa-file-word"></i> Words: <span id="wordCount">0</span>
+                    </div>
+                    <div class="min-info">
+                        <i class="fa-solid fa-layer-group"></i> Min: <span id="minimumWords">250</span>
+                    </div>
+                </div>
+                <div class="time-info">
+                    <i class="fa-regular fa-clock"></i> <span id="topTimer">60:00</span>
+                </div>
+            </div>
+
+            <div class="toolbar">
+                <button class="tool-btn" id="boldBtn"><b>B</b></button>
+                <button class="tool-btn" id="italicBtn"><i>I</i></button>
+                <button class="tool-btn" id="underlineBtn"><u>U</u></button>
+                <button class="tool-btn" id="fontPlus"><i class="fa-solid fa-plus"></i></button>
+                <button class="tool-btn" id="fontMinus"><i class="fa-solid fa-minus"></i></button>
+                <button class="tool-btn" id="fullscreenBtn"><i class="fa-solid fa-expand"></i></button>
+            </div>
+
+            <textarea id="essay" placeholder="Start typing..."></textarea>
+        </div>
+
+        <div class="bottom-controls">
+            <button class="task-btn task1 active" id="task1Btn">Task 1</button>
+            <button class="task-btn task2" id="task2Btn">Task 2</button>
+            <button class="submit-btn" onclick="submitEssay()">
+                <i class="fa-solid fa-paper-plane"></i> Submit Test
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="writingtest.js"></script>
+
 </body>
 </html>
