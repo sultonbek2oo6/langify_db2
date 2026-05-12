@@ -2400,118 +2400,416 @@ async function openLeaderboard(module = "") {
 
 /* ================= STUDENT RESULTS ================= */
 let dashboardCharts = {};
+let studentResultsData = null;
 
-async function openStudentResults() {
-    await showPage(pages.studentResults, "block");
-    // Birinchi marta Overview yuklanadi
-    switchTab('overview', document.querySelector('.tab-item.active'));
+
+/* ================= HELPERS ================= */
+
+const toNum = (v) => {
+    const n = Number(v);
+    return isNaN(n) ? 0 : n;
+};
+
+
+/* skill filter (robust) */
+function getSkillAttempts(attempts, skill) {
+
+    if (!Array.isArray(attempts)) return [];
+
+    return attempts.filter(a => {
+
+        const s = (
+            a.skill ||
+            a.type ||
+            a.module ||
+            ""
+        ).toString().toLowerCase().trim();
+
+        return s === skill.toLowerCase();
+    });
 }
 
-function switchTab(tab, btn) {
-    // Aktiv tabni belgilash
-    document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
-    if(btn) btn.classList.add('active');
 
-    // Eski grafiklarni o'chirish
+/* ================= OPEN ================= */
+
+async function openStudentResults() {
+
+    await showPage(pages.studentResults, "block");
+
+    await loadStudentResults();
+
+    updateOverviewHeader();
+
+    switchTab(
+        'overview',
+        document.querySelector('.tab-item.active')
+    );
+
+    clearInterval(window.resultsAutoRefresh);
+
+    window.resultsAutoRefresh =
+        setInterval(async () => {
+
+            await loadStudentResults();
+
+            updateOverviewHeader();
+
+        }, 10000);
+}
+
+
+/* ================= LOAD ================= */
+
+async function loadStudentResults() {
+
+    try {
+
+        const token = localStorage.getItem("token");
+
+        const res = await fetch(
+            "http://localhost:3000/api/results/me",
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await res.json();
+
+        if (!data.success) throw new Error(data.message);
+
+        studentResultsData = data;
+
+    } catch (e) {
+
+        console.error(e);
+
+        studentResultsData = {
+            stats: {
+                totalAttempts: 0,
+                bestScore: 0,
+                averageScore: 0,
+                accuracy: 0,
+                currentRank: "-"
+            },
+            recentAttempts: [],
+            writingStats: {}
+        };
+    }
+}
+
+
+/* ================= HEADER FIX ================= */
+
+function updateOverviewHeader() {
+
+    const stats = studentResultsData?.stats || {};
+
+    const avg = toNum(stats.averageScore);
+    const accuracy = toNum(stats.accuracy);
+
+    const progress = Math.min(Math.round((avg / 9) * 100), 100);
+
+    const overallEl = document.getElementById("overallBandScore");
+    if (overallEl) {
+        overallEl.innerHTML = `${avg.toFixed(1)} <span>/9.0</span>`;
+    }
+
+    const targetEl = document.getElementById("targetBand");
+    if (targetEl) {
+        targetEl.textContent = "🎯 Target: 8.0";
+    }
+
+    const progressEl = document.getElementById("progressPercent");
+    if (progressEl) {
+        progressEl.textContent = `${progress}%`;
+    }
+
+    const circle = document.getElementById("progressCircle");
+    if (circle) {
+        circle.style.background =
+            `conic-gradient(#ffffff ${progress * 3.6}deg, rgba(255,255,255,0.15) 0deg)`;
+    }
+}
+
+
+/* ================= SWITCH TAB ================= */
+
+function switchTab(tab, btn) {
+
+    document.querySelectorAll('.tab-item')
+        .forEach(e => e.classList.remove('active'));
+
+    if (btn) btn.classList.add('active');
+
     Object.values(dashboardCharts).forEach(c => c.destroy());
     dashboardCharts = {};
 
     const container = document.getElementById('dynamicTabContent');
-    
+
+    const stats = studentResultsData?.stats || {};
+    const writing = studentResultsData?.writingStats || {};
+    const attempts = studentResultsData?.recentAttempts || [];
+
+    const skillAttempts = getSkillAttempts(attempts, tab);
+    const scores = skillAttempts.map(a => toNum(a.score));
+
+    const best = toNum(stats.bestScore);
+    const avg = toNum(stats.averageScore);
+    const acc = toNum(stats.accuracy);
+
+
+    /* ================= OVERVIEW ================= */
+
     if (tab === 'overview') {
+
+        const allScores = attempts.map(a => toNum(a.score));
+
         container.innerHTML = `
-            <div class="stats-grid">
-                <div class="stat-card reading"><span class="label">Reading</span><div class="val">7.5/9.0</div><span class="sub">Target: 8.0</span></div>
-                <div class="stat-card writing"><span class="label">Writing</span><div class="val">6.5/9.0</div><span class="sub">Target: 7.0</span></div>
-                <div class="stat-card listening"><span class="label">Listening</span><div class="val">8.0/9.0</div><span class="sub">Target: 8.5</span></div>
-                <div class="stat-card speaking"><span class="label">Speaking</span><div class="val">7.0/9.0</div><span class="sub">Target: 7.5</span></div>
-                <div class="stat-card"><span class="label">Vocabulary</span><div class="val">7.5/9.0</div><span class="sub">Target: 8.0</span></div>
+        <div class="stats-grid">
+
+            <div class="stat-card reading">
+                <span class="label">Best Score</span>
+                <div class="val">${best.toFixed(1)}</div>
             </div>
-            <div class="charts-grid">
-                <div class="chart-box"><h3>Skills Overview</h3><div class="chart-wrapper"><canvas id="radarChart"></canvas></div></div>
-                <div class="chart-box"><h3>Progress Over Time</h3><div class="chart-wrapper"><canvas id="lineChart"></canvas></div></div>
+
+            <div class="stat-card writing">
+                <span class="label">Average Score</span>
+                <div class="val">${avg.toFixed(1)}</div>
             </div>
+
+            <div class="stat-card listening">
+                <span class="label">Accuracy</span>
+                <div class="val">${acc.toFixed(1)}%</div>
+            </div>
+
+            <div class="stat-card speaking">
+                <span class="label">Rank</span>
+                <div class="val">#${stats.currentRank || '-'}</div>
+            </div>
+
+            <div class="stat-card">
+                <span class="label">Attempts</span>
+                <div class="val">${stats.totalAttempts || 0}</div>
+            </div>
+
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-box">
+                <h3>Skills Overview</h3>
+                <div class="chart-wrapper">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-box">
+                <h3>Progress</h3>
+                <div class="chart-wrapper">
+                    <canvas id="lineChart"></canvas>
+                </div>
+            </div>
+        </div>
         `;
-        renderRadar('radarChart', ['Reading', 'Writing', 'Listening', 'Speaking', 'Vocabulary'], [7.5, 6.5, 8, 7, 7.5]);
-        renderLine('lineChart', ['T1', 'T2', 'T3', 'T4', 'T5'], [6, 6.5, 7.5, 7, 7.3]);
-    } 
-    else if (tab === 'writing') {
-        container.innerHTML = `
-            <div class="stats-grid">
-                <div class="stat-card"><span class="label">Words Per Minute</span><div class="val">42</div><span class="sub">↑ 7 from last week</span></div>
-                <div class="stat-card"><span class="label">Avg Essay Length</span><div class="val">287</div><span class="sub">words</span></div>
-                <div class="stat-card"><span class="label">Time Spent</span><div class="val">38</div><span class="sub">minutes avg</span></div>
-                <div class="stat-card"><span class="label">Last Essay</span><div class="val">312</div><span class="sub">words in 35 min</span></div>
-            </div>
-            <div class="charts-grid">
-                <div class="chart-box"><h3>Writing Speed Progress</h3><div class="chart-wrapper"><canvas id="writingLine"></canvas></div></div>
-                <div class="chart-box"><h3>Quality Breakdown</h3><div class="chart-wrapper"><canvas id="qualityBar"></canvas></div></div>
-            </div>
-        `;
-        renderLine('writingLine', ['Week 1', 'Week 2', 'Week 3', 'Week 4'], [35, 42, 38, 45], '#FF9F43');
-        renderBar('qualityBar', ['Task Resp.', 'Coherence', 'Vocab', 'Grammar'], [6, 7, 6.5, 7], '#6C5DD3');
+
+        requestAnimationFrame(() => {
+
+            renderRadar(
+                'radarChart',
+                ['Best', 'Average', 'Accuracy', 'Rank', 'Attempts'],
+                [
+                    best / 10,
+                    avg / 10,
+                    acc / 10,
+                    5,
+                    Math.min(stats.totalAttempts || 0, 10)
+                ]
+            );
+
+            renderLine(
+                'lineChart',
+                allScores.map((_, i) => `T${i + 1}`),
+                allScores
+            );
+        });
     }
-    else if (tab === 'reading') {
+
+
+    /* ================= WRITING ================= */
+
+    else if (tab === 'writing') {
+
         container.innerHTML = `
-            <div class="stats-grid">
-                <div class="stat-card"><span class="label">Reading Speed</span><div class="val">245</div><span class="sub">words per minute</span></div>
-                <div class="stat-card"><span class="label">Accuracy</span><div class="val">82%</div><span class="sub">correct answers</span></div>
-                <div class="stat-card"><span class="label">Time Per Passage</span><div class="val">18</div><span class="sub">minutes avg</span></div>
-                <div class="stat-card"><span class="label">Comprehension</span><div class="val">85%</div><span class="sub">understanding level</span></div>
+        <div class="stats-grid">
+
+            <div class="stat-card">
+                <span class="label">Essays</span>
+                <div class="val">${writing.totalSubmissions || 0}</div>
             </div>
-            <div class="charts-grid">
-                <div class="chart-box"><h3>Speed vs Accuracy</h3><div class="chart-wrapper"><canvas id="readingScatter"></canvas></div></div>
-                <div class="chart-box"><h3>Time Distribution</h3><div class="chart-wrapper"><canvas id="readingPie"></canvas></div></div>
+
+            <div class="stat-card">
+                <span class="label">Avg Words</span>
+                <div class="val">${writing.averageWords || 0}</div>
             </div>
+
+            <div class="stat-card">
+                <span class="label">Max Words</span>
+                <div class="val">${writing.maxWords || 0}</div>
+            </div>
+
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-box">
+                <h3>Writing</h3>
+                <div class="chart-wrapper">
+                    <canvas id="writingChart"></canvas>
+                </div>
+            </div>
+        </div>
         `;
-        renderLine('readingScatter', ['P1', 'P2', 'P3', 'P4'], [70, 85, 80, 90], '#4FACFE');
-        renderPie('readingPie', ['Part 1', 'Part 2', 'Part 3'], [25, 35, 40]);
+
+        requestAnimationFrame(() => {
+
+            renderBar(
+                'writingChart',
+                ['Essays', 'Avg Words', 'Max Words'],
+                [
+                    writing.totalSubmissions || 0,
+                    writing.averageWords || 0,
+                    writing.maxWords || 0
+                ],
+                '#FF9F43'
+            );
+        });
+    }
+
+
+    /* ================= SKILLS ================= */
+
+    else {
+
+        const colors = {
+            reading: "#4FACFE",
+            listening: "#2ED47A",
+            speaking: "#FF6B81",
+            vocabulary: "#9B59B6"
+        };
+
+        container.innerHTML = `
+        <div class="stats-grid">
+
+            <div class="stat-card">
+                <span class="label">Attempts</span>
+                <div class="val">${scores.length}</div>
+            </div>
+
+            <div class="stat-card">
+                <span class="label">Best</span>
+                <div class="val">${scores.length ? Math.max(...scores) : 0}</div>
+            </div>
+
+            <div class="stat-card">
+                <span class="label">Avg</span>
+                <div class="val">
+                    ${scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : 0}
+                </div>
+            </div>
+
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-box">
+                <h3>${tab}</h3>
+                <div class="chart-wrapper">
+                    <canvas id="${tab}Chart"></canvas>
+                </div>
+            </div>
+        </div>
+        `;
+
+        requestAnimationFrame(() => {
+
+            renderLine(
+                `${tab}Chart`,
+                scores.map((_, i) => `T${i + 1}`),
+                scores,
+                colors[tab] || "#6C5DD3"
+            );
+        });
     }
 }
 
-// Grafik chizish yordamchi funksiyalari
+
+/* ================= CHARTS ================= */
+
 function renderRadar(id, labels, data) {
-    const ctx = document.getElementById(id).getContext('2d');
+    const ctx = document.getElementById(id);
+    if (!ctx) return;
+
     dashboardCharts[id] = new Chart(ctx, {
         type: 'radar',
         data: {
-            labels: labels,
-            datasets: [{ data: data, backgroundColor: 'rgba(108, 93, 211, 0.2)', borderColor: '#6C5DD3', borderWidth: 2 }]
+            labels,
+            datasets: [{
+                data,
+                backgroundColor: 'rgba(108,93,211,0.2)',
+                borderColor: '#6C5DD3'
+            }]
         },
-        options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 9, ticks: { display: false } } } }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { r: { min: 0, max: 10 } }
+        }
     });
 }
 
+
 function renderLine(id, labels, data, color = '#6C5DD3') {
-    const ctx = document.getElementById(id).getContext('2d');
+
+    const ctx = document.getElementById(id);
+    if (!ctx) return;
+
     dashboardCharts[id] = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: labels,
-            datasets: [{ data: data, borderColor: color, tension: 0.4, fill: true, backgroundColor: color + '10' }]
+            labels,
+            datasets: [{
+                data,
+                borderColor: color,
+                backgroundColor: color + '20',
+                fill: true,
+                tension: 0.4
+            }]
         },
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0 } } }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
     });
 }
+
 
 function renderBar(id, labels, data, color) {
-    const ctx = document.getElementById(id).getContext('2d');
+
+    const ctx = document.getElementById(id);
+    if (!ctx) return;
+
     dashboardCharts[id] = new Chart(ctx, {
         type: 'bar',
-        data: { labels: labels, datasets: [{ data: data, backgroundColor: color, borderRadius: 8 }] },
-        options: { responsive: true, maintainAspectRatio: false }
-    });
-}
-
-function renderPie(id, labels, data) {
-    const ctx = document.getElementById(id).getContext('2d');
-    dashboardCharts[id] = new Chart(ctx, {
-        type: 'doughnut',
         data: {
-            labels: labels,
-            datasets: [{ data: data, backgroundColor: ['#4FACFE', '#FF9F43', '#2ED47A'] }]
+            labels,
+            datasets: [{
+                data,
+                backgroundColor: color
+            }]
         },
-        options: { responsive: true, maintainAspectRatio: false }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
     });
 }
 

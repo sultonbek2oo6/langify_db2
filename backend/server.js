@@ -1145,8 +1145,9 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
 
     await conn.beginTransaction();
 
+    // 1. material.type ni ham olish uchun SELECT so'rovini yangiladik
     const [mRows] = await conn.query(
-      `SELECT id, module, order_no, is_published FROM materials WHERE id=? LIMIT 1`,
+      `SELECT id, type, module, order_no, is_published FROM materials WHERE id=? LIMIT 1`,
       [materialId]
     );
     if (!mRows.length || !mRows[0].is_published) {
@@ -1183,7 +1184,6 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
       });
     }
 
-    // ✅ Savollarni to‘liq olish
     const [qRows] = await conn.query(
       `SELECT id, correct_option, option_a, option_b, option_c, option_d
        FROM material_questions WHERE material_id=?`,
@@ -1196,7 +1196,6 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
       return res.status(400).json({ message: "Bu materialda savollar yo‘q." });
     }
 
-    // ✅ Javoblarni map qilish
     const ansMap = new Map();
     answers.forEach((a) => {
       const qid = Number(a.question_id);
@@ -1210,14 +1209,11 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
     qRows.forEach((q) => {
       const given = ansMap.get(Number(q.id)) || "";
       const right = String(q.correct_option || "").trim();
-
       let isCorrect = false;
 
-      // Agar correct_option faqat A/B/C/D bo‘lsa → variant test
       if (["A", "B", "C", "D"].includes(right.toUpperCase())) {
         isCorrect = given.toUpperCase() === right.toUpperCase();
       } else {
-        // Input test → matn solishtirish (case-insensitive)
         isCorrect = given.toLowerCase() === right.toLowerCase();
       }
 
@@ -1234,13 +1230,13 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
     const score = Math.round((correct / total) * 10000) / 100;
     const passed = score >= PASS_SCORE;
 
+    // 2. attempts jadvaliga "type" ustunini qo'shib saqlaymiz
     await conn.query(
-      `INSERT INTO attempts (user_id, material_id, correct_count, total_count, score, created_at)
-       VALUES (?, ?, ?, ?, ?, NOW())`,
-      [userId, materialId, correct, total, score]
+      `INSERT INTO attempts (user_id, material_id, type, correct_count, total_count, score, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+      [userId, materialId, material.type, correct, total, score]
     );
 
-    // Leaderboard upsert
     await conn.query(
       `
       INSERT INTO leaderboard
@@ -1304,7 +1300,6 @@ app.post("/api/attempts/submit", authenticateToken, async (req, res) => {
 
     await conn.commit();
 
-    // ✅ Endi results massivini ham qaytaramiz
     res.json({
       material_id: materialId,
       correct_count: correct,
@@ -1369,18 +1364,21 @@ app.get("/api/leaderboard", authenticateToken, async (req, res) => {
 });
 
 /* ================= STUDENT RESULTS ================= */
-// GET /api/results/me
+
 app.get("/api/results/me", authenticateToken, async (req, res) => {
+
   try {
+
     const userId = req.user.id;
 
-    // 1) Quiz/Test stats
+    /* ================= OVERALL STATS ================= */
+
     const [statsRows] = await pool.query(
       `
       SELECT
-        COUNT(*) AS totalAttempts,
+        COUNT(id) AS totalAttempts,
         COALESCE(MAX(score), 0) AS bestScore,
-        COALESCE(ROUND(AVG(score), 2), 0) AS averageScore,
+        COALESCE(AVG(score), 0) AS averageScore,
         COALESCE(SUM(correct_count), 0) AS totalCorrect,
         COALESCE(SUM(total_count), 0) AS totalQuestions
       FROM attempts
@@ -1390,62 +1388,191 @@ app.get("/api/results/me", authenticateToken, async (req, res) => {
     );
 
     const stats = statsRows[0] || {};
-    const totalCorrect = Number(stats.totalCorrect || 0);
-    const totalQuestions = Number(stats.totalQuestions || 0);
+
+    const totalCorrect =
+      Number(stats.totalCorrect || 0);
+
+    const totalQuestions =
+      Number(stats.totalQuestions || 0);
+
     const accuracy =
       totalQuestions > 0
-        ? Number(((totalCorrect / totalQuestions) * 100).toFixed(2))
+        ? Number(
+            (
+              (totalCorrect / totalQuestions) * 100
+            ).toFixed(2)
+          )
         : 0;
 
-    // 2) Recent attempts
+
+    /* ================= RECENT ATTEMPTS ================= */
+
     const [recentRows] = await pool.query(
       `
-      SELECT id, material_id, correct_count, total_count, score, created_at
+      SELECT
+        id,
+        material_id,
+        correct_count,
+        total_count,
+        score,
+        type,
+        created_at
       FROM attempts
       WHERE user_id = ?
-      ORDER BY created_at DESC
-      LIMIT 10
+      ORDER BY created_at DESC, id DESC
+      LIMIT 20
       `,
       [userId]
     );
 
-    // 3) Current rank
+
+    /* ================= READING ================= */
+
+    const [readingRows] = await pool.query(
+      `
+      SELECT
+        score,
+        created_at
+      FROM attempts
+      WHERE user_id = ?
+      AND type = 'reading'
+      ORDER BY created_at ASC
+      `,
+      [userId]
+    );
+
+
+    /* ================= LISTENING ================= */
+
+    const [listeningRows] = await pool.query(
+      `
+      SELECT
+        score,
+        created_at
+      FROM attempts
+      WHERE user_id = ?
+      AND type = 'listening'
+      ORDER BY created_at ASC
+      `,
+      [userId]
+    );
+
+
+    /* ================= SPEAKING ================= */
+
+    const [speakingRows] = await pool.query(
+      `
+      SELECT
+        score,
+        created_at
+      FROM attempts
+      WHERE user_id = ?
+      AND type = 'speaking'
+      ORDER BY created_at ASC
+      `,
+      [userId]
+    );
+
+
+    /* ================= VOCABULARY ================= */
+
+    const [vocabularyRows] = await pool.query(
+      `
+      SELECT
+        score,
+        created_at
+      FROM attempts
+      WHERE user_id = ?
+      AND type = 'vocabulary'
+      ORDER BY created_at ASC
+      `,
+      [userId]
+    );
+
+
+    /* ================= CURRENT RANK ================= */
+
     const [rankRows] = await pool.query(
       `
-      SELECT ranked.user_id, ranked.rank_position
+      SELECT rank_position
       FROM (
         SELECT
           a.user_id,
-          DENSE_RANK() OVER (ORDER BY MAX(a.score) DESC, AVG(a.score) DESC) AS rank_position
+
+          DENSE_RANK() OVER (
+            ORDER BY
+            MAX(a.score) DESC,
+            AVG(a.score) DESC
+          ) AS rank_position
+
         FROM attempts a
+
         GROUP BY a.user_id
-      ) AS ranked
+
+      ) ranked
+
       WHERE ranked.user_id = ?
       `,
       [userId]
     );
 
-    const currentRank = rankRows.length ? rankRows[0].rank_position : null;
+    const currentRank =
+      rankRows.length > 0
+        ? Number(rankRows[0].rank_position)
+        : null;
 
-    // 4) Writing stats
+
+    /* ================= WRITING STATS ================= */
+
     const [writingRows] = await pool.query(
       `
       SELECT
-        COUNT(*) AS totalSubmissions,
-        COALESCE(SUM(CASE WHEN status = 'checked' THEN 1 ELSE 0 END), 0) AS checkedSubmissions,
-        COALESCE(SUM(CASE WHEN status = 'submitted' THEN 1 ELSE 0 END), 0) AS pendingSubmissions,
-        COALESCE(MAX(word_count), 0) AS maxWords,
-        COALESCE(ROUND(AVG(word_count), 2), 0) AS averageWords,
-        MAX(submitted_at) AS lastSubmittedAt
+        COUNT(id) AS totalSubmissions,
+
+        COALESCE(
+          SUM(
+            CASE
+              WHEN status = 'checked'
+              THEN 1
+              ELSE 0
+            END
+          ),
+          0
+        ) AS checkedSubmissions,
+
+        COALESCE(
+          SUM(
+            CASE
+              WHEN status = 'submitted'
+              THEN 1
+              ELSE 0
+            END
+          ),
+          0
+        ) AS pendingSubmissions,
+
+        COALESCE(MAX(word_count), 0)
+          AS maxWords,
+
+        COALESCE(AVG(word_count), 0)
+          AS averageWords,
+
+        MAX(submitted_at)
+          AS lastSubmittedAt
+
       FROM writing_submissions
+
       WHERE user_id = ?
       `,
       [userId]
     );
 
-    const writing = writingRows[0] || {};
+    const writing =
+      writingRows[0] || {};
 
-    // 5) Recent writing submissions
+
+    /* ================= RECENT WRITING ================= */
+
     const [recentWritingRows] = await pool.query(
       `
       SELECT
@@ -1455,68 +1582,193 @@ app.get("/api/results/me", authenticateToken, async (req, res) => {
         ws.submitted_at,
         wt.title,
         wt.task_type
+
       FROM writing_submissions ws
-      JOIN writing_tasks wt ON wt.id = ws.task_id
+
+      LEFT JOIN writing_tasks wt
+        ON wt.id = ws.task_id
+
       WHERE ws.user_id = ?
-      ORDER BY ws.submitted_at DESC, ws.id DESC
+
+      ORDER BY
+        ws.submitted_at DESC,
+        ws.id DESC
+
       LIMIT 5
       `,
       [userId]
     );
 
+
+    /* ================= RESPONSE ================= */
+
     res.json({
-      totalAttempts: Number(stats.totalAttempts || 0),
-      bestScore: Number(stats.bestScore || 0),
-      averageScore: Number(stats.averageScore || 0),
-      totalCorrect,
-      totalQuestions,
-      accuracy,
-      currentRank,
-      recentAttempts: recentRows || [],
+
+      success: true,
+
+      stats: {
+
+        totalAttempts:
+          Number(stats.totalAttempts || 0),
+
+        bestScore:
+          Number(stats.bestScore || 0),
+
+        averageScore:
+          Number(
+            Number(
+              stats.averageScore || 0
+            ).toFixed(2)
+          ),
+
+        totalCorrect,
+        totalQuestions,
+        accuracy,
+        currentRank
+      },
+
+      recentAttempts:
+        recentRows || [],
+
+      readingAttempts:
+        readingRows || [],
+
+      listeningAttempts:
+        listeningRows || [],
+
+      speakingAttempts:
+        speakingRows || [],
+
+      vocabularyAttempts:
+        vocabularyRows || [],
 
       writingStats: {
-        totalSubmissions: Number(writing.totalSubmissions || 0),
-        checkedSubmissions: Number(writing.checkedSubmissions || 0),
-        pendingSubmissions: Number(writing.pendingSubmissions || 0),
-        maxWords: Number(writing.maxWords || 0),
-        averageWords: Number(writing.averageWords || 0),
-        lastSubmittedAt: writing.lastSubmittedAt || null
+
+        totalSubmissions:
+          Number(
+            writing.totalSubmissions || 0
+          ),
+
+        checkedSubmissions:
+          Number(
+            writing.checkedSubmissions || 0
+          ),
+
+        pendingSubmissions:
+          Number(
+            writing.pendingSubmissions || 0
+          ),
+
+        maxWords:
+          Number(
+            writing.maxWords || 0
+          ),
+
+        averageWords:
+          Number(
+            Number(
+              writing.averageWords || 0
+            ).toFixed(2)
+          ),
+
+        lastSubmittedAt:
+          writing.lastSubmittedAt || null
       },
-      recentWritingSubmissions: recentWritingRows || []
+
+      recentWritingSubmissions:
+        recentWritingRows || []
     });
+
   } catch (error) {
-    console.error("Student results error:", error);
-    res.status(500).json({ message: "Student resultsni olishda xatolik" });
-  }
-});
-// GET /api/results/leaderboard
-app.get("/api/results/leaderboard", authenticateToken, async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `
-      SELECT
-        a.user_id,
-        u.username,
-        COUNT(*) AS attemptsCount,
-        ROUND(MAX(a.score), 2) AS bestScore,
-        ROUND(AVG(a.score), 2) AS averageScore,
-        DENSE_RANK() OVER (ORDER BY MAX(a.score) DESC, AVG(a.score) DESC) AS rankPosition
-      FROM attempts a
-      JOIN users u ON u.id = a.user_id
-      GROUP BY a.user_id, u.username
-      ORDER BY rankPosition ASC, bestScore DESC, averageScore DESC
-      LIMIT 10
-      `
+
+    console.error(
+      "Student results error:",
+      error
     );
 
-    res.json({
-      items: rows || []
+    res.status(500).json({
+
+      success: false,
+
+      message:
+        "Student resultsni olishda xatolik"
     });
-  } catch (error) {
-    console.error("Student ranking error:", error);
-    res.status(500).json({ message: "Student rankingni olishda xatolik" });
   }
 });
+
+
+/* ================= LEADERBOARD ================= */
+
+// GET LEADERBOARD
+app.get(
+  "/api/results/leaderboard",
+  authenticateToken,
+  async (req, res) => {
+    try {
+
+      const [rows] = await pool.query(
+        `
+        SELECT
+          ranked.user_id,
+          ranked.username,
+          ranked.attemptsCount,
+          ranked.bestScore,
+          ranked.averageScore,
+          ranked.rankPosition
+        FROM (
+          SELECT
+            a.user_id,
+            u.username,
+
+            COUNT(a.id) AS attemptsCount,
+
+            ROUND(MAX(a.score), 2) AS bestScore,
+
+            ROUND(AVG(a.score), 2) AS averageScore,
+
+            DENSE_RANK() OVER (
+              ORDER BY
+                MAX(a.score) DESC,
+                AVG(a.score) DESC
+            ) AS rankPosition
+
+          FROM attempts a
+
+          INNER JOIN users u
+            ON u.id = a.user_id
+
+          GROUP BY a.user_id, u.username
+        ) ranked
+
+        ORDER BY
+          ranked.rankPosition ASC,
+          ranked.bestScore DESC,
+          ranked.averageScore DESC
+
+        LIMIT 10
+        `
+      );
+
+      res.json({
+        success: true,
+        items: rows || []
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Leaderboard error:",
+        error
+      );
+
+      res.status(500).json({
+        success: false,
+        message:
+          "Leaderboardni olishda xatolik"
+      });
+    }
+  }
+);
 /* ================= ADMIN ROUTES ================= */
 
 app.get("/admin/users", authenticateToken, isAdmin, async (req, res) => {
