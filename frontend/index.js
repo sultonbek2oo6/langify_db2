@@ -2230,6 +2230,63 @@ async function submitReading(materialId, answers) {
     if (resultEl) resultEl.innerHTML = `<p style="color:crimson;">Server error</p>`;
   }
 }
+/* ================= FULL MOCK FUNCTIONS ================= */
+
+// Sahifalarni ochish funksiyasi
+function openMockSection(type) {
+    // Agar pages obyekti dashboardda aniqlangan bo'lsa, shundan foydalanamiz
+    if (type === "listening") {
+        showPage(pages.listeningPage);
+    }
+    if (type === "reading") {
+        showPage(pages.readingPage);
+    }
+}
+
+// Full Mock sahifasini ochish
+function openFullMock() {
+    // 1. Barcha sahifalarni yashirish (Struktura buzilmasligi uchun)
+    document.querySelectorAll('.page').forEach(p => {
+        p.classList.remove('active');
+        p.style.display = 'none';
+    });
+
+    // 2. Mock sahifasini ko'rsatish
+    const mock = document.getElementById('mockPage');
+    if (mock) {
+        mock.classList.add('active');
+        // CSS-da flex berganimiz uchun bu yerda block qilmaymiz, 
+        // faqat active klassi orqali boshqaramiz
+        mock.style.display = 'flex'; 
+    }
+}
+
+// BACK tugmasi uchun funksiya - DASHBOARDNI TO'G'RI QAYTARISH
+function goHome() {
+    // 1. Mock sahifasini yashirish
+    const mockPage = document.getElementById('mockPage');
+    if (mockPage) {
+        mockPage.classList.remove('active');
+        mockPage.style.display = 'none';
+    }
+
+    // 2. Dashboardni ko'rsatish
+    // DIQQAT: showPage funksiyasi mavjud bo'lsa, undan foydalanish eng to'g'ri yo'l
+    // Dashboard sahifasining o'zgaruvchisi odatda pages.dashboardPage bo'ladi
+    if (typeof showPage === "function" && pages.dashboardPage) {
+        showPage(pages.dashboardPage);
+    } else {
+        // Agar showPage ishlamasa, dashboard ID-sini topib active qilamiz
+        const dashboard = document.getElementById('dashboardPage') || document.getElementById('dashboard');
+        if (dashboard) {
+            dashboard.classList.add('active');
+            dashboard.style.display = ''; // Inline stildan tozalaymiz, CSS o'zi boshqarsin
+        } else {
+            // Agar hech narsa o'xshamasas, sahifani yangilash (oxirgi chora)
+            window.location.reload();
+        }
+    }
+}
 
 /* ================= LEADERBOARD UI ================= */
 async function openLeaderboard(module = "") {

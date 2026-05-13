@@ -711,26 +711,103 @@
   </div>
 </div>
 
-<!-- ================= MOCK TEST PAGE (SKELETON) ================= -->
-<div id="mockPage" class="page" style="display:none;">
-  <div class="page-header">
-    <button onclick="showPage(pages.dashboard)">⬅ Back</button>
-    <h1>🧪 Full Mock Test</h1>
-    <p>Full test strukturasini yuklashga tayyor</p>
+<!-- ================= FULL MOCK PAGE ================= -->
+<div id="mockPage" class="page">
+
+  <!-- BACK BUTTON - Chap taraf tepada struktura buzilmasligi uchun -->
+  <div class="mock-header-actions">
+    <button class="back-btn" onclick="goHome()">
+      <span class="back-icon">←</span> Back 
+    </button>
   </div>
 
-  <div class="skeleton-wrap">
-    <div class="skeleton-card">
-      <h3>Mock structure</h3>
-      <ul>
-        <li>Listening (4 section)</li>
-        <li>Reading (3 passage)</li>
-        <li>Writing (Task 1/2)</li>
-      </ul>
-      <button class="ghost-btn" disabled>Start Mock (keyin aktiv)</button>
-      <p class="muted">Keyin: timer, auto-score, progress analytics.</p>
+  <!-- TOP BAR (Qizil/Yashil Hero) -->
+  <div class="mock-topbar">
+    <div class="mock-top-left">
+      <h1>Test Session</h1>
+      <p>Improve your skills by completing all sections</p>
+    </div>
+    <div class="mock-trophy">
+      🏆
     </div>
   </div>
+
+  <!-- SECTION TITLE -->
+  <div class="mock-section-title">
+    <span>📅</span>
+    <h2>TODAY'S TEST SESSION</h2>
+  </div>
+
+  <!-- CARDLAR KONTEYNERI -->
+  <div class="mock-cards-list">
+
+    <!-- LISTENING -->
+    <div class="mock-test-card completed" onclick="openMockSection('listening')">
+      <div class="mock-card-left">
+        <div class="mock-icon listening-icon">🎧</div>
+        <div class="mock-info">
+          <h3>Listening</h3>
+          <div class="mock-meta">
+            <span class="status success">✔ Completed</span>
+            <span class="duration">⏱ 30 minutes</span>
+          </div>
+        </div>
+      </div>
+      <button class="mock-arrow">›</button>
+    </div>
+
+    <!-- READING -->
+    <div class="mock-test-card active" onclick="openMockSection('reading')">
+      <div class="mock-card-left">
+        <div class="mock-icon reading-icon">📖</div>
+        <div class="mock-info">
+          <h3>Reading</h3>
+          <div class="mock-meta">
+            <span class="status warning">⚠ Not Completed</span>
+            <span class="duration">⏱ 60 minutes</span>
+          </div>
+        </div>
+      </div>
+      <button class="mock-arrow">›</button>
+    </div>
+
+    <!-- WRITING -->
+    <div class="mock-test-card locked">
+      <div class="mock-card-left">
+        <div class="mock-icon writing-icon">✍️</div>
+        <div class="mock-info">
+          <h3>Writing</h3>
+          <div class="mock-meta">
+            <span class="status locked-status">🔒 Complete Reading First</span>
+            <span class="duration">⏱ 60 minutes</span>
+          </div>
+        </div>
+      </div>
+      <button class="mock-arrow">›</button>
+    </div>
+
+    <!-- SPEAKING -->
+    <div class="mock-test-card speaking-card" onclick="openMockSection('speaking')">
+      <div class="mock-card-left">
+        <div class="mock-icon speaking-icon">🎤</div>
+        <div class="mock-info">
+          <h3>Speaking</h3>
+          <div class="mock-meta">
+            <span class="status speaking-status">🎯 Practice Ready</span>
+            <span class="duration">⏱ 15 minutes</span>
+          </div>
+        </div>
+      </div>
+      <button class="mock-arrow">›</button>
+    </div>
+
+  </div> <!-- #mock-cards-list END -->
+
+  <!-- FOOTER -->
+  <div class="mock-footer">
+    © 2026 langify.db — IELTS Platform
+  </div>
+
 </div>
 
 <!-- ================= ADMIN PANEL (old section – hozir ishlatilmaydi) ================= -->
