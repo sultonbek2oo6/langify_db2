@@ -18,7 +18,7 @@ async function loadTest() {
     return;
   }
 
-  container.innerHTML = "Loading...";
+  container.innerHTML = "<div class='loading'>Loading...</div>";
 
   try {
     const res = await fetch(`/api/materials/${testId}`, {
@@ -34,18 +34,25 @@ async function loadTest() {
     questions = data.questions || [];
 
     // --- PASSAGE (MATN) QISMI ---
-    let passageText = material.content;
+    let passageText = "";
+    
+    // JSON tekshiruvi va tozalash
     try {
+      // Agar content string bo'lsa va JSON formatida bo'lsa
       const obj = JSON.parse(material.content);
       passageText = obj.passage || material.content;
     } catch (e) {
+      // Agar JSON bo'lmasa (oddiy matn bo'lsa)
       passageText = material.content;
     }
 
+    // HTML formatlash: Sarlavha va matn
     passageEl.innerHTML = `
-      <h2>${material.title || "Reading Passage"}</h2>
-      <div style="line-height:1.8;">
-        ${String(passageText).replace(/\n/g, "<br>")}
+      <h2 style="color: #1a2a6c; margin-top: 0;">${material.title || "Reading Passage"}</h2>
+      <div class="passage-content">
+        ${String(passageText)
+          .replace(/\\n/g, "<br>") // JSON ichidagi double backslash n larni to'g'irlash
+          .replace(/\n/g, "<br>")} 
       </div>
     `;
 
@@ -58,40 +65,43 @@ async function loadTest() {
       let answerHTML = "";
       const type = (q.type || "").toLowerCase();
 
-      if (type === "input") {
-        answerHTML = `<input type="text" name="q_${q.id}" placeholder="Write answer">`;
+      // Input turi uchun (Text input)
+      if (type === "input" || (!q.option_a && !q.option_b)) {
+        answerHTML = `<input type="text" name="q_${q.id}" placeholder="Write your answer here..." autocomplete="off">`;
       } 
-      else if (type === "true_false") {
-        answerHTML = `
-          <label><input type="radio" name="q_${q.id}" value="TRUE"> TRUE</label><br>
-          <label><input type="radio" name="q_${q.id}" value="FALSE"> FALSE</label><br>
-          <label><input type="radio" name="q_${q.id}" value="NOT GIVEN"> NOT GIVEN</label>
-        `;
-      } 
-      else if (!q.option_a && !q.option_b && !q.option_c && !q.option_d) {
-        answerHTML = `<input type="text" name="q_${q.id}" placeholder="Write answer">`;
-      } 
-      else {
-        answerHTML = ["A", "B", "C", "D"].map(k => `
-          <label style="display: block; margin-bottom: 5px; cursor: pointer;">
-            <input type="radio" name="q_${q.id}" value="${k}">
-            ${k}) ${q["option_" + k.toLowerCase()] || ""}
+      // True/False/Not Given turi uchun
+      else if (type === "true_false" || type === "tfng") {
+        const options = ["TRUE", "FALSE", "NOT GIVEN"];
+        answerHTML = options.map(opt => `
+          <label class="radio-label">
+            <input type="radio" name="q_${q.id}" value="${opt}"> ${opt}
           </label>
         `).join("");
+      } 
+      // Multiple Choice (A, B, C, D)
+      else {
+        answerHTML = ["a", "b", "c", "d"].map(k => {
+          if (!q["option_" + k]) return ""; // Agar variant bo'sh bo'lsa ko'rsatmaydi
+          return `
+            <label class="radio-label">
+              <input type="radio" name="q_${k}_${q.id}" value="${k.toUpperCase()}">
+              <span class="opt-letter">${k.toUpperCase()})</span> ${q["option_" + k]}
+            </label>
+          `;
+        }).join("");
       }
 
       div.innerHTML = `
-        <p><b>${index + 1}) ${q.question_text}</b></p>
-        <div class="answer-options">${answerHTML}</div>
+        <p class="q-text"><b>${index + 1}.</b> ${q.question_text}</p>
+        <div class="answer-wrapper">${answerHTML}</div>
       `;
       container.appendChild(div);
     });
 
-    // Test muvaffaqiyatli yuklangach, taymerni boshlash
     startTimer();
 
   } catch (err) {
-    container.innerHTML = "Error loading test. Please check your connection.";
+    container.innerHTML = `<div class="error">Xatolik: ${err.message}</div>`;
     console.error("Load Error:", err);
   }
 }
