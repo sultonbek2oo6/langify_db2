@@ -1,5 +1,5 @@
 const path = require("path");
-require("dotenv").config({ path: path.join(__dirname, ".env") });
+require("dotenv").config();
 
 console.log("ENV SMTP_HOST =", process.env.SMTP_HOST);
 console.log("ENV SMTP_USER =", process.env.SMTP_USER);
@@ -2676,6 +2676,6 @@ app.post("/admin/speaking-tasks/:id/reject", authenticateToken, isAdmin, async (
 
 const port = process.env.PORT || 3000;
 
-app.listen(port, () => {
-  console.log(`Server ${port} portda ishlayapti`);
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Server is running on port ${port}`);
 });
