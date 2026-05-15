@@ -19,7 +19,7 @@ const pages = {
 };
 
 /* ================= API BASE ================= */
-const API_BASE = "http://localhost:3000";
+const API_BASE = "https://auraielts.onrender.com";
 
 /* ================= GOOGLE VERIFY ================= */
 const GOOGLE_VERIFY = {
@@ -2516,7 +2516,7 @@ async function loadStudentResults() {
         const token = localStorage.getItem("token");
 
         const res = await fetch(
-            "http://localhost:3000/api/results/me",
+            "https://auraielts.onrender.com/api/results/me",
             {
                 headers: {
                     Authorization: `Bearer ${token}`

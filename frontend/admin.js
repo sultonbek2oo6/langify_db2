@@ -1,5 +1,5 @@
 // ====================== HELPERS ======================
-const API = "http://localhost:3000";
+const API = "https://auraielts.onrender.com";
 const $ = (id) => document.getElementById(id);
 
 // Pagination state

@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:3000";
+const API_BASE = "https://auraielts.onrender.com";
 
 let TIME_LEFT = 60 * 60; // UMUMIY 60 MINUT
 let TIMER = null;
