@@ -1,2 +1,35 @@
-backend/.env
+# Dependency directories (Kutubxonalar - bularni yuklash shart emas)
+node_modules/
+jspm_packages/
+
+# Environment variables (Maxfiy fayllar)
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+
+# MacOS system files (Mac uchun maxsus yashirin fayllar)
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+# Logs (Xatoliklar yozilgan fayllar)
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Uploads (Foydalanuvchilar yuklagan rasm va audiolarni GitHub'ga chiqarmaslik)
+backend/uploads/
+frontend/uploads/
+frontend/audio/
+
+# Optional: Editor settings (Kod yozadigan dastur sozlamalari)
+.vscode/
+.idea/
+*.swp
+*.swo
