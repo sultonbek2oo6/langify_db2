@@ -186,28 +186,31 @@
 </div>
 
 <!-- ================= PAYMENT PAGE ================= -->
-<div class="payment-page" id="paymentPage" style="display:none;">
-  <div class="payment-card">
-    <h2>To‘lov qilish</h2>
-    <p class="payment-sub">Quyidagi kartaga to‘lov qiling va chekni yuklang</p>
+<div class="payment-page" id="paymentPage" style="display: flex;"> <div class="payment-card">
+    <div class="card-header">
+      <h2>To‘lov qilish</h2>
+      <p class="payment-sub">Quyidagi kartaga to‘lov qiling va chekni yuklang</p>
+    </div>
 
     <div class="payment-box">
       <div class="payment-row">
         <span class="label">Plan:</span>
-        <span class="value" id="payPlanLabel">Premium</span>
+        <span class="value badge-plan" id="payPlanLabel">Premium</span>
       </div>
 
       <div class="payment-row">
         <span class="label">Summa:</span>
-        <span class="value" id="payAmountLabel">99 000 so‘m</span>
+        <span class="value amount" id="payAmountLabel">99 000 so‘m</span>
       </div>
 
-      <hr class="payment-hr"/>
+      <div class="payment-divider"></div>
 
-      <div class="payment-row">
-        <span class="label">Karta raqam:</span>
-        <span class="value mono" id="payCardNumber">8600 1234 5678 9012</span>
-        <button class="copy-btn" onclick="copyText('payCardNumber')">Copy</button>
+      <div class="payment-row flex-column">
+        <span class="label">Karta raqami:</span>
+        <div class="copy-wrapper">
+          <span class="value mono" id="payCardNumber">8600 1234 5678 9012</span>
+          <button class="copy-btn" onclick="copyText('payCardNumber')">Nusxa olish</button>
+        </div>
       </div>
 
       <div class="payment-row">
@@ -215,24 +218,32 @@
         <span class="value" id="payCardOwner">Sultonbek</span>
       </div>
 
-      <div class="payment-row">
-        <span class="label">Izoh:</span>
-        <span class="value mono" id="payComment">LANGIFY Premium – username: ...</span>
-        <button class="copy-btn" onclick="copyText('payComment')">Copy</button>
+      <div class="payment-row flex-column">
+        <span class="label">To'lov izohi:</span>
+        <div class="copy-wrapper">
+          <span class="value mono small-text" id="payComment">LANGIFY Premium – username: ...</span>
+          <button class="copy-btn" onclick="copyText('payComment')">Nusxa olish</button>
+        </div>
       </div>
     </div>
 
-    <div class="upload-box">
-      <label class="upload-label">Chek (rasm) yuklang:</label>
-      <input type="file" id="receiptFile" accept="image/*" />
-      <input type="text" id="txId" placeholder="Tranzaksiya ID (ixtiyoriy)" />
-      <button class="pay-submit" onclick="submitPaymentRequest()">Chekni yuborish</button>
-      <small class="hint">Admin tekshiradi va 90 kunlik obuna yoqiladi.</small>
+    <div class="upload-section">
+      <label class="upload-label">Chek (rasm) yuklang</label>
+      <div class="file-input-wrapper">
+        <input type="file" id="receiptFile" accept="image/*" />
+      </div>
+      <input type="text" id="txId" class="tx-input" placeholder="Tranzaksiya ID (ixtiyoriy)" />
+      
+      <button class="pay-submit" onclick="submitPaymentRequest()">
+        <span>Tasdiqlash va yuborish</span>
+      </button>
+      
+      <p class="hint">⚡ Admin tekshiradi va 90 kunlik obuna yoqiladi.</p>
     </div>
 
     <div class="payment-actions">
-      <button class="pay-back" onclick="showPage(pages.main)">⬅ Orqaga</button>
-      <button class="pay-go-dash" onclick="goDashboard()">Dashboard</button>
+      <button class="action-btn secondary" onclick="showPage(pages.main)">⬅ Orqaga</button>
+      <button class="action-btn primary-outline" onclick="goDashboard()">Dashboard</button>
     </div>
   </div>
 </div>
