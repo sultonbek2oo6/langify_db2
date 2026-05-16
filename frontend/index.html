@@ -19,7 +19,7 @@
 <body>
 
 <!-- ================= REGISTER ================= -->
-<div class="register-page" id="registerPage">
+<div class="login-page" id="registerPage">
     <div class="login-card">
         <h2>Create Account</h2>
         <p>Register to start your IELTS journey</p>
@@ -28,14 +28,14 @@
         <input type="email" id="registerEmail" placeholder="Email">
         <input type="password" id="registerPassword" placeholder="Password">
 
-        <!-- ✅ NEW: Google Verify (emailni tasdiqlash) -->
+        <!-- Google Verify (emailni tasdiqlash) -->
         <div style="margin: 12px 0;">
             <div id="googleVerifyBtn"></div>
             <small id="googleVerifyStatus" style="display:block;margin-top:6px;"></small>
         </div>
 
-        <!-- ✅ FIX: OTP register uchun register() bo‘lishi kerak -->
-        <button onclick="goMain()">Register</button>
+        <!-- ✅ TOʻGʻRILANDI: goMain emas, register funksiyasi chaqiriladi -->
+        <button onclick="register()">Register</button>
 
         <p class="switch">
             Already have an account?
@@ -61,7 +61,6 @@
 
         <!-- ================= SOCIAL LOGIN (SVG) ================= -->
         <div class="social-login">
-
             <button class="google-btn" onclick="loginWithGoogle()">
                 <svg width="20" height="20" viewBox="0 0 48 48">
                     <path fill="#EA4335" d="M24 9.5c3.54 0 6.7 1.22 9.2 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.50 24 9.5z"/>
@@ -79,7 +78,6 @@
                 </svg>
                 <span>Sign in with Apple</span>
             </button>
-
         </div>
 
         <p class="switch">
@@ -91,24 +89,24 @@
 
 <!-- ================= VERIFY CODE ================= -->
 <div class="login-page" id="verifyPage" style="display:none;">
-  <div class="login-card">
-    <h2>Email Verification</h2>
-    <p>Emailingizga kelgan 6 xonali kodni kiriting</p>
+    <div class="login-card">
+        <h2>Email Verification</h2>
+        <p>Emailingizga kelgan 6 xonali kodni kiriting</p>
 
-    <input type="email" id="verifyEmail" placeholder="Email" />
-    <input type="text" id="verifyCode" placeholder="6-digit code" />
+        <input type="email" id="verifyEmail" placeholder="Email" />
+        <input type="text" id="verifyCode" placeholder="6-digit code" />
 
-    <button onclick="verifyEmailCode()">Verify</button>
+        <button onclick="verifyEmailCode()">Verify</button>
 
-    <p class="switch">
-      Kod kelmadimi?
-      <span onclick="resendVerifyCode()">Resend</span>
-    </p>
+        <p class="switch">
+            Kod kelmadimi?
+            <span onclick="resendVerifyCode()">Resend</span>
+        </p>
 
-    <p class="switch">
-      <span onclick="goLogin()">Back to login</span>
-    </p>
-  </div>
+        <p class="switch">
+            <span onclick="goLogin()">Back to login</span>
+        </p>
+    </div>
 </div>
 
 <!-- ================= FORGOT PASSWORD ================= -->
@@ -116,24 +114,18 @@
     <div class="login-card">
         <h2>Reset Password</h2>
         <p>Enter your email to receive a reset link</p>
-
        
         <input id="forgotEmail" type="email" placeholder="Email address">
-
         <button onclick="sendResetCode()">Send Code</button>
 
-       <!-- RESET STEP 2 -->
+        <!-- RESET STEP 2 -->
         <div id="resetStep2" style="display:none; margin-top:10px;">
-
-        <input id="resetCode" type="text" placeholder="Enter code">
-
-        <input id="resetNewPassword" type="password" placeholder="New password">
-
-        <input id="resetNewPassword2" type="password" placeholder="Confirm password">
-
-        <button onclick="resetPassword()">Reset Password</button>
-
+            <input id="resetCode" type="text" placeholder="Enter code">
+            <input id="resetNewPassword" type="password" placeholder="New password">
+            <input id="resetNewPassword2" type="password" placeholder="Confirm password">
+            <button onclick="resetPassword()">Reset Password</button>
         </div>
+
         <p class="switch">
             <span onclick="backToLogin()">Back to login</span>
         </p>

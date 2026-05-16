@@ -213,7 +213,6 @@ async function refreshSubscriptionIfExpired(userId) {
 }
 
 /* ================= REGISTER (OTP) ================= */
-
 app.post("/api/auth/register", async (req, res) => {
   try {
     let { username, email, password, full_name } = req.body;
@@ -232,11 +231,10 @@ app.post("/api/auth/register", async (req, res) => {
     );
 
     if (existing.length > 0) {
-      return res.status(400).json({ message: "Email mavjud." });
+      return res.status(400).json({ message: "Email allaqachon mavjud." });
     }
 
     const hashed = await bcrypt.hash(password, 10);
-
     const code = genCode6();
     const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 daqiqa
 
@@ -247,30 +245,29 @@ app.post("/api/auth/register", async (req, res) => {
       [username, email, hashed, full_name || null, code, expires]
     );
 
-    // subscription row
+    // Subscription yaratish
     await pool.query(
       "INSERT INTO subscriptions (user_id, plan, expires_at, status, created_at, updated_at) VALUES (?, 'basic', NULL, 'active', NOW(), NOW())",
       [result.insertId]
     );
 
-    // emailga kod yuborish
+    // Emailga kod yuborish
     await sendVerifyCodeEmail(email, username, code);
 
     res.status(201).json({
       message: "Tasdiqlash kodi emailingizga yuborildi.",
-      step: "verify_required",
+      step: "verify_required"
     });
   } catch (err) {
-  console.error("REGISTER ERROR:", err);
-  return res.status(500).json({
-    message: err?.sqlMessage || err?.message || "Server xatosi.",
-    code: err?.code || null
-  });
-}
+    console.error("REGISTER ERROR:", err);
+    return res.status(500).json({
+      message: err?.sqlMessage || err?.message || "Server xatosi.",
+      code: err?.code || null
+    });
+  }
 });
 
 /* ================= VERIFY EMAIL CODE (OTP) ================= */
-
 app.post("/api/auth/verify-code", async (req, res) => {
   try {
     let { email, code } = req.body;
@@ -282,15 +279,14 @@ app.post("/api/auth/verify-code", async (req, res) => {
       return res.status(400).json({ message: "Email va kod kerak." });
     }
 
-    // ✅ role/is_active/plan ham olamiz (token va yo‘naltirish uchun)
     const [rows] = await pool.query(
-      `SELECT id, email, role, plan, is_active, is_verified, verify_code, verify_code_expires
+      `SELECT id, email, role, is_active, is_verified, verify_code, verify_code_expires
        FROM users
        WHERE email=? LIMIT 1`,
       [email]
     );
 
-    if (!rows.length) return res.status(404).json({ message: "User topilmadi." });
+    if (!rows.length) return res.status(404).json({ message: "Foydalanuvchi topilmadi." });
 
     const u = rows[0];
 
@@ -299,20 +295,20 @@ app.post("/api/auth/verify-code", async (req, res) => {
     }
 
     if (Number(u.is_verified) === 1) {
-      // (ixtiyoriy) bu holatda token bermaymiz, chunki password tekshirilmagan
-      return res.json({ message: "Allaqachon tasdiqlangan. Endi login qiling." });
+      return res.json({ message: "Email allaqachon tasdiqlangan. Tizimga kirishingiz mumkin." });
     }
 
     if (!u.verify_code || String(u.verify_code) !== String(code)) {
-      return res.status(400).json({ message: "Kod noto‘g‘ri." });
+      return res.status(400).json({ message: "Tasdiqlash kodi noto‘g‘ri." });
     }
 
     if (u.verify_code_expires && new Date(u.verify_code_expires).getTime() < Date.now()) {
       return res.status(400).json({
-        message: "Kod vaqti tugagan. Resend qilib qayta kod oling.",
+        message: "Kodning amal qilish vaqti tugagan. Qayta kod oling.",
       });
     }
 
+    // Emailni tasdiqlangan holatga o'tkazamiz
     await pool.query(
       `UPDATE users
        SET is_verified=1, verify_code=NULL, verify_code_expires=NULL, updated_at=NOW()
@@ -320,10 +316,9 @@ app.post("/api/auth/verify-code", async (req, res) => {
       [u.id]
     );
 
-    // ✅ subscription expire bo'lsa basic/free ga tushirish
     await refreshSubscriptionIfExpired(u.id);
 
-    // ✅ AUT0-LOGIN: token qaytaramiz
+    // AUTO-LOGIN: Token yaratish
     const token = jwt.sign(
       { id: u.id, email: u.email, role: u.role },
       JWT_SECRET,
@@ -331,7 +326,7 @@ app.post("/api/auth/verify-code", async (req, res) => {
     );
 
     return res.json({
-      message: "✅ Email tasdiqlandi. Xush kelibsiz!",
+      message: "✅ Email muvaffaqiyatli tasdiqlandi. Xush kelibsiz!",
       token,
       role: u.role
     });
@@ -342,7 +337,6 @@ app.post("/api/auth/verify-code", async (req, res) => {
 });
 
 /* ================= RESEND CODE ================= */
-
 app.post("/api/auth/resend-code", async (req, res) => {
   try {
     let { email } = req.body;
@@ -354,11 +348,11 @@ app.post("/api/auth/resend-code", async (req, res) => {
       `SELECT id, username, is_verified FROM users WHERE email=? LIMIT 1`,
       [email]
     );
-    if (!rows.length) return res.status(404).json({ message: "User topilmadi." });
+    if (!rows.length) return res.status(404).json({ message: "Foydalanuvchi topilmadi." });
 
     const u = rows[0];
     if (Number(u.is_verified) === 1) {
-      return res.json({ message: "Allaqachon tasdiqlangan." });
+      return res.json({ message: "Email allaqachon tasdiqlangan." });
     }
 
     const code = genCode6();
@@ -371,7 +365,7 @@ app.post("/api/auth/resend-code", async (req, res) => {
 
     await sendVerifyCodeEmail(email, u.username, code);
 
-    res.json({ message: "Kod qayta yuborildi." });
+    res.json({ message: "Yangi kod emailingizga yuborildi." });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server xatosi." });
@@ -379,7 +373,6 @@ app.post("/api/auth/resend-code", async (req, res) => {
 });
 
 /* ================= FORGOT PASSWORD (SEND RESET CODE) ================= */
-
 app.post("/api/auth/forgot-password", async (req, res) => {
   try {
     let { email } = req.body;
@@ -391,9 +384,9 @@ app.post("/api/auth/forgot-password", async (req, res) => {
       [email]
     );
 
-    // email mavjud/yo‘qligini oshkor qilmaslik uchun
+    // Xavfsizlik uchun xatolik bermaymiz, lekin kod ham jo'natmaymiz
     if (!rows.length) {
-      return res.json({ message: "Agar email mavjud bo‘lsa, kod yuborildi." });
+      return res.json({ message: "Agar email mavjud bo‘lsa, tiklash kodi yuborildi." });
     }
 
     const u = rows[0];
@@ -410,14 +403,14 @@ app.post("/api/auth/forgot-password", async (req, res) => {
     );
 
     await transporter.sendMail({
-      from: `"Langify" <${process.env.SMTP_USER}>`,
+      from: `"Aura IELTS" <${process.env.SMTP_USER}>`,
       to: email,
-      subject: "Langify parolni tiklash kodi",
+      subject: "Aura IELTS parolni tiklash kodi",
       html: `
-        <h3>Assalomu alaykum, ${u.username || "user"}!</h3>
-        <p>Parolni tiklash uchun kod:</p>
-        <h2 style="letter-spacing:2px;">${code}</h2>
-        <p>Kod 10 daqiqa amal qiladi.</p>
+        <h3>Assalomu alaykum, ${u.username || "foydalanuvchi"}!</h3>
+        <p>Parolni tiklash uchun tasdiqlash kodi:</p>
+        <h2 style="letter-spacing:2px; color: #4A90E2;">${code}</h2>
+        <p>Kod 10 daqiqa davomida amal qiladi.</p>
       `,
     });
 
@@ -429,7 +422,6 @@ app.post("/api/auth/forgot-password", async (req, res) => {
 });
 
 /* ================= RESET PASSWORD (CODE + NEW PASSWORD) ================= */
-
 app.post("/api/auth/reset-password", async (req, res) => {
   try {
     let { email, code, newPassword } = req.body;
@@ -439,11 +431,11 @@ app.post("/api/auth/reset-password", async (req, res) => {
     newPassword = String(newPassword || "").trim();
 
     if (!email || !code || !newPassword) {
-      return res.status(400).json({ message: "Email, kod va yangi parol kerak." });
+      return res.status(400).json({ message: "Barcha maydonlarni kiriting (Email, kod, yangi parol)." });
     }
 
     if (newPassword.length < 6) {
-      return res.status(400).json({ message: "Parol kamida 6 ta belgi bo‘lsin." });
+      return res.status(400).json({ message: "Parol kamida 6 ta belgidan iborat bo‘lishi kerak." });
     }
 
     const [rows] = await pool.query(
@@ -451,16 +443,16 @@ app.post("/api/auth/reset-password", async (req, res) => {
       [email]
     );
 
-    if (!rows.length) return res.status(404).json({ message: "User topilmadi." });
+    if (!rows.length) return res.status(404).json({ message: "Foydalanuvchi topilmadi." });
 
     const u = rows[0];
 
     if (!u.reset_code || String(u.reset_code) !== String(code)) {
-      return res.status(400).json({ message: "Kod noto‘g‘ri." });
+      return res.status(400).json({ message: "Tasdiqlash kodi noto‘g‘ri." });
     }
 
     if (u.reset_code_expires && new Date(u.reset_code_expires).getTime() < Date.now()) {
-      return res.status(400).json({ message: "Kod vaqti tugagan." });
+      return res.status(400).json({ message: "Kodning vaqti tugagan. Qayta urinib ko'ring." });
     }
 
     const hashed = await bcrypt.hash(newPassword, 10);
@@ -470,14 +462,14 @@ app.post("/api/auth/reset-password", async (req, res) => {
       [hashed, u.id]
     );
 
-    res.json({ message: "✅ Parol yangilandi. Endi login qiling." });
+    res.json({ message: "✅ Parol muvaffaqiyatli yangilandi. Endi yangi parol bilan login qiling." });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server xatosi." });
   }
 });
-/* ================= LOGIN (FIXED ORDER) ================= */
 
+/* ================= LOGIN (OPTIMIZED WITH AUTO-VERIFY) ================= */
 app.post("/api/auth/login", async (req, res) => {
   try {
     let { email, password } = req.body;
@@ -499,24 +491,39 @@ app.post("/api/auth/login", async (req, res) => {
 
     const user = rows[0];
 
-    // 1) avval parol tekshirish
+    // 1) Avval parol tekshiriladi
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(400).json({ message: "Parol noto‘g‘ri." });
 
-    // 2) keyin verify/active tekshiruvlar
+    // 2) Akkaunt bloklanganligini tekshirish
+    if (Number(user.is_active) !== 1) {
+      return res.status(403).json({ message: "Sizning akkauntingiz bloklangan." });
+    }
+
+    // 3) ✅ TOʻGʻRILANDI: Agar email tasdiqlanmagan bo'lsa, foydalanuvchini bloklamaymiz!
+    // Unga yangi kod yaratib yuboramiz va frontendni verify sahifasiga yo'naltiramiz.
     if (Number(user.is_verified) !== 1) {
-      return res.status(403).json({
-        message: "Email tasdiqlanmagan. Emailga kelgan kodni kiriting.",
+      const code = genCode6();
+      const expires = new Date(Date.now() + 10 * 60 * 1000);
+
+      await pool.query(
+        `UPDATE users SET verify_code=?, verify_code_expires=?, updated_at=NOW() WHERE id=?`,
+        [code, expires, user.id]
+      );
+
+      await sendVerifyCodeEmail(user.email, user.username, code);
+
+      return res.status(200).json({
+        message: "Emailingiz tasdiqlanmagan ekan. Yangi kod yuborildi, iltimos kodni kiriting.",
+        step: "verify_required",
+        email: user.email // Frontend o'zi bilan verify sahifasiga olib o'tishi uchun
       });
     }
 
-    if (Number(user.is_active) !== 1) {
-      return res.status(403).json({ message: "Account block qilingan." });
-    }
-
-    // expire bo'lsa basic/free ga tushirib qo'yamiz
+    // Obunani tekshirish
     await refreshSubscriptionIfExpired(user.id);
 
+    // Muvaffaqiyatli kirganda token yaratish
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       JWT_SECRET,

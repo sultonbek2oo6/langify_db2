@@ -335,7 +335,8 @@ function goLogin() {
 }
 
 /* -------- REGISTER -------- */
-async function goMain() {
+// ✅ TOʻGʻRILANDI: Funksiya nomi tushunarli bo'lishi uchun register deb o'zgartirildi
+async function register() {
   const username = document.getElementById("registerUsername")?.value.trim() || "";
   const email = document.getElementById("registerEmail")?.value.trim() || "";
   const password = document.getElementById("registerPassword")?.value.trim() || "";
@@ -361,9 +362,11 @@ async function goMain() {
 
     alert(data.message || "Kod emailingizga yuborildi. Endi kodni kiriting.");
 
+    // Emailni verify sahifasidagi inputga avtomatik joylash
     const vEmail = document.getElementById("verifyEmail");
     if (vEmail) vEmail.value = email;
 
+    // Tasdiqlash sahifasini ko'rsatish
     await showPage(pages.verify);
   } catch (e) {
     console.error(e);
@@ -395,6 +398,7 @@ async function verifyEmailCode() {
       return;
     }
 
+    // Agar backend kod to'g'ri bo'lganda avtomatik token qaytarsa (Direct Login)
     if (data.token) {
       localStorage.setItem("token", data.token);
       localStorage.setItem("userEmail", email);
@@ -413,10 +417,10 @@ async function verifyEmailCode() {
           await showPage(pages.main);
         }
       }
-
       return;
     }
 
+    // Aks holda login sahifasiga yo'naltirish
     alert(data.message || "Email tasdiqlandi. Endi login qiling.");
     await showPage(pages.login);
   } catch (e) {
@@ -471,6 +475,15 @@ async function login() {
     });
 
     const data = await res.json().catch(() => ({}));
+    if (data.step === "verify_required") {
+      alert(data.message);
+      
+      const vEmail = document.getElementById("verifyEmail");
+      if (vEmail) vEmail.value = data.email || email;
+
+      await showPage(pages.verify); // Tasdiqlash (OTP) sahifasiga o'tkazish
+      return; // Funksiyani shu yerda to'xtatamiz
+    }
 
     if (!res.ok) {
       alert(data.message || "Login xato");
