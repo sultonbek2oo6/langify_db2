@@ -103,16 +103,17 @@ const audioUpload = multer({
   limits: { fileSize: 15 * 1024 * 1024 } // 15MB
 });
 
-/* ================= EMAIL OTP (NEW) ================= */
+/* ================= EMAIL OTP (✅ MAJBURIY 465 PORT) ================= */
 
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com', // To'g'ridan-to'g'ri Gmail SMTP hosti yozildi
-  port: 465,              // ✅ Render'da ochiq bo'lgan yagona xavfsiz port!
-  secure: true,           // ✅ Port 465 bo'lgani uchun secure majburiy true bo'ladi (SSL)
+  host: 'smtp.gmail.com', 
+  port: 465,               // ❌ process.env ni o'chirib, o'rniga to'g'ridan-to'g'ri 465 yozing
+  secure: true,            // ❌ secure: false ni o'chirib, aniq true yozing
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    pass: process.env.SMTP_PASS, oldwlgcdgkpyjywk
   },
+  timeout: 10000 // 10 soniya kutish limiti
 });
 
 // SMTP ishlayaptimi tekshirish
