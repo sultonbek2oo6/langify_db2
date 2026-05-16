@@ -107,11 +107,11 @@ const audioUpload = multer({
 
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com', 
-  port: 465,               // ❌ process.env ni o'chirib, o'rniga to'g'ridan-to'g'ri 465 yozing
-  secure: true,            // ❌ secure: false ni o'chirib, aniq true yozing
+  port: 465,               
+  secure: true,            
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS, oldwlgcdgkpyjywk
+    pass: process.env.SMTP_PASS // ✅ Ortiqcha matn o'chirildi, endi sintaktik xato yo'q
   },
   timeout: 10000 // 10 soniya kutish limiti
 });
