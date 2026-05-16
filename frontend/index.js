@@ -876,12 +876,12 @@ function cleanupAdminArtifacts() {
 }
 
 /* ================= PAYMENT ================= */
-const PLAN_PRICES = { premium: "99 000 so‘m", pro: "149 000 so‘m" };
-const PLAN_AMOUNTS = { premium: 99000, pro: 149000 };
+const PLAN_PRICES = { premium: "48 000 so‘m", pro: "72 000 so‘m" };
+const PLAN_AMOUNTS = { premium: 48000, pro: 72000 };
 
 const CARD_INFO = {
-  number: "9860 3501 4364 6296",
-  owner: "Sultonbek"
+  number: "9860 1606 2061 2426",
+  owner: "Sultonbek Jo'raboyev"
 };
 
 function preparePayment(plan) {
