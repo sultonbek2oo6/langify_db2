@@ -106,19 +106,21 @@ const audioUpload = multer({
 /* ================= EMAIL OTP (NEW) ================= */
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT || 587),
-  secure: false,
+  host: 'smtp.gmail.com', // To'g'ridan-to'g'ri Gmail SMTP hosti yozildi
+  port: 465,              // ✅ Render'da ochiq bo'lgan yagona xavfsiz port!
+  secure: true,           // ✅ Port 465 bo'lgani uchun secure majburiy true bo'ladi (SSL)
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
 });
 
-// (ixtiyoriy) SMTP ishlayaptimi tekshirish
-transporter.verify().catch((e) => {
-  console.log("SMTP verify failed:", e?.message || e);
-});
+// SMTP ishlayaptimi tekshirish
+transporter.verify()
+  .then(() => console.log("🚀 SMTP muvaffaqiyatli ulandi! Xatlar yuborishga tayyor."))
+  .catch((e) => {
+    console.log("❌ SMTP ulanishda xato (Loglarni tekshiring):", e?.message || e);
+  });
 
 function genCode6() {
   return String(Math.floor(100000 + Math.random() * 900000)); // 6 xonali
