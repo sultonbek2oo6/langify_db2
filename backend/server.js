@@ -103,42 +103,40 @@ const audioUpload = multer({
   limits: { fileSize: 15 * 1024 * 1024 } // 15MB
 });
 
-/* ================= EMAIL OTP (✅ MAJBURIY 465 PORT) ================= */
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com', 
-  port: 465,               
-  secure: true,            
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS // ✅ Ortiqcha matn o'chirildi, endi sintaktik xato yo'q
-  },
-  timeout: 10000 // 10 soniya kutish limiti
-});
+/* ================= EMAIL OTP (✅ RESEND INTEGRATION) ================= */
+const { Resend } = require('resend');
 
-// SMTP ishlayaptimi tekshirish
-transporter.verify()
-  .then(() => console.log("🚀 SMTP muvaffaqiyatli ulandi! Xatlar yuborishga tayyor."))
-  .catch((e) => {
-    console.log("❌ SMTP ulanishda xato (Loglarni tekshiring):", e?.message || e);
-  });
+// Resend obyektini yaratamiz (API kalitni Render Environment'dan o'qiydi)
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 function genCode6() {
   return String(Math.floor(100000 + Math.random() * 900000)); // 6 xonali
 }
 
+// 1. Ro'yxatdan o'tish kodi uchun xat yuborish funksiyasi
 async function sendVerifyCodeEmail(toEmail, username, code) {
-  await transporter.sendMail({
-    from: `"Langify" <${process.env.SMTP_USER}>`,
-    to: toEmail,
-    subject: "Langify tasdiqlash kodi",
-    html: `
-      <h3>Assalomu alaykum, ${username || "user"}!</h3>
-      <p>Ro‘yxatdan o‘tishni yakunlash uchun tasdiqlash kodini kiriting:</p>
-      <h2 style="letter-spacing:2px;">${code}</h2>
-      <p>Kod 10 daqiqa amal qiladi.</p>
-    `,
-  });
+  try {
+    await resend.emails.send({
+      from: 'onboarding@resend.dev', // Bepul rejimda xat majburiy shu emaildan ketadi
+      to: toEmail,
+      subject: 'Aura IELTS tasdiqlash kodi',
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; max-width: 600px;">
+          <h2 style="color: #4A90E2;">Aura IELTS platformasiga xush kelibsiz!</h2>
+          <p>Assalomu alaykum, ${username || "foydalanuvchi"}!</p>
+          <p>Ro‘yxatdan o‘tishni yakunlash uchun quyidagi tasdiqlash kodini kiriting:</p>
+          <div style="background: #f4f4f4; padding: 10px 20px; font-size: 26px; font-weight: bold; letter-spacing: 5px; text-align: center; color: #333; margin: 20px 0;">
+            ${code}
+          </div>
+          <p style="font-size: 12px; color: #777;">Bu kod 10 daqiqa davomida amal qiladi.</p>
+        </div>
+      `,
+    });
+    console.log(`🚀 Tasdiqlash kodi Resend orqali yuborildi: ${toEmail}`);
+  } catch (error) {
+    console.error("❌ Resend xat yuborishda xato yuz berdi:", error);
+  }
 }
 
 /* ================= AUTH MIDDLEWARE ================= */
@@ -366,6 +364,7 @@ app.post("/api/auth/resend-code", async (req, res) => {
       [code, expires, u.id]
     );
 
+    // ✅ TOʻGʻRILANDI: Nodemailer o'rniga yangi Resend funksiyasi chaqirildi
     await sendVerifyCodeEmail(email, u.username, code);
 
     res.json({ message: "Yangi kod emailingizga yuborildi." });
@@ -405,15 +404,20 @@ app.post("/api/auth/forgot-password", async (req, res) => {
       [code, expires, u.id]
     );
 
-    await transporter.sendMail({
-      from: `"Aura IELTS" <${process.env.SMTP_USER}>`,
+    // ✅ TOʻGʻRILANDI: transporter.sendMail o'rniga Resend API ulandi
+    await resend.emails.send({
+      from: 'onboarding@resend.dev',
       to: email,
       subject: "Aura IELTS parolni tiklash kodi",
       html: `
-        <h3>Assalomu alaykum, ${u.username || "foydalanuvchi"}!</h3>
-        <p>Parolni tiklash uchun tasdiqlash kodi:</p>
-        <h2 style="letter-spacing:2px; color: #4A90E2;">${code}</h2>
-        <p>Kod 10 daqiqa davomida amal qiladi.</p>
+        <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; max-width: 600px;">
+          <h3>Assalomu alaykum, ${u.username || "foydalanuvchi"}!</h3>
+          <p>Parolni tiklash uchun tasdiqlash kodi:</p>
+          <div style="background: #f4f4f4; padding: 10px 20px; font-size: 26px; font-weight: bold; letter-spacing: 5px; text-align: center; color: #e67e22; margin: 20px 0;">
+            ${code}
+          </div>
+          <p style="font-size: 12px; color: #777;">Kod 10 daqiqa davomida amal qiladi.</p>
+        </div>
       `,
     });
 
