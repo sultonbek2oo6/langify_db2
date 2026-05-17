@@ -38,13 +38,22 @@ async function loadTest() {
     
     // JSON tekshiruvi va tozalash
     try {
-      // Agar content string bo'lsa va JSON formatida bo'lsa
-      const obj = JSON.parse(material.content);
-      passageText = obj.passage || material.content;
-    } catch (e) {
-      // Agar JSON bo'lmasa (oddiy matn bo'lsa)
-      passageText = material.content;
-    }
+  let parsed = material.content;
+
+  if (typeof material.content === "string") {
+    parsed = JSON.parse(material.content);
+  }
+
+  passageText =
+    parsed.passage ||
+    parsed.content ||
+    material.content;
+
+} catch (err) {
+  passageText = String(material.content)
+    .replace(/[{}"]/g, "")
+    .replace(/passage:/i, "");
+}
 
     // HTML formatlash: Sarlavha va matn
     passageEl.innerHTML = `
