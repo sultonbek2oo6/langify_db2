@@ -46,11 +46,15 @@ async function loadTest() {
       if (questionText.includes("___")) {
         questionText = questionText.replace(
           "___",
-          `<input type="text" name="q_${q.id}" style="width:150px;">`
+          `<input type="text"
+            name="q_${q.id}"
+            class="answer-input">`
         );
       } else {
         questionText += `
-          <input type="text" name="q_${q.id}" style="margin-left:10px;width:150px;">
+          <input type="text"
+           name="q_${q.id}"
+           class="answer-input">
         `;
       }
 
