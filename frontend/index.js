@@ -2243,152 +2243,188 @@ async function submitReading(materialId, answers) {
     if (resultEl) resultEl.innerHTML = `<p style="color:crimson;">Server error</p>`;
   }
 }
-/* ================= FULL MOCK ENGINE (FRONTEND) ================= */
+/* ================= FULL MOCK ENGINE (MOCK FLOW INTEGRATION) ================= */
 
 let ACTIVE_MOCK_ID = null;
-let CURRENT_MOCK_ATTEMPT = null;
 
-// Dashboard yoki Sidebar orqali Full Mock bosilganda chaqiriladi
+// 1. Full Mock tugmasi bosilganda sahifani yuklash va kartalar holatini bazadan yangilash
 async function loadMockDashboard() {
-  await showPage(pages.mock); // Mock sahifasini ochish
-  
-  const mockPageContainer = document.getElementById("mockPage");
-  if (!mockPageContainer) return;
+  // Sahifani ko'rsatish (showPage funksiyangiz orqali)
+  if (typeof showPage === "function" && pages.mock) {
+    await showPage(pages.mock, "flex");
+  } else {
+    const mockEl = document.getElementById("mockPage");
+    if (mockEl) {
+      mockEl.style.display = "flex";
+      mockEl.classList.add("active", "show");
+    }
+  }
 
-  mockPageContainer.innerHTML = `
-    <div style="padding: 20px; width: 100%; max-width: 1100px; margin: 0 auto;">
-      <div style="background: #173d35; color: white; padding: 30px; border-radius: 20px; margin-bottom: 25px; position: relative;">
-        <button onclick="goHome()" style="position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.2); border: none; padding: 8px 16px; color: white; border-radius: 8px; cursor: pointer;">← Back</button>
-        <div style="text-align: center; margin-top: 10px;">
-          <h1 style="font-size: 32px; font-weight: 800; margin-bottom: 8px;">IELTS Full Mock Test Session</h1>
-          <p style="opacity: 0.9;">Improve your bands by completing all exam sections sequentially.</p>
-        </div>
-        <img src="https://cdn-icons-png.flaticon.com/512/3112/3112946.png" style="position: absolute; right: 40px; top: 25px; width: 80px; opacity: 0.8;" />
-      </div>
-      
-      <h3 style="color: #173d35; font-size: 20px; font-weight: 800; margin-bottom: 15px;">TODAY'S EXAM FLOW</h3>
-      <div id="mockSectionsWrapper" style="display: flex; flex-direction: column; gap: 15px;">
-         </div>
-    </div>
-  `;
-
-  await fetchMockTestData();
-}
-
-async function fetchMockTestData() {
   try {
+    // Backenddan mock test ma'lumotlarini olamiz
     const res = await fetch(`${API_BASE}/api/mock-tests`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error("Mock API error");
     const data = await res.json();
     
     if (data.items && data.items.length > 0) {
-      const activeMock = data.items[0]; // Tizimdagi birinchi faol testni olamiz
+      const activeMock = data.items[0];
       ACTIVE_MOCK_ID = activeMock.id;
-      CURRENT_MOCK_ATTEMPT = activeMock.attempt;
       
-      renderMockFlowUI(activeMock);
-    } else {
-      document.getElementById("mockSectionsWrapper").innerHTML = "<p>Hozirda aktiv imtihon seanslari mavjud emas.</p>";
+      // HTML dagi kartalarni o'chirmasdan, ularning holatlarini (status) dinamik yangilaymiz
+      updateMockCardsUI(activeMock.attempt);
     }
   } catch (err) {
-    console.error(err);
+    console.error("Mock dashboard ma'lumotlarini yuklashda xato:", err);
   }
 }
 
-function renderMockFlowUI(mock) {
-  const wrapper = document.getElementById("mockSectionsWrapper");
-  const att = mock.attempt || { current_section: 'listening' };
+// 2. HTML ichidagi tayyor kartalarni bazadan kelgan holatga qarab yangilovchi funksiya
+function updateMockCardsUI(attempt) {
+  const att = attempt || { current_section: 'listening' };
 
-  // Bo'lim holatlarini aniqlaymiz
-  const sections = [
-    {
-      key: 'listening',
-      title: 'Listening Section',
-      time: '30 minutes',
-      icon: '🎧',
-      completed: att.listening_completed || att.current_section !== 'listening',
-      locked: false
-    },
-    {
-      key: 'reading',
-      title: 'Reading Section',
-      time: '60 minutes',
-      icon: '📖',
-      completed: att.reading_completed,
-      locked: !att.listening_completed && att.current_section === 'listening'
-    },
-    {
-      key: 'writing',
-      title: 'Writing Section',
-      time: '60 minutes',
-      icon: '📝',
-      completed: att.writing_completed,
-      locked: !att.reading_completed
-    },
-    {
-      key: 'speaking',
-      title: 'Speaking Section',
-      time: '11-14 minutes',
-      icon: '🎤',
-      completed: att.speaking_completed,
-      locked: !att.writing_completed
-    }
-  ];
+  // Har bir bo'limning holatini aniqlaymiz
+  const listeningCompleted = att.listening_completed || att.current_section !== 'listening';
+  const readingCompleted = att.reading_completed;
+  const writingCompleted = att.writing_completed;
+  const speakingCompleted = att.speaking_completed;
 
-  wrapper.innerHTML = sections.map(s => {
-    let statusBadge = `<span style="background: #ffe6e6; color: crimson; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: bold;">⚠️ Not Completed</span>`;
-    if (s.completed) {
-      statusBadge = `<span style="background: #e6ffe6; color: green; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: bold;">✅ Completed</span>`;
-    } else if (s.locked) {
-      statusBadge = `<span style="background: #eee; color: #888; padding: 4px 12px; border-radius: 20px; font-size: 13px;">🔒 Locked (75% score required)</span>`;
-    }
+  // HTML ichidagi mock-cards-list konteynerini topamiz
+  const cardsContainer = document.querySelector(".mock-cards-list");
+  if (!cardsContainer) return;
 
-    const btnColor = s.locked ? '#ccc' : (s.completed ? '#198754' : '#173d35');
-    const btnCursor = s.locked ? 'not-allowed' : 'pointer';
-    const actionClick = s.locked ? '' : `onclick="startSpecificMockSection('${s.key}')"`;
-
-    return `
-      <div style="background: white; border-radius: 16px; padding: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05); opacity: ${s.locked ? 0.6 : 1};">
-        <div style="display: flex; align-items: center; gap: 20px;">
-          <div style="font-size: 35px; background: #f4f6f5; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 50px;">${s.icon}</div>
-          <div>
-            <h4 style="margin: 0 0 6px 0; font-size: 18px; color: #173d35; font-weight: 800;">${s.title}</h4>
-            <div style="display: flex; align-items: center; gap: 15px;">
-              ${statusBadge}
-              <span style="color: #666; font-size: 14px;">⏱ ${s.time}</span>
-            </div>
+  // Kartalarni oqim (Mock Flow) bo'yicha dinamik qayta yozamiz
+  cardsContainer.innerHTML = `
+    <div class="mock-test-card ${listeningCompleted ? 'completed' : 'active'}" onclick="openMockSection('listening')">
+      <div class="mock-card-left">
+        <div class="mock-icon listening-icon">🎧</div>
+        <div class="mock-info">
+          <h3>Listening</h3>
+          <div class="mock-meta">
+            ${listeningCompleted 
+              ? '<span class="status success">✔ Completed</span>' 
+              : '<span class="status warning">⚡ In Progress</span>'}
+            <span class="duration">⏱ 30 minutes</span>
           </div>
         </div>
-        <button ${actionClick} style="background: ${btnColor}; color: white; border: none; width: 45px; height: 45px; border-radius: 50px; font-size: 18px; cursor: ${btnCursor}; display: flex; align-items: center; justify-content: center; transition: 0.2s;">
-          ${s.completed ? '✓' : '➔'}
-        </button>
       </div>
-    `;
-  }).join("");
+      <button class="mock-arrow">›</button>
+    </div>
+
+    <div class="mock-test-card ${readingCompleted ? 'completed' : (!listeningCompleted ? 'locked' : 'active')}" 
+         ${listeningCompleted ? 'onclick="openMockSection(\'reading\')"' : ''}>
+      <div class="mock-card-left">
+        <div class="mock-icon reading-icon">📖</div>
+        <div class="mock-info">
+          <h3>Reading</h3>
+          <div class="mock-meta">
+            ${readingCompleted 
+              ? '<span class="status success">✔ Completed</span>' 
+              : (!listeningCompleted 
+                  ? '<span class="status locked-status">🔒 Complete Listening (75%)</span>' 
+                  : '<span class="status warning">⚡ Ready to Start</span>')}
+            <span class="duration">⏱ 60 minutes</span>
+          </div>
+        </div>
+      </div>
+      <button class="mock-arrow">›</button>
+    </div>
+
+    <div class="mock-test-card ${writingCompleted ? 'completed' : (!readingCompleted ? 'locked' : 'active')}" 
+         ${readingCompleted ? 'onclick="openMockSection(\'writing\')"' : ''}>
+      <div class="mock-card-left">
+        <div class="mock-icon writing-icon">✍️</div>
+        <div class="mock-info">
+          <h3>Writing</h3>
+          <div class="mock-meta">
+            ${writingCompleted 
+              ? '<span class="status success">✔ Completed</span>' 
+              : (!readingCompleted 
+                  ? '<span class="status locked-status">🔒 Complete Reading (75%)</span>' 
+                  : '<span class="status warning">⚡ Ready to Start</span>')}
+            <span class="duration">⏱ 60 minutes</span>
+          </div>
+        </div>
+      </div>
+      <button class="mock-arrow">›</button>
+    </div>
+
+    <div class="mock-test-card ${speakingCompleted ? 'completed' : (!writingCompleted ? 'locked' : 'active')}" 
+         ${writingCompleted ? 'onclick="openMockSection(\'speaking\')"' : ''}>
+      <div class="mock-card-left">
+        <div class="mock-icon speaking-icon">🎤</div>
+        <div class="mock-info">
+          <h3>Speaking</h3>
+          <div class="mock-meta">
+            ${speakingCompleted 
+              ? '<span class="status success">✔ Completed ✅</span>' 
+              : (!writingCompleted 
+                  ? '<span class="status locked-status">🔒 Complete Writing First</span>' 
+                  : '<span class="status warning">⚡ Ready to Start</span>')}
+            <span class="duration">⏱ 15 minutes</span>
+          </div>
+        </div>
+      </div>
+      <button class="mock-arrow">›</button>
+    </div>
+  `;
 }
 
-// Bo'limga tegishli interfeys oynasini chaqirish
-async function startSpecificMockSection(sectionKey) {
-  // Avval API orqali sinov seansini tasdiqlab olamiz
-  const res = await fetch(`${API_BASE}/api/mock/start/${ACTIVE_MOCK_ID}`, { headers: getAuthHeaders() });
-  const data = await res.json();
-  
-  if (!res.ok) {
-    alert(data.message);
+// 3. HTML ichidagi kartalar bosilganda ishlaydigan xavfsiz sahifaga yo'naltirish funksiyasi
+async function openMockSection(sectionKey) {
+  if (!ACTIVE_MOCK_ID) {
+    alert("Faol imtihon seansi topilmadi.");
     return;
   }
 
-  // Sahifalarni yo'naltirish (Mavjud funksiyalaringizga moslashtirilgan)
-  if (sectionKey === 'listening') {
-    window.location.href = `/listeningtest.html?mock_id=${ACTIVE_MOCK_ID}`;
-  } else if (sectionKey === 'reading') {
-    window.location.href = `/readingtest.html?mock_id=${ACTIVE_MOCK_ID}`;
-  } else if (sectionKey === 'writing') {
-    window.location.href = `/writingtest.html?mock_id=${ACTIVE_MOCK_ID}`;
-  } else if (sectionKey === 'speaking') {
-    window.location.href = `/speakingtest.html?mock_id=${ACTIVE_MOCK_ID}`;
+  try {
+    const res = await fetch(`${API_BASE}/api/mock/start/${ACTIVE_MOCK_ID}`, { headers: getAuthHeaders() });
+    const data = await res.json();
+    
+    if (!res.ok) {
+      alert(data.message || "Kirish taqiqlangan.");
+      return;
+    }
+
+    // Har bir bo'limni tegishli test oynasiga yo'naltirish
+    if (sectionKey === 'listening') window.location.href = `/listeningtest.html?mock_id=${ACTIVE_MOCK_ID}`;
+    else if (sectionKey === 'reading') window.location.href = `/readingtest.html?mock_id=${ACTIVE_MOCK_ID}`;
+    else if (sectionKey === 'writing') window.location.href = `/writingtest.html?mock_id=${ACTIVE_MOCK_ID}`;
+    else if (sectionKey === 'speaking') window.location.href = `/speakingtest.html?mock_id=${ACTIVE_MOCK_ID}`;
+  } catch (e) {
+    console.error(e);
+    alert("Server bilan bog'lanishda xatolik.");
   }
 }
 
+// 4. BACK tugmasi bosilganda (goHome) dashboardga qaytaruvchi kafolatlangan mantiq
+function goHome() {
+  try {
+    const mockPage = document.getElementById('mockPage');
+    if (mockPage) {
+      mockPage.style.display = 'none';
+      mockPage.classList.remove('active', 'show');
+    }
+
+    // Dashboardni qayta ochish
+    const dashboard = document.getElementById('dashboard') || document.getElementById('dashboardPage');
+    if (typeof showPage === "function" && pages.dashboard) {
+      showPage(pages.dashboard);
+    } else if (dashboard) {
+      dashboard.style.display = 'flex';
+      dashboard.classList.add('active', 'show');
+    } else {
+      window.location.reload();
+    }
+  } catch (e) {
+    console.error("Back tugmasida xato:", e);
+    window.location.reload();
+  }
+}
+
+// Global window obyektiga funksiyalarni eksport qilamiz (HTML tanishi uchun)
+window.loadMockDashboard = loadMockDashboard;
+window.openMockSection = openMockSection;
+window.goHome = goHome;
 
 
 /* ================= LEADERBOARD UI ================= */
@@ -3053,5 +3089,7 @@ window.openSpeakingModule = openSpeakingModule;
 window.startSpeakingRecording = startSpeakingRecording;
 window.stopSpeakingRecording = stopSpeakingRecording;
 window.submitSpeakingRecording = submitSpeakingRecording;
+// Global window obyektiga funksiyalarni eksport qilamiz (HTML tanishi uchun)
 window.loadMockDashboard = loadMockDashboard;
-window.startSpecificMockSection = startSpecificMockSection;
+window.openMockSection = openMockSection;
+window.goHome = goHome;
