@@ -2249,7 +2249,7 @@ let ACTIVE_MOCK_ID = null;
 
 // 1. Full Mock tugmasi bosilganda sahifani yuklash va kartalar holatini bazadan yangilash
 async function loadMockDashboard() {
-  // Sahifani ko'rsatish (showPage funksiyangiz orqali)
+  // Sahifani ko'rsatish
   if (typeof showPage === "function" && pages.mock) {
     await showPage(pages.mock, "flex");
   } else {
@@ -2266,33 +2266,49 @@ async function loadMockDashboard() {
     if (!res.ok) throw new Error("Mock API error");
     const data = await res.json();
     
-    if (data.items && data.items.length > 0) {
+    if (data && data.items && data.items.length > 0) {
       const activeMock = data.items[0];
-      ACTIVE_MOCK_ID = activeMock.id;
+      ACTIVE_MOCK_ID = activeMock.id; // Global o'zgaruvchini muvaffaqiyatli saqlaymiz
       
       // HTML dagi kartalarni o'chirmasdan, ularning holatlarini (status) dinamik yangilaymiz
       updateMockCardsUI(activeMock.attempt);
+    } else {
+      console.warn("Aktiv mock test topilmadi.");
+      // Agar items bo'sh kelsa, foydalanuvchiga standart holatni bo'lsa ham ko'rsatib turamiz
+      updateMockCardsUI(null);
     }
   } catch (err) {
     console.error("Mock dashboard ma'lumotlarini yuklashda xato:", err);
+    // Xatolik yuz bersa ham interfeys qotib qolmasligi uchun boshlang'ich holatni yuklaymiz
+    updateMockCardsUI(null);
   }
 }
 
 // 2. HTML ichidagi tayyor kartalarni bazadan kelgan holatga qarab yangilovchi funksiya
 function updateMockCardsUI(attempt) {
-  const att = attempt || { current_section: 'listening' };
+  // Agar bazada urinish satri hali ochilmagan bo'lsa, standart holatni o'zimiz belgilaymiz
+  const att = attempt || { 
+    current_section: 'listening',
+    listening_completed: false,
+    reading_completed: false,
+    writing_completed: false,
+    speaking_completed: false
+  };
 
-  // Har bir bo'limning holatini aniqlaymiz
-  const listeningCompleted = att.listening_completed || att.current_section !== 'listening';
-  const readingCompleted = att.reading_completed;
-  const writingCompleted = att.writing_completed;
-  const speakingCompleted = att.speaking_completed;
+  // Har bir bo'limning holatini mukammal aniqlaymiz (SQL-dan keladigan 1 va 0 ni ham hisobga olamiz)
+  const listeningCompleted = Number(att.listening_completed) === 1 || att.current_section !== 'listening';
+  const readingCompleted = Number(att.reading_completed) === 1;
+  const writingCompleted = Number(att.writing_completed) === 1;
+  const speakingCompleted = Number(att.speaking_completed) === 1;
 
-  // HTML ichidagi mock-cards-list konteynerini topamiz
+  // HTML ichidagi mock-cards-list konteynerini aniq topamiz
   const cardsContainer = document.querySelector(".mock-cards-list");
-  if (!cardsContainer) return;
+  if (!cardsContainer) {
+    console.error("Xatolik: .mock-cards-list topilmadi. UI yangilana olmadi.");
+    return;
+  }
 
-  // Kartalarni oqim (Mock Flow) bo'yicha dinamik qayta yozamiz
+  // HTML kodingizdagi klasslar va tuzilmani saqlab qolgan holda dinamik oqimni yozamiz
   cardsContainer.innerHTML = `
     <div class="mock-test-card ${listeningCompleted ? 'completed' : 'active'}" onclick="openMockSection('listening')">
       <div class="mock-card-left">
@@ -2371,13 +2387,11 @@ function updateMockCardsUI(attempt) {
 
 // 3. HTML ichidagi kartalar bosilganda ishlaydigan xavfsiz sahifaga yo'naltirish funksiyasi
 async function openMockSection(sectionKey) {
-  if (!ACTIVE_MOCK_ID) {
-    alert("Faol imtihon seansi topilmadi.");
-    return;
-  }
+  // Agar ACTIVE_MOCK_ID qandaydir sabab bilan yo'q bo'lsa, uni 1 deb hisoblab yuboramiz (Fallback mantiq)
+  const mockId = ACTIVE_MOCK_ID || 1;
 
   try {
-    const res = await fetch(`${API_BASE}/api/mock/start/${ACTIVE_MOCK_ID}`, { headers: getAuthHeaders() });
+    const res = await fetch(`${API_BASE}/api/mock/start/${mockId}`, { headers: getAuthHeaders() });
     const data = await res.json();
     
     if (!res.ok) {
@@ -2386,13 +2400,13 @@ async function openMockSection(sectionKey) {
     }
 
     // Har bir bo'limni tegishli test oynasiga yo'naltirish
-    if (sectionKey === 'listening') window.location.href = `/listeningtest.html?mock_id=${ACTIVE_MOCK_ID}`;
-    else if (sectionKey === 'reading') window.location.href = `/readingtest.html?mock_id=${ACTIVE_MOCK_ID}`;
-    else if (sectionKey === 'writing') window.location.href = `/writingtest.html?mock_id=${ACTIVE_MOCK_ID}`;
-    else if (sectionKey === 'speaking') window.location.href = `/speakingtest.html?mock_id=${ACTIVE_MOCK_ID}`;
+    if (sectionKey === 'listening') window.location.href = `/listeningtest.html?mock_id=${mockId}`;
+    else if (sectionKey === 'reading') window.location.href = `/readingtest.html?mock_id=${mockId}`;
+    else if (sectionKey === 'writing') window.location.href = `/writingtest.html?mock_id=${mockId}`;
+    else if (sectionKey === 'speaking') window.location.href = `/speakingtest.html?mock_id=${mockId}`;
   } catch (e) {
     console.error(e);
-    alert("Server bilan bog'lanishda xatolik.");
+    alert("Server bilan bog'lanishda xatolik yuz berdi.");
   }
 }
 
@@ -2421,10 +2435,6 @@ function goHome() {
   }
 }
 
-// Global window obyektiga funksiyalarni eksport qilamiz (HTML tanishi uchun)
-window.loadMockDashboard = loadMockDashboard;
-window.openMockSection = openMockSection;
-window.goHome = goHome;
 
 
 /* ================= LEADERBOARD UI ================= */
