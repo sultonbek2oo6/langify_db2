@@ -2686,6 +2686,208 @@ app.post("/admin/speaking-tasks/:id/reject", authenticateToken, isAdmin, async (
     res.status(500).json({ message: "Speaking reject error." });
   }
 });
+/* ================= MOCK TEST API (MOCK FLOW INTEGRATION) ================= */
+
+// 1. Aktiv mock testlarni va foydalanuvchining urinish holatlarini olish
+app.get("/api/mock-tests", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const [tests] = await pool.query(`
+      SELECT id, title, description FROM mock_tests WHERE status='active' ORDER BY id ASC
+    `);
+
+    if (!tests.length) return res.json({ items: [] });
+
+    // Rasmda ko'ringan aynan sizning ustunlaringiz bo'yicha SELECT qilamiz
+    const [attempts] = await pool.query(`
+      SELECT mock_test_id, current_section, listening_completed, reading_completed, writing_completed, speaking_completed, overall_band 
+      FROM mock_attempts 
+      WHERE user_id = ?
+    `, [userId]);
+
+    const attemptMap = new Map(attempts.map(a => [a.mock_test_id, a]));
+
+    const result = tests.map(t => {
+      const att = attemptMap.get(t.id);
+      return {
+        ...t,
+        attempt: att ? {
+          current_section: att.current_section,
+          listening_completed: Number(att.listening_completed) === 1,
+          reading_completed: Number(att.reading_completed) === 1,
+          writing_completed: Number(att.writing_completed) === 1,
+          speaking_completed: Number(att.speaking_completed) === 1,
+          overall_band: att.overall_band
+        } : null
+      };
+    });
+
+    res.json({ items: result });
+  } catch (err) {
+    console.error("GET /api/mock-tests error:", err);
+    res.status(500).json({ message: "Mock testlarni olishda xatolik." });
+  }
+});
+
+// 2. Mock testni boshlash yoki urinishni tekshirish
+app.get("/api/mock/start/:id", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const mockId = Number(req.params.id);
+
+    const [mockRows] = await pool.query(
+      "SELECT id, title FROM mock_tests WHERE id=? AND status='active' LIMIT 1",
+      [mockId]
+    );
+    if (!mockRows.length) return res.status(404).json({ message: "Mock test topilmadi." });
+
+    const [attemptRows] = await pool.query(
+      "SELECT * FROM mock_attempts WHERE user_id=? AND mock_test_id=? LIMIT 1",
+      [userId, mockId]
+    );
+
+    let attempt;
+    if (!attemptRows.length) {
+      // Yangi urinish ochilganda rasmda bor ustunlar bo'yicha standart qiymat beramiz
+      await pool.query(
+        `INSERT INTO mock_attempts 
+          (user_id, mock_test_id, current_section, listening_completed, reading_completed, writing_completed, speaking_completed, started_at) 
+         VALUES (?, ?, 'listening', 0, 0, 0, 0, NOW())`,
+        [userId, mockId]
+      );
+      const [newAtt] = await pool.query("SELECT * FROM mock_attempts WHERE user_id=? AND mock_test_id=? LIMIT 1", [userId, mockId]);
+      attempt = newAtt[0];
+    } else {
+      attempt = attemptRows[0];
+    }
+
+    res.json({ success: true, attempt });
+  } catch (err) {
+    console.error("Mock start error:", err);
+    res.status(500).json({ message: "Mock testni boshlashda xatolik." });
+  }
+});
+
+// 3. Mock test bo'limini tekshirish va 75% lik to'siq mantiqi (Listening & Reading uchun)
+app.post("/api/mock/submit-quiz-section", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { mock_test_id, section, answers, material_id } = req.body;
+
+    if (!['listening', 'reading'].includes(section)) {
+      return res.status(400).json({ message: "Noto'g'ri bo'lim." });
+    }
+
+    const [qRows] = await pool.query(
+      "SELECT id, correct_option FROM material_questions WHERE material_id = ?",
+      [material_id]
+    );
+
+    if (!qRows.length) return res.status(400).json({ message: "Savollar topilmadi." });
+
+    const ansMap = new Map(answers.map(a => [Number(a.question_id), String(a.answer).trim().toUpperCase()]));
+    let correctCount = 0;
+
+    qRows.forEach(q => {
+      const given = ansMap.get(Number(q.id)) || "";
+      if (given === String(q.correct_option).trim().toUpperCase()) {
+        correctCount++;
+      }
+    });
+
+    const totalCount = qRows.length;
+    const scorePercentage = Math.round((correctCount / totalCount) * 100);
+    const isPassed = scorePercentage >= 75; // 75% lik talab
+
+    if (section === 'listening') {
+      if (isPassed) {
+        await pool.query(`
+          UPDATE mock_attempts 
+          SET listening_completed = 1, current_section = 'reading' 
+          WHERE user_id = ? AND mock_test_id = ?
+        `, [userId, mock_test_id]);
+      }
+    } else if (section === 'reading') {
+      if (isPassed) {
+        await pool.query(`
+          UPDATE mock_attempts 
+          SET reading_completed = 1, current_section = 'writing' 
+          WHERE user_id = ? AND mock_test_id = ?
+        `, [userId, mock_test_id]);
+      }
+    }
+
+    res.json({
+      success: true,
+      score: scorePercentage,
+      correct: correctCount,
+      total: totalCount,
+      passed: isPassed,
+      next_section: isPassed ? (section === 'listening' ? 'reading' : 'writing') : section
+    });
+
+  } catch (err) {
+    console.error("Mock quiz submit error:", err);
+    res.status(500).json({ message: "Javoblarni hisoblashda xatolik." });
+  }
+});
+
+// 4. Writing Esseyini qabul qilish (Avtomatik Speakingni ochadi)
+app.post("/api/mock/submit-writing", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { mock_test_id, task_id, essay_text } = req.body;
+
+    const wordCount = essay_text.split(/\s+/).filter(Boolean).length;
+
+    const [insSub] = await pool.query(
+      "INSERT INTO writing_submissions (user_id, task_id, essay_text, word_count, status, submitted_at) VALUES (?, ?, ?, ?, 'submitted', NOW())",
+      [userId, task_id, essay_text, wordCount]
+    );
+
+    // Bizning joriy jadval bo'yicha writing_completed ustunini 1 qilamiz
+    await pool.query(`
+      UPDATE mock_attempts 
+      SET writing_completed = 1, current_section = 'speaking' 
+      WHERE user_id = ? AND mock_test_id = ?
+    `, [userId, mock_test_id]);
+
+    res.json({ success: true, next_section: 'speaking', word_count: wordCount });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Writing saqlashda xatolik." });
+  }
+});
+
+// 5. Speaking Audiosini qabul qilish (Mockni to'liq yakunlaydi)
+app.post("/api/mock/submit-speaking", authenticateToken, audioUpload.single("audio"), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { mock_test_id, task_id, duration_seconds } = req.body;
+
+    if (!req.file) return res.status(400).json({ message: "Audio fayl yuklanmadi." });
+
+    const audioUrl = `/uploads/audio/${req.file.filename}`;
+
+    await pool.query(
+      "INSERT INTO speaking_submissions (user_id, task_id, audio_url, mime_type, duration_seconds, status, submitted_at) VALUES (?, ?, ?, ?, ?, 'submitted', NOW())",
+      [userId, task_id, audioUrl, req.file.mimetype, duration_seconds]
+    );
+
+    // Imtihonni yakunlab, speaking_completed ni 1 qilamiz va completed_at ni belgilaymiz
+    await pool.query(`
+      UPDATE mock_attempts 
+      SET speaking_completed = 1, current_section = 'completed', completed_at = NOW() 
+      WHERE user_id = ? AND mock_test_id = ?
+    `, [userId, mock_test_id]);
+
+    res.json({ success: true, next_section: 'completed' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Speaking audiosini saqlashda xatolik." });
+  }
+});
 /* ================= START SERVER ================= */
 
 const port = process.env.PORT || 3000;
