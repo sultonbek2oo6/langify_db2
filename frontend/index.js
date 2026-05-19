@@ -2387,7 +2387,6 @@ function updateMockCardsUI(attempt) {
 
 // 3. HTML ichidagi kartalar bosilganda ishlaydigan xavfsiz sahifaga yo'naltirish funksiyasi
 async function openMockSection(sectionKey) {
-  // Agar ACTIVE_MOCK_ID qandaydir sabab bilan yo'q bo'lsa, uni 1 deb hisoblab yuboramiz (Fallback mantiq)
   const mockId = ACTIVE_MOCK_ID || 1;
 
   try {
@@ -2399,11 +2398,28 @@ async function openMockSection(sectionKey) {
       return;
     }
 
-    // Har bir bo'limni tegishli test oynasiga yo'naltirish
-    if (sectionKey === 'listening') window.location.href = `/listeningtest.html?mock_id=${mockId}`;
-    else if (sectionKey === 'reading') window.location.href = `/readingtest.html?mock_id=${mockId}`;
-    else if (sectionKey === 'writing') window.location.href = `/writingtest.html?mock_id=${mockId}`;
-    else if (sectionKey === 'speaking') window.location.href = `/speakingtest.html?mock_id=${mockId}`;
+    // Bazadagi sizning mock_test_sections jadvalingizdagi material_id lar:
+    // Listening uchun: 9, Reading uchun: 12, Writing uchun: 1, Speaking uchun: 5
+    const materialMap = {
+      listening: 9,
+      reading: 12,
+      writing: 1,
+      speaking: 5
+    };
+
+    const materialId = materialMap[sectionKey];
+
+    // ✅ URL parametrini ham 'id', ham 'mock_id' ko'rinishida yuboramiz. 
+    // Bu listeningtest.html sahifasi qaysi birini qidirsa ham topishini ta'minlaydi!
+    if (sectionKey === 'listening') {
+      window.location.href = `/listeningtest.html?id=${materialId}&mock_id=${mockId}`;
+    } else if (sectionKey === 'reading') {
+      window.location.href = `/readingtest.html?id=${materialId}&mock_id=${mockId}`;
+    } else if (sectionKey === 'writing') {
+      window.location.href = `/writingtest.html?id=${materialId}&mock_id=${mockId}`;
+    } else if (sectionKey === 'speaking') {
+      window.location.href = `/speakingtest.html?id=${materialId}&mock_id=${mockId}`;
+    }
   } catch (e) {
     console.error(e);
     alert("Server bilan bog'lanishda xatolik yuz berdi.");
